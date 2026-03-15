@@ -1125,6 +1125,20 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       <span className="text-xs text-text-muted">Gas limit</span>
                       <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
                     </div>
+                    {(() => {
+                      const txValueWei = txParams?.value ? BigInt(txParams.value) : 0n;
+                      const totalWei = txValueWei + (estimatedFeeWei ?? 0n);
+                      const totalUsd = getUsdValue(String(Number(totalWei) / 1e18), "ETH", prices);
+                      const totalEth = formatEthFee(totalWei);
+                      return (
+                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                          <span className="text-xs text-text-muted font-medium">Total cost</span>
+                          <span className="text-xs tabular-nums text-text-primary font-semibold">
+                            {totalUsd != null ? formatUsd(totalUsd) : `${totalEth} ETH`}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Balance preview */}
@@ -1233,7 +1247,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     )}
                     <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                       <span className="text-xs text-text-muted">Estimated fee</span>
-                      <span className="text-xs tabular-nums text-text-secondary font-medium">0.000005 SOL</span>
+                      <div className="text-right">
+                        <span className="text-xs tabular-nums text-text-secondary font-medium">0.000005 SOL</span>
+                        {(() => { const u = getUsdValue("0.000005", "SOL", prices); return u != null ? <span className="text-[10px] text-text-muted ml-1.5">({formatUsd(u)})</span> : null; })()}
+                      </div>
                     </div>
                     {decodedSolTx.numInstructions > 1 && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
@@ -1241,6 +1258,21 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                         <span className="text-xs tabular-nums text-text-muted">{decodedSolTx.numInstructions}</span>
                       </div>
                     )}
+                    {(() => {
+                      const fee = 5000n;
+                      const solAmount = decodedSolTx.type === "sol_transfer" && decodedSolTx.amount ? BigInt(decodedSolTx.amount) : 0n;
+                      const totalLamports = solAmount + fee;
+                      const totalSol = Number(totalLamports) / 1e9;
+                      const totalUsd = getUsdValue(String(totalSol), "SOL", prices);
+                      return (
+                        <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                          <span className="text-xs text-text-muted font-medium">Total cost</span>
+                          <span className="text-xs tabular-nums text-text-primary font-semibold">
+                            {totalUsd != null ? formatUsd(totalUsd) : `${totalSol.toFixed(9)} SOL`}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* Balance preview */}
