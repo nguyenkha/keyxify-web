@@ -1692,7 +1692,8 @@ function SendDialog({
               <button
                 onClick={() => {
                   const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow };
-                  guardedSign(flows[chain.type] ?? executeSigningFlow);
+                  const flow = flows[chain.type];
+                  if (flow) guardedSign(flow);
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
