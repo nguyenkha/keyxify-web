@@ -1,6 +1,6 @@
 // ── Chain types ──
 
-export type ChainType = "evm" | "btc" | "bch" | "solana" | "xrp";
+export type ChainType = "evm" | "btc" | "bch" | "solana" | "xrp" | "xlm";
 export type SigningAlgorithm = "ecdsa" | "eddsa";
 
 export interface Chain {

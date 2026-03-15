@@ -121,6 +121,23 @@ export function buildAccountRows(
         });
       }
     }
+
+    const xlmChains = chains.filter((c) => c.type === "xlm");
+    if (xlmChains.length > 0) {
+      const xlmAdapt = getChainAdapter("xlm");
+      const xlmAddr = xlmAdapt.deriveAddress(key.eddsaPublicKey);
+      for (const chain of xlmChains) {
+        const chainAssets = assets.filter((a) => a.chainId === chain.id);
+        rows.push({
+          keyId: key.id,
+          address: xlmAddr,
+          addressType: "xlm",
+          label: chain.displayName,
+          chain,
+          assets: chainAssets,
+        });
+      }
+    }
   }
   return rows;
 }
