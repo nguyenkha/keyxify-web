@@ -288,8 +288,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
     fetchPrices().then(setPrices);
 
-    // Gas price polling is EVM-only; Solana uses a fixed fee
-    if (isSolana) return;
+    // Gas price polling is EVM-only
+    if (!chain || chain.type !== "evm") return;
 
     function refreshGasPrice() {
       const rpcUrl = chain?.rpcUrl;
