@@ -426,6 +426,7 @@ function SendDialog({
   // XLM-specific state (stroops per operation)
   const [xlmFeeRates, setXlmFeeRates] = useState<{ low: number; medium: number; high: number } | null>(null);
   const [xlmDestExists, setXlmDestExists] = useState<boolean | null>(null);
+  const [xlmMemo, setXlmMemo] = useState("");
   const [feeCountdown, setFeeCountdown] = useState(10);
 
   // Keyshare file
@@ -1235,10 +1236,12 @@ message = buildSplTransferMessage({
             from: fromAddress, to, amountStroops, feeStroops,
             sequence: sequence + 1n,
             asset: asset.isNative ? undefined : { code: asset.symbol, issuer: asset.contractAddress! },
+            memo: xlmMemo || undefined,
           })
         : buildXlmCreateAccountXdr({
             from: fromAddress, to, amountStroops, feeStroops,
             sequence: sequence + 1n,
+            memo: xlmMemo || undefined,
           });
 
       // 3. MPC EdDSA sign
@@ -1261,6 +1264,7 @@ message = buildSplTransferMessage({
             to,
             amount: amount,
             asset: asset.isNative ? "XLM" : asset.symbol,
+            ...(xlmMemo ? { memo: xlmMemo } : {}),
           },
         },
         headers: sensitiveHeaders(),
@@ -1616,6 +1620,20 @@ message = buildSplTransferMessage({
               </div>
               )}
 
+              {/* Memo (XLM only) */}
+              {chain.type === "xlm" && (
+              <div>
+                <label className="block text-xs text-text-muted mb-1.5">Memo <span className="text-text-muted/50">(optional, max 28 chars)</span></label>
+                <input
+                  type="text"
+                  value={xlmMemo}
+                  onChange={(e) => setXlmMemo(e.target.value.slice(0, 28))}
+                  placeholder="e.g. exchange deposit ID"
+                  className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500"
+                />
+              </div>
+              )}
+
               {/* Amount */}
               <div>
                 <div className="flex items-center justify-between mb-1.5">
@@ -1758,6 +1776,12 @@ message = buildSplTransferMessage({
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted">Destination Tag</span>
                   <span className="text-xs tabular-nums text-text-secondary">{destinationTag}</span>
+                </div>
+                )}
+                {chain.type === "xlm" && xlmMemo && (
+                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                  <span className="text-xs text-text-muted">Memo</span>
+                  <span className="text-xs text-text-secondary">{xlmMemo}</span>
                 </div>
                 )}
               </div>

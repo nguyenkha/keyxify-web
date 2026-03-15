@@ -10,6 +10,7 @@ export interface XlmPaymentParams {
     code: string;        // e.g. "USDC"
     issuer: string;      // issuer G... address
   };
+  memo?: string;         // optional memo text (MEMO_TEXT, max 28 bytes)
 }
 
 // ── Base32 ──────────────────────────────────────────────────────────
@@ -131,6 +132,13 @@ function xdrMuxedAccount(pubKey: Uint8Array): Uint8Array {
   return concat(xdrUint32(0), pubKey); // KEY_TYPE_ED25519 = 0
 }
 
+// MEMO_NONE = 0, MEMO_TEXT = 1 (var-length string, max 28 bytes)
+function xdrMemo(text?: string): Uint8Array {
+  if (!text) return xdrUint32(0); // MEMO_NONE
+  const bytes = new TextEncoder().encode(text.slice(0, 28));
+  return concat(xdrUint32(1), xdrVar(bytes)); // MEMO_TEXT
+}
+
 function xdrAccountId(pubKey: Uint8Array): Uint8Array {
   return concat(xdrUint32(0), pubKey); // PUBLIC_KEY_TYPE_ED25519 = 0
 }
@@ -159,7 +167,7 @@ export function buildXlmCreateAccountXdr(params: Omit<XlmPaymentParams, "asset">
   const fee = xdrUint32(params.feeStroops);
   const seqNum = xdrInt64(params.sequence);
   const cond = xdrUint32(0); // PRECOND_NONE
-  const memo = xdrUint32(0); // MEMO_NONE
+  const memo = xdrMemo(params.memo);
 
   // CreateAccountOp: destination (AccountID) + startingBalance (Int64)
   const destination = xdrAccountId(toPubKey);
@@ -193,7 +201,7 @@ export function buildXlmTransactionXdr(params: XlmPaymentParams): Uint8Array {
   const fee = xdrUint32(params.feeStroops);           // total fee = feeStroops * numOps
   const seqNum = xdrInt64(params.sequence);
   const cond = xdrUint32(0);                          // PRECOND_NONE
-  const memo = xdrUint32(0);                          // MEMO_NONE
+  const memo = xdrMemo(params.memo);
 
   // PaymentOp
   const destination = xdrMuxedAccount(toPubKey);
