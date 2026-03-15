@@ -134,7 +134,9 @@ export const xlmAdapter: ChainAdapter = {
       if (!native) return { asset: nativeAsset, chain, balance: "0", formatted: "0" };
       // Balance is "123.4567890" in XLM (7 decimals = stroops)
       const stroops = Math.round(parseFloat(native.balance) * 1e7).toString();
-      return { asset: nativeAsset, chain, balance: stroops, formatted: native.balance };
+      const [ni, nf] = native.balance.split(".");
+      const nFmt = ni.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (nf ? `.${nf}` : "");
+      return { asset: nativeAsset, chain, balance: stroops, formatted: nFmt };
     } catch {
       return null;
     }
@@ -156,7 +158,9 @@ export const xlmAdapter: ChainAdapter = {
         );
         if (!b) return [];
         const raw = Math.round(parseFloat(b.balance) * 1e7).toString();
-        return [{ asset, chain, balance: raw, formatted: b.balance }];
+        const [bi, bf] = b.balance.split(".");
+        const bFmt = bi.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (bf ? `.${bf}` : "");
+        return [{ asset, chain, balance: raw, formatted: bFmt }];
       });
     } catch {
       return [];
@@ -234,7 +238,7 @@ export const xlmAdapter: ChainAdapter = {
             from: op.from ?? "",
             to: op.to ?? "",
             value,
-            formatted: amount.toFixed(7),
+            formatted: amount.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 7 }),
             symbol: asset.symbol,
             timestamp: Math.floor(new Date(op.created_at).getTime() / 1000),
             direction,

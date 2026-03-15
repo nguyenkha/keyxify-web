@@ -218,7 +218,8 @@ function formatBalance(raw: bigint, decimals: number): string {
   const str = raw.toString().padStart(decimals + 1, "0");
   const intPart = str.slice(0, str.length - decimals) || "0";
   const fracPart = str.slice(str.length - decimals).replace(/0+$/, "");
-  return fracPart ? `${intPart}.${fracPart}` : intPart;
+  const fmt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return fracPart ? `${fmt}.${fracPart}` : fmt;
 }
 
 function formatTxValue(raw: string, decimals: number): string {
@@ -226,7 +227,8 @@ function formatTxValue(raw: string, decimals: number): string {
   const str = raw.padStart(decimals + 1, "0");
   const intPart = str.slice(0, str.length - decimals) || "0";
   const fracPart = str.slice(str.length - decimals).replace(/0+$/, "");
-  return fracPart ? `${intPart}.${fracPart}` : intPart;
+  const fmt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return fracPart ? `${fmt}.${fracPart}` : fmt;
 }
 
 /** Derive Blockchair API URL from chain rpcUrl or explorerUrl */
