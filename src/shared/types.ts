@@ -49,6 +49,7 @@ export interface Transaction {
   failed?: boolean;
   isContractCall?: boolean;
   isApprove?: boolean;
+  label?: string;  // override direction label (e.g. "Enabled USDC")
 }
 
 export interface ChainAdapter {

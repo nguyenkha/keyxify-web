@@ -180,12 +180,14 @@ export const xlmAdapter: ChainAdapter = {
       const records: {
         type: string;
         transaction_hash: string;
-        from: string;
-        to: string;
-        amount: string;
+        from?: string;
+        to?: string;
+        amount?: string;
         asset_type?: string;
         asset_code?: string;
         asset_issuer?: string;
+        trustor?: string;
+        trustee?: string;
         created_at: string;
         transaction_successful: boolean;
       }[] = data._embedded?.records ?? [];
@@ -195,24 +197,42 @@ export const xlmAdapter: ChainAdapter = {
 
       const txs: Transaction[] = slice
         .filter((op) => {
-          if (op.type !== "payment") return false;
           if (asset.isNative) {
-            // XLM native: asset_type === "native"
-            return op.asset_type === "native";
+            // XLM native: native payments + change_trust ops (fee is paid in XLM)
+            if (op.type === "payment") return op.asset_type === "native";
+            if (op.type === "change_trust") return true;
+            return false;
           } else {
-            // Token: match asset_code and asset_issuer
-            return op.asset_code === asset.symbol && op.asset_issuer === asset.contractAddress;
+            // Token: only payment ops matching asset
+            return op.type === "payment" && op.asset_code === asset.symbol && op.asset_issuer === asset.contractAddress;
           }
         })
         .map((op) => {
-          const amount = parseFloat(op.amount);
+          if (op.type === "change_trust") {
+            const assetLabel = op.asset_code ?? "token";
+            return {
+              hash: op.transaction_hash,
+              from: op.trustor ?? address,
+              to: op.trustee ?? op.asset_issuer ?? "",
+              value: "0",
+              formatted: "",
+              symbol: "",
+              label: `Enabled ${assetLabel}`,
+              timestamp: Math.floor(new Date(op.created_at).getTime() / 1000),
+              direction: "out" as const,
+              confirmed: op.transaction_successful,
+              failed: !op.transaction_successful,
+              isContractCall: true,
+            };
+          }
+          const amount = parseFloat(op.amount ?? "0");
           // For XLM native, value is stroops; for tokens, use raw amount string
-          const value = asset.isNative ? Math.round(amount * 1e7).toString() : op.amount;
+          const value = asset.isNative ? Math.round(amount * 1e7).toString() : (op.amount ?? "0");
           const direction = op.from === address ? "out" : op.to === address ? "in" : "self";
           return {
             hash: op.transaction_hash,
-            from: op.from,
-            to: op.to,
+            from: op.from ?? "",
+            to: op.to ?? "",
             value,
             formatted: amount.toFixed(7),
             symbol: asset.symbol,

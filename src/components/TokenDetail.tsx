@@ -232,7 +232,7 @@ function TxRow({ tx, explorerUrl }: { tx: Transaction; explorerUrl: string }) {
     ? "Failed"
     : isPending
       ? "Pending"
-      : tx.direction === "in" ? "Received" : tx.direction === "out" ? (tx.isApprove ? "Approved" : tx.isContractCall ? "Executed Contract" : "Sent") : "Self";
+      : tx.label ?? (tx.direction === "in" ? "Received" : tx.direction === "out" ? (tx.isApprove ? "Approved" : tx.isContractCall ? "Executed Contract" : "Sent") : "Self");
   const dirSign = tx.direction === "in" ? "+" : tx.direction === "out" ? "-" : "";
 
   return (
