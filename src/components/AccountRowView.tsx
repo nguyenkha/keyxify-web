@@ -33,7 +33,6 @@ export function AccountRowView({
   const [tokenState, setTokenState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [copied, setCopied] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
-  const [tokensExpanded, setTokensExpanded] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -211,7 +210,7 @@ export function AccountRowView({
     <div>
       {/* Main row */}
       <div
-        className="relative flex items-center h-[68px] px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors group cursor-pointer"
+        className="flex items-center h-[68px] px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors group cursor-pointer"
         onClick={handleNativeClick}
       >
         {/* Left: icon + label + address */}
@@ -266,25 +265,6 @@ export function AccountRowView({
           </div>
         </div>
 
-        {/* Center: token count badge — absolute center of row */}
-        {/* Mobile: always visible. Desktop: hidden until row hover */}
-        {tokenBalances.length > 0 && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setTokensExpanded((v) => !v);
-            }}
-            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center text-[10px] font-medium rounded-full transition-all z-10 ${
-              tokensExpanded
-                ? "bg-blue-500/10 text-blue-400"
-                : "bg-surface-tertiary text-text-muted hover:text-text-tertiary md:opacity-0 md:group-hover:opacity-100"
-            }`}
-            title={tokensExpanded ? "Collapse tokens" : `${tokenBalances.length} tokens — click to expand`}
-          >
-            {tokenBalances.length}
-          </button>
-        )}
-
         {/* Right: balance + chevron */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right min-w-[4rem]">
@@ -322,8 +302,8 @@ export function AccountRowView({
         </div>
       </div>
 
-      {/* Token sub-rows */}
-      {tokensExpanded && tokenState === "loaded" && tokenBalances.length > 0 &&
+      {/* Token rows — shown inline like native row */}
+      {tokenState === "loaded" && tokenBalances.length > 0 &&
         tokenBalances
           .filter((b) => isTokenVisible(b.asset.id, displayPrefs, b.formatted))
           .map((b) => {
@@ -331,43 +311,47 @@ export function AccountRowView({
             return (
               <div
                 key={b.asset.id}
-                className="flex items-center h-12 px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors cursor-pointer group"
+                className="flex items-center h-[68px] px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors cursor-pointer group"
                 onClick={() =>
                   navigate(`/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${b.asset.symbol}${row.btcAddrType ? `/${row.btcAddrType}` : ""}`)
                 }
               >
-                <div className="flex items-center gap-2.5 min-w-0 flex-1 pl-[2.75rem]">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
                   {b.asset.iconUrl ? (
                     <img
                       src={b.asset.iconUrl}
                       alt={b.asset.symbol}
-                      className="w-6 h-6 rounded-full bg-surface-tertiary shrink-0"
+                      className="w-9 h-9 rounded-full bg-surface-tertiary shrink-0"
                     />
                   ) : (
-                    <div className="w-6 h-6 rounded-full bg-surface-tertiary shrink-0" />
+                    <div className="w-9 h-9 rounded-full bg-surface-tertiary shrink-0" />
                   )}
-                  <span className="text-xs text-text-secondary truncate flex items-center gap-1">
-                    {b.asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
-                    {/devnet/i.test(row.chain.name) ? (
-                      <span className="text-[8px] px-0.5 py-px rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold leading-none">devnet</span>
-                    ) : /testnet|sepolia/i.test(row.chain.name) ? (
-                      <span className="text-[8px] px-0.5 py-px rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold leading-none">testnet</span>
-                    ) : null}
-                  </span>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
+                      {b.asset.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}
+                      {/devnet/i.test(row.chain.name) ? (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+                      ) : /testnet|sepolia/i.test(row.chain.name) ? (
+                        <span className="text-[9px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+                      ) : null}
+                    </div>
+                    <div className="text-[11px] text-text-muted mt-0.5">{row.chain.displayName}</div>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right min-w-[4rem]">
-                    <div className="flex items-baseline justify-end gap-1 text-xs tabular-nums font-medium text-text-secondary">
+                    <div className="flex items-baseline justify-end gap-1 text-sm tabular-nums font-medium text-text-primary">
                       <span>{maskBalance(truncateBalance(b.formatted), hidden)}</span>
-                      <span className="text-text-muted font-normal">{b.asset.symbol}</span>
+                      <span className="text-[11px] text-text-muted font-normal">{b.asset.symbol}</span>
                     </div>
                     {tokenUsd != null && (
-                      <div className="text-[10px] text-text-muted tabular-nums">{hidden ? "••••" : formatUsd(tokenUsd)}</div>
+                      <div className="text-[11px] text-text-muted tabular-nums">{hidden ? "••••" : formatUsd(tokenUsd)}</div>
                     )}
                   </div>
-                  <div className="w-[26px] hidden md:block" />
-                  <div className="w-4 hidden sm:block" />
+                  <svg className="w-4 h-4 text-text-muted/30 group-hover:text-text-muted transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
                 </div>
               </div>
             );
