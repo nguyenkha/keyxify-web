@@ -212,12 +212,13 @@ function formatTime(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function renderEntry(entry: AuditEntry, showAccount?: boolean) {
+function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boolean }) {
+  const [expanded, setExpanded] = useState(false);
   const desc = describeEntry(entry);
   return (
     <div
-      key={entry.id}
-      className="px-3 py-2.5 bg-surface-primary rounded-lg border border-border-secondary"
+      className="px-3 py-2.5 bg-surface-primary rounded-lg border border-border-secondary cursor-pointer hover:border-border-primary transition-colors"
+      onClick={() => setExpanded(!expanded)}
     >
       <div className="flex items-start gap-2">
         <span className={`${desc.color} text-sm shrink-0 w-5 text-center`}>
@@ -227,17 +228,15 @@ function renderEntry(entry: AuditEntry, showAccount?: boolean) {
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-medium text-text-primary">
               {desc.title}
+              {showAccount && entry.keyName && (
+                <span className="text-text-muted font-normal"> — {entry.keyName}</span>
+              )}
             </span>
             <span className="text-[10px] text-text-muted shrink-0">
               {formatTime(entry.createdAt)}
             </span>
           </div>
-          {showAccount && entry.keyName && (
-            <p className="text-[10px] text-text-muted mt-0.5">
-              {entry.keyName}
-            </p>
-          )}
-          {desc.detail && (
+          {expanded && desc.detail && (
             <p className="text-[11px] text-text-muted mt-1 leading-relaxed">
               {desc.detail}
             </p>
@@ -289,7 +288,9 @@ export function ActivityLogPage() {
         <div className="text-xs text-text-muted text-center py-8">No activity yet</div>
       ) : (
         <div className="space-y-2">
-          {logs.map((entry) => renderEntry(entry, true))}
+          {logs.map((entry) => (
+            <EntryRow key={entry.id} entry={entry} showAccount />
+          ))}
 
           {hasMore && (
             <button
