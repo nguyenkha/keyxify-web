@@ -115,7 +115,7 @@ export function CreateAccountDialog({
       // ── Phase 2: EdDSA key generation ──
       setProgress("Generating EdDSA key...");
 
-      const { transport: eddsaTransport } = createHttpTransport({
+      const { transport: eddsaTransport, getServerResult: getEddsaServerResult } = createHttpTransport({
         initUrl: apiUrl("/api/generate/eddsa-init"),
         stepUrl: apiUrl("/api/generate/eddsa-step"),
         initExtra: { keyId },
@@ -124,14 +124,17 @@ export function CreateAccountDialog({
 
       const eddsaKey = await mpc.ecKey2pDkg(eddsaTransport, 0, PARTY_NAMES, NID_ED25519);
       const eddsaInfo = mpc.ecKey2pInfo(eddsaKey);
+      const party0PubKey = toHex(eddsaInfo.publicKey);
 
-      // Correct the DB: server stores party-1's ecKey2pInfo().publicKey during keygen,
-      // but signatures verify against party-0's key. Push the correct value now.
-      fetch(apiUrl("/api/generate/eddsa-pubkey-correction"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers },
-        body: JSON.stringify({ keyId, eddsaPublicKey: toHex(eddsaInfo.publicKey) }),
-      }).catch(() => {});
+      // Only correct the DB if party-0's pubkey differs from what the server stored (party-1's key).
+      const serverEddsaPubKey = getEddsaServerResult()?.eddsaPublicKey as string | undefined;
+      if (serverEddsaPubKey && serverEddsaPubKey !== party0PubKey) {
+        fetch(apiUrl("/api/generate/eddsa-pubkey-correction"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...headers },
+          body: JSON.stringify({ keyId, eddsaPublicKey: party0PubKey }),
+        }).catch(() => {});
+      }
 
       // Store key handles in memory for signing
       const entry: ClientKeyHandles = { mpc, ecdsa: ecdsaKey, eddsa: eddsaKey };
