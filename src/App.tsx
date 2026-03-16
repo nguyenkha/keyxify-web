@@ -15,6 +15,13 @@ import { getStoredTheme, setTheme } from "./lib/theme";
 import { HideBalancesProvider, useHideBalances } from "./context/HideBalancesContext";
 import { ExpertModeProvider } from "./context/ExpertModeContext";
 import { KeyShareManager } from "./components/KeyShareManager";
+import { RecoveryChecklist } from "./components/RecoveryChecklist";
+import { useExpertMode } from "./context/ExpertModeContext";
+
+function BackupRecoveryPage() {
+  const expert = useExpertMode();
+  return expert ? <KeyShareManager /> : <RecoveryChecklist />;
+}
 import { ActivityLogPage } from "./components/AuditLog";
 import { ConfigPage } from "./components/ConfigPage";
 import { WalletConnect as WalletConnectPage } from "./components/WalletConnect";
@@ -391,7 +398,7 @@ function App() {
           <Route path="/accounts" element={<Wallet />} />
           <Route path="/accounts/:keyId/:chainName/:assetSymbol/:btcAddrType?" element={<AccountDetail />} />
           <Route path="/passkeys" element={<Passkeys />} />
-          <Route path="/backup-recovery" element={<KeyShareManager />} />
+          <Route path="/backup-recovery" element={<BackupRecoveryPage />} />
           <Route path="/activity" element={<ActivityLogPage />} />
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/walletconnect" element={<WalletConnectPage />} />
