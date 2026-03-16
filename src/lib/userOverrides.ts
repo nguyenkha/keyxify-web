@@ -12,6 +12,7 @@ export interface UserOverrides {
     default_chains?: string[];
     show_testnet?: boolean;
     expert_mode?: boolean;
+    evm_gas_buffer_pct?: number;
     [key: string]: unknown;
   };
 }

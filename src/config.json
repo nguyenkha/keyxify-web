@@ -509,6 +509,7 @@
             "SOLANA",
             "RIPPLE"
         ],
-        "refresh_interval": 60
+        "refresh_interval": 60,
+        "evm_gas_buffer_pct": 10
     }
 }

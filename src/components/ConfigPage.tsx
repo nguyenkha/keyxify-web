@@ -506,6 +506,36 @@ export function ConfigPage() {
             </div>
           </div>
 
+          {/* EVM gas buffer */}
+          <div className="px-3 md:px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">EVM gas buffer</p>
+                <p className="text-xs text-text-muted mt-0.5">Extra gas added to estimates for ETH/ERC-20 transactions</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={overrides.preferences?.evm_gas_buffer_pct ?? 10}
+                  onChange={(e) => {
+                    const val = Math.max(0, Math.min(50, parseInt(e.target.value) || 0));
+                    const prefs = { ...overrides.preferences };
+                    if (val === 10) {
+                      delete prefs.evm_gas_buffer_pct;
+                    } else {
+                      prefs.evm_gas_buffer_pct = val;
+                    }
+                    save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
+                  }}
+                  className="w-16 bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-sm text-text-primary text-center font-mono focus:outline-none focus:border-blue-500 transition-colors"
+                />
+                <span className="text-xs text-text-muted">%</span>
+              </div>
+            </div>
+          </div>
+
           {/* Refresh interval */}
           <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">

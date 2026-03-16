@@ -4,7 +4,8 @@
 import { keccak_256 } from "@noble/hashes/sha3";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
-import { GAS_LIMIT_NATIVE, GAS_ESTIMATE_BUFFER_DIVISOR } from "../../components/sendTypes";
+import { GAS_LIMIT_NATIVE } from "../../components/sendTypes";
+import { getUserOverrides } from "../userOverrides";
 
 // ── RLP Encoding ────────────────────────────────────────────────
 
@@ -80,11 +81,13 @@ async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promis
 }
 
 /** Estimate gas for a transaction. Simple ETH transfers (21000) stay fixed; otherwise adds configurable buffer. */
-export async function estimateGas(rpcUrl: string, tx: { from: string; to: string; value?: string; data?: string }): Promise<bigint> {
+export async function estimateGas(rpcUrl: string, tx: { from: string; to: string; value?: string; data?: string }, bufferPct?: number): Promise<bigint> {
   const result = await ethRpc(rpcUrl, "eth_estimateGas", [tx]);
   const estimate = BigInt(result);
   if (estimate <= GAS_LIMIT_NATIVE) return GAS_LIMIT_NATIVE;
-  return estimate + estimate / GAS_ESTIMATE_BUFFER_DIVISOR;
+  const pct = bufferPct ?? getUserOverrides()?.preferences?.evm_gas_buffer_pct ?? 10;
+  if (pct <= 0) return estimate;
+  return estimate + estimate * BigInt(pct) / 100n;
 }
 
 /** Get the next nonce for an address. */
