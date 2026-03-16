@@ -196,10 +196,10 @@ function DashboardLayout() {
         <div className="px-5 py-6 border-b border-border-primary flex items-center justify-between">
           <div>
             <div>
+              <p className="text-[10px] text-text-muted/40 font-mono">{(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}</p>
               <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
               <p className="text-[11px] text-text-muted mt-0.5">
                 <span className={recovery ? "text-orange-400 recovery-accent" : ""}>keys simplified</span>
-                <span className="text-text-muted/40 font-mono ml-1.5">{(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}</span>
               </p>
             </div>
           </div>
