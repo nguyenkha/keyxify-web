@@ -5,7 +5,7 @@ import wasm from "vite-plugin-wasm";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
 
 export default defineConfig({
-  base: "./",
+  base: "/",
   plugins: [
     react(),
     tailwindcss(),
