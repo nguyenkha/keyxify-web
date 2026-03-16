@@ -346,15 +346,14 @@ export function CreateAccountDialog({
 
               {/* Non-expert: safe defaults note */}
               {!expert && (
-                <div className="bg-surface-primary border border-border-secondary rounded-lg px-3 py-2.5 space-y-1.5">
-                  <p className="text-[11px] text-text-secondary font-medium">Your account comes with safe defaults:</p>
-                  <ul className="text-[11px] text-text-muted leading-relaxed space-y-0.5 pl-3">
-                    <li>Sending tokens — allowed, with fraud protection</li>
-                    <li>Using dApps — allowed, with fraud protection</li>
-                    <li>Signing messages & logins — allowed</li>
-                    <li>Raw message signing — blocked unless you enable it</li>
-                  </ul>
-                  <p className="text-[10px] text-text-muted">You can change these anytime in account Policy Rules.</p>
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2.5 space-y-1.5">
+                  <p className="text-[11px] text-green-400 font-medium">Protected by default</p>
+                  <div className="text-[11px] text-green-400/70 leading-relaxed space-y-0.5">
+                    <p>Transfers and dApps — allowed, with fraud detection</p>
+                    <p>Message signing — allowed for logins and approvals</p>
+                    <p>Raw signing — blocked unless you enable it</p>
+                  </div>
+                  <p className="text-[10px] text-green-400/50">Customize anytime in Policy Rules.</p>
                 </div>
               )}
 

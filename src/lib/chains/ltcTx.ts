@@ -139,7 +139,8 @@ export function buildLtcTransaction(
   utxos: UTXO[],
   feeRateSatPerVB: number,
   changeAddress: string,
-  addrType: BtcAddressType = "p2wpkh"
+  addrType: BtcAddressType = "p2wpkh",
+  rbf: boolean = true,
 ): BtcUnsignedTx {
   const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType);
 
@@ -147,7 +148,7 @@ export function buildLtcTransaction(
     txid: u.txid,
     vout: u.vout,
     value: BigInt(u.value),
-    sequence: 0xffffffff,
+    sequence: rbf ? 0xfffffffd : 0xffffffff,
   }));
 
   const outputs: BtcOutput[] = [

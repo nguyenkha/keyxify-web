@@ -167,6 +167,7 @@ export function SendDialog({
   const [maxFeeOverride, setMaxFeeOverride] = useState("");
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
+  const [rbfEnabled, setRbfEnabled] = useState(true);
 
   // Estimated gas and nonce from node
   const [estimatedGas, setEstimatedGas] = useState<bigint | null>(null);
@@ -671,7 +672,7 @@ export function SendDialog({
       const utxos = await fetchUtxos(address, btcApi);
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectAddressType(address);
-      const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType);
+      const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled);
       // 2. Get compressed public key and hash
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
@@ -880,7 +881,7 @@ export function SendDialog({
       const utxos = await fetchLtcUtxos(address, ltcApi);
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectLtcAddressType(address);
-      const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType);
+      const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled);
 
       // 2. Get compressed public key and hash
       setSigningPhase("mpc-signing");
@@ -1731,6 +1732,18 @@ message = buildSplTransferMessage({
                       className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                     />
                   </div>
+                  {(chain.type === "btc" || chain.type === "ltc") && (
+                    <button
+                      type="button"
+                      onClick={() => setRbfEnabled((v) => !v)}
+                      className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary transition-colors"
+                    >
+                      <div className={`w-7 h-4 rounded-full transition-colors relative ${rbfEnabled ? "bg-blue-500" : "bg-surface-tertiary"}`}>
+                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${rbfEnabled ? "left-3.5" : "left-0.5"}`} />
+                      </div>
+                      <span className="text-xs text-text-secondary">RBF (Replace-By-Fee)</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1922,6 +1935,14 @@ message = buildSplTransferMessage({
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">Gas limit</span>
                     <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
+                  </div>
+                )}
+                {(chain.type === "btc" || chain.type === "ltc") && (
+                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                    <span className="text-xs text-text-muted">RBF</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${rbfEnabled ? "bg-blue-500/10 text-blue-400" : "bg-surface-tertiary text-text-muted"}`}>
+                      {rbfEnabled ? "Enabled" : "Disabled"}
+                    </span>
                   </div>
                 )}
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
