@@ -78,6 +78,19 @@ async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promis
   return data.result;
 }
 
+/** Estimate gas for a transaction. Returns gas units with 10% buffer. */
+export async function estimateGas(rpcUrl: string, tx: { from: string; to: string; value?: string; data?: string }): Promise<bigint> {
+  const result = await ethRpc(rpcUrl, "eth_estimateGas", [tx]);
+  const estimate = BigInt(result);
+  return estimate + estimate / 10n; // +10% buffer
+}
+
+/** Get the next nonce for an address. */
+export async function getTransactionCount(rpcUrl: string, address: string): Promise<number> {
+  const result = await ethRpc(rpcUrl, "eth_getTransactionCount", [address, "pending"]);
+  return parseInt(result, 16);
+}
+
 // ── Transaction Types ───────────────────────────────────────────
 
 export interface UnsignedTx {

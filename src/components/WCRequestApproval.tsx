@@ -15,7 +15,7 @@ import { hasKeyShare, getKeyShareMode, getKeyShareWithPrf, getKeyShareWithPassph
 import { decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { isRecoveryMode, getRecoveryKeys, getRecoveryKeyFile } from "../lib/recovery";
 import { wcPersonalSign, wcEthSign, wcSignTypedData, wcSendTransaction, wcSolanaSignTransaction, wcSolanaSignAndSendTransaction, wcSolanaSignMessage, type WcSignPhase } from "../lib/wcSigning";
-import { waitForReceipt } from "../lib/chains/evmTx";
+import { waitForReceipt, estimateGas, getTransactionCount } from "../lib/chains/evmTx";
 import { decodeSolanaTransaction, formatLamports, formatTokenAmount as formatSplAmount, waitForSolanaConfirmation, type DecodedSolanaTx } from "../lib/chains/solanaTx";
 import { fetchPrices, getUsdValue, formatUsd } from "../lib/prices";
 import { fetchNativeBalance, getCachedNativeBalance, fetchTokenBalances } from "../lib/balance";
@@ -170,14 +170,31 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     });
   }, [decodedSolTx?.mint, chain?.id]);
 
-  // Gas limit: use user override, dApp's value, or heuristic
+  // Gas limit: use user override, estimated, dApp's value, or heuristic
   const txParams = isTx ? request.params[0] : null;
   const dappGasLimit = txParams?.gasLimit
     ? BigInt(txParams.gasLimit)
     : txParams?.gas
       ? BigInt(txParams.gas)
       : (txParams?.data && txParams.data !== "0x" ? GAS_LIMIT_CONTRACT : GAS_LIMIT_DEFAULT);
-  const gasLimit = gasLimitInput && /^\d+$/.test(gasLimitInput) ? BigInt(gasLimitInput) : dappGasLimit;
+
+  const [estimatedGasLimit, setEstimatedGasLimit] = useState<bigint | null>(null);
+  const [currentNonce, setCurrentNonce] = useState<number | null>(null);
+
+  // Fetch estimated gas and nonce for EVM transactions
+  useEffect(() => {
+    if (isSolana || !isTx || !txParams?.to || !chain?.rpcUrl || !account) return;
+    estimateGas(chain.rpcUrl, {
+      from: account.address,
+      to: txParams.to,
+      value: txParams.value || "0x0",
+      data: txParams.data || undefined,
+    }).then(setEstimatedGasLimit).catch(() => {});
+    getTransactionCount(chain.rpcUrl, account.address).then(setCurrentNonce).catch(() => {});
+  }, [isTx, isSolana, txParams?.to, txParams?.value, txParams?.data, chain?.rpcUrl, account?.address]);
+
+  const defaultGasLimit = estimatedGasLimit ?? dappGasLimit;
+  const gasLimit = gasLimitInput && /^\d+$/.test(gasLimitInput) ? BigInt(gasLimitInput) : defaultGasLimit;
 
   // ERC-20 approve detection
   const approveData = txParams?.data ? parseApproveData(txParams.data) : null;
@@ -965,15 +982,23 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
                   {/* Gas limit */}
                   <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] text-text-muted">Gas limit</span>
+                    <span className="text-[10px] text-text-muted">Gas limit{estimatedGasLimit ? " (estimated)" : ""}</span>
                     <input
                       type="text"
                       inputMode="numeric"
-                      value={gasLimitInput || dappGasLimit.toString()}
+                      value={gasLimitInput || defaultGasLimit.toString()}
                       onChange={(e) => setGasLimitInput(e.target.value.replace(/[^0-9]/g, ""))}
                       className="text-[11px] tabular-nums text-text-secondary text-right bg-transparent border-none outline-none w-24 focus:text-text-primary"
                     />
                   </div>
+
+                  {/* Expert: nonce */}
+                  {expert && (
+                    <div className="flex items-center justify-between px-1">
+                      <span className="text-[10px] text-text-muted">Nonce</span>
+                      <span className="text-[11px] tabular-nums text-text-secondary">{currentNonce ?? "..."}</span>
+                    </div>
+                  )}
 
                   {/* Fee summary */}
                   <div className="flex items-center justify-between px-1">

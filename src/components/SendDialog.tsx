@@ -21,6 +21,8 @@ import {
   waitForReceipt,
   encodeErc20Transfer,
   parseUnits,
+  estimateGas,
+  getTransactionCount,
   type UnsignedTx,
 } from "../lib/chains/evmTx";
 import { getChainAdapter } from "../lib/chains/adapter";
@@ -153,6 +155,10 @@ export function SendDialog({
   const [maxFeeOverride, setMaxFeeOverride] = useState("");
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
+
+  // Estimated gas and nonce from node
+  const [estimatedGas, setEstimatedGas] = useState<bigint | null>(null);
+  const [currentNonce, setCurrentNonce] = useState<number | null>(null);
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
   const [toTouched, setToTouched] = useState(false);
@@ -340,6 +346,24 @@ export function SendDialog({
     return () => { clearInterval(feeIv); clearInterval(countIv); };
   }, [chain.rpcUrl, chain.explorerUrl, chain.type]);
 
+  // Fetch estimated gas and nonce for EVM chains
+  useEffect(() => {
+    if (chain.type !== "evm" || !chain.rpcUrl || !to || !amount) return;
+    const adapter = getChainAdapter(chain.type);
+    if (!adapter.isValidAddress(to)) return;
+
+    // Nonce
+    getTransactionCount(chain.rpcUrl, address).then(setCurrentNonce).catch(() => {});
+
+    // Gas estimate
+    const value = asset.isNative ? "0x" + parseUnits(amount, asset.decimals).toString(16) : "0x0";
+    const data = !asset.isNative && asset.contractAddress
+      ? "0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)
+      : undefined;
+    const txTo = !asset.isNative && asset.contractAddress ? asset.contractAddress : to;
+    estimateGas(chain.rpcUrl, { from: address, to: txTo, value, data }).then(setEstimatedGas).catch(() => {});
+  }, [chain.type, chain.rpcUrl, address, to, amount, asset]);
+
   // Effective fee values based on selected level + expert overrides
   const gasPrice = maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride)
     ? BigInt(Math.round(parseFloat(maxFeeOverride) * 1e9))
@@ -357,9 +381,10 @@ export function SendDialog({
   const bchFeeRate = effectiveBchFeeRate;
   const bchEstimatedFee = bchFeeRate != null ? estimateBchFee(1, bchFeeRate, true) : null;
 
+  const defaultGasLimit = estimatedGas ?? (asset.isNative ? GAS_LIMIT_NATIVE : GAS_LIMIT_ERC20);
   const gasLimit = gasLimitOverride && /^\d+$/.test(gasLimitOverride)
     ? BigInt(gasLimitOverride)
-    : asset.isNative ? GAS_LIMIT_NATIVE : GAS_LIMIT_ERC20;
+    : defaultGasLimit;
   const estimatedFeeWei = gasPrice != null ? gasPrice * gasLimit : null;
 
   // Unified fee display: { formatted, symbol, usd, rateLabel? }
@@ -1502,7 +1527,7 @@ message = buildSplTransferMessage({
                       <input
                         value={nonceOverride}
                         onChange={(e) => setNonceOverride(e.target.value)}
-                        placeholder="Auto (next)"
+                        placeholder={currentNonce != null ? currentNonce.toString() : "Auto"}
                         className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
@@ -1511,7 +1536,7 @@ message = buildSplTransferMessage({
                       <input
                         value={gasLimitOverride}
                         onChange={(e) => setGasLimitOverride(e.target.value)}
-                        placeholder={asset.isNative ? GAS_LIMIT_NATIVE.toString() : GAS_LIMIT_ERC20.toString()}
+                        placeholder={defaultGasLimit.toString()}
                         className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
