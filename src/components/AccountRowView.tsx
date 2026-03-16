@@ -266,7 +266,27 @@ export function AccountRowView({
           </div>
         </div>
 
-        {/* Right: balance + refresh + chevron */}
+        {/* Center: token count badge */}
+        <div className="w-8 flex items-center justify-center shrink-0">
+          {tokenBalances.length > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setTokensExpanded((v) => !v);
+              }}
+              className={`w-7 h-7 flex items-center justify-center text-[10px] font-medium rounded-full transition-colors ${
+                tokensExpanded
+                  ? "bg-blue-500/10 text-blue-400"
+                  : "bg-surface-tertiary text-text-muted hover:text-text-tertiary"
+              }`}
+              title={tokensExpanded ? "Collapse tokens" : "Expand tokens"}
+            >
+              {tokenBalances.length}
+            </button>
+          )}
+        </div>
+
+        {/* Right: balance + chevron */}
         <div className="flex items-center gap-3 shrink-0">
           <div className="text-right min-w-[4rem]">
             {nativeState === "loading" && (
@@ -293,26 +313,6 @@ export function AccountRowView({
                   <div className="text-[11px] text-text-muted tabular-nums">{hidden ? "••••" : formatUsd(nativeUsd)}</div>
                 )}
               </div>
-            )}
-          </div>
-
-          {/* Expand/collapse tokens */}
-          <div className="w-8 flex items-center justify-center">
-            {tokenBalances.length > 0 && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setTokensExpanded((v) => !v);
-                }}
-                className={`w-7 h-7 flex items-center justify-center text-[10px] font-medium rounded-full transition-colors ${
-                  tokensExpanded
-                    ? "bg-blue-500/10 text-blue-400"
-                    : "bg-surface-tertiary text-text-muted hover:text-text-tertiary"
-                }`}
-                title={tokensExpanded ? "Collapse tokens" : "Expand tokens"}
-              >
-                {tokenBalances.length}
-              </button>
             )}
           </div>
 
