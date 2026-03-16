@@ -9,7 +9,7 @@ function git(cmd: string): string {
   try { return execSync(cmd, { encoding: "utf8" }).trim(); } catch { return ""; }
 }
 
-const gitHash = process.env.VITE_GIT_HASH || git("git rev-parse --short=7 HEAD");
+const gitHash = (process.env.VITE_GIT_HASH || git("git rev-parse --short=7 HEAD")).slice(0, 7);
 const gitTag = process.env.VITE_GIT_TAG || git("git describe --tags --exact-match 2>/dev/null");
 
 export default defineConfig({
