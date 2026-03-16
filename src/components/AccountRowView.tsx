@@ -376,13 +376,7 @@ export function AccountRowView({
                 {" "}found
                 <span className="tabular-nums ml-1">({maskBalance(token.balance, hidden)})</span>
               </p>
-              <div className="flex items-center gap-3 shrink-0">
-                <button
-                  onClick={() => onTokenDecision(token.id, true)}
-                  className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
-                >
-                  Show
-                </button>
+              <div className="flex items-center gap-3 shrink-0 mr-8">
                 <button
                   onClick={() => onTokenDecision(token.id, false)}
                   className="text-xs text-text-muted hover:text-text-secondary transition-colors"
@@ -394,6 +388,12 @@ export function AccountRowView({
                   className="text-xs text-text-muted hover:text-text-secondary transition-colors"
                 >
                   Later
+                </button>
+                <button
+                  onClick={() => onTokenDecision(token.id, true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                >
+                  Show
                 </button>
               </div>
             </div>
