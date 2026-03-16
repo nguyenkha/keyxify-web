@@ -1542,7 +1542,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               <p className="text-sm font-medium text-text-primary mb-1">
                 {isTx ? "Transaction Failed" : "Signing Failed"}
               </p>
-              <p className="text-xs text-red-400 break-all mb-5">{error}</p>
+              <p className="text-xs text-red-400 break-all mb-2">{error}</p>
+              <p className="text-[10px] text-text-muted mb-5">Check Activity Log in the Advanced menu for details.</p>
               <div className="flex gap-3">
                 <button
                   onClick={onReject}

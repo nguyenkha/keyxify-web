@@ -234,7 +234,7 @@ function EntryRow({ entry, showAccount }: { entry: AuditEntry; showAccount?: boo
           </span>
         </div>
         {showAccount && entry.keyName && (
-          <p className="text-[10px] text-text-muted mt-0.5">{entry.keyName}</p>
+          <p className="text-[10px] text-text-secondary mt-0.5">{entry.keyName}</p>
         )}
         {expanded && desc.detail && (
           <p className="text-[11px] text-text-muted mt-1.5 leading-relaxed">

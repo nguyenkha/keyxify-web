@@ -1960,7 +1960,8 @@ message = buildSplTransferMessage({
                   </svg>
                 </div>
                 <p className="text-sm font-medium text-text-primary mb-1">Transaction Failed</p>
-                <p className="text-xs text-red-400 break-all mb-5">{signingError}</p>
+                <p className="text-xs text-red-400 break-all mb-2">{signingError}</p>
+                <p className="text-[10px] text-text-muted mb-5">Check Activity Log in the Advanced menu for details.</p>
                 <div className="flex gap-3">
                   <button
                     onClick={onClose}
@@ -2643,7 +2644,8 @@ function XlmTrustlineDialog({
                   </svg>
                 </div>
                 <p className="text-sm font-medium text-text-primary mb-1">Transaction Failed</p>
-                <p className="text-xs text-red-400 break-all mb-5">{signingError}</p>
+                <p className="text-xs text-red-400 break-all mb-2">{signingError}</p>
+                <p className="text-[10px] text-text-muted mb-5">Check Activity Log in the Advanced menu for details.</p>
                 <div className="flex gap-3">
                   <button onClick={onClose} className="flex-1 bg-surface-tertiary hover:bg-border-primary text-text-secondary text-sm font-medium py-2.5 rounded-lg transition-colors">Close</button>
                   <button onClick={() => { setSigningError(null); setStep("preview"); }} className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors">Try Again</button>
