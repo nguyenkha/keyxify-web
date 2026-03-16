@@ -368,32 +368,32 @@ export function AccountRowView({
         return newTokens.map((token) => (
           <div
             key={token.id}
-            className="flex items-center justify-between px-3 md:px-5 py-2.5 bg-blue-500/5 border-t border-blue-500/15"
+            className="flex items-center justify-between px-3 md:px-5 py-3 bg-blue-500/5 border-t border-blue-500/15"
           >
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[11px] text-blue-400">
+              <span className="text-xs text-blue-400 font-medium">
                 {token.symbol} found
               </span>
-              <span className="text-[10px] text-text-muted tabular-nums">
+              <span className="text-[11px] text-text-muted tabular-nums">
                 ({maskBalance(token.balance, hidden)})
               </span>
             </div>
-            <div className="flex gap-1.5 shrink-0">
+            <div className="flex items-center gap-2 shrink-0">
               <button
                 onClick={() => onTokenDecision(token.id, true)}
-                className="text-[10px] px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
               >
                 Show
               </button>
               <button
                 onClick={() => onTokenDecision(token.id, false)}
-                className="text-[10px] px-2 py-1 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+                className="text-xs text-text-muted hover:text-text-secondary transition-colors"
               >
-                Not interested
+                Hide
               </button>
               <button
                 onClick={() => setDismissedTokens((prev) => new Set(prev).add(token.id))}
-                className="text-[10px] px-2 py-1 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+                className="text-xs text-text-muted hover:text-text-secondary transition-colors"
               >
                 Later
               </button>
