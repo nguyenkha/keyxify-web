@@ -11,6 +11,14 @@ interface AuditEntry {
   createdAt: string;
 }
 
+/** Actions to hide from the UI — internal steps not meaningful to users */
+const HIDDEN_ACTIONS = new Set([
+  "generate.init",
+  "generate-eddsa.init",
+  "generate-eddsa.complete",
+  "sign.complete",
+]);
+
 /** Human-readable explanation of an audit log entry */
 function describeEntry(entry: AuditEntry): { title: string; detail: string; icon: string; color: string } {
   const meta = entry.meta ?? {};
@@ -24,28 +32,12 @@ function describeEntry(entry: AuditEntry): { title: string; detail: string; icon
         icon: "\u2713", // ✓
         color: "text-green-400",
       };
-    case "sign.complete":
-      return {
-        title: "Signature completed",
-        detail: "Transaction co-signed successfully.",
-        icon: "\u2713",
-        color: "text-green-400",
-      };
     case "sign.reject":
       return describeRejection(reason, meta);
-    case "generate.init":
-    case "generate-eddsa.init":
-      return {
-        title: "Key generation started",
-        detail: "A new account key is being created.",
-        icon: "\u26A1",
-        color: "text-blue-400",
-      };
     case "generate.complete":
-    case "generate-eddsa.complete":
       return {
-        title: "Key created",
-        detail: "Your account key was successfully generated.",
+        title: "Account created",
+        detail: "A new account was set up successfully.",
         icon: "\u2713",
         color: "text-green-400",
       };
@@ -296,7 +288,7 @@ export function ActivityLogPage() {
       ) : (
         <>
           <div className="bg-surface-secondary rounded-xl border border-border-primary overflow-hidden divide-y divide-border-secondary">
-            {logs.map((entry) => (
+            {logs.filter((e) => !HIDDEN_ACTIONS.has(e.action)).map((entry) => (
               <EntryRow key={entry.id} entry={entry} showAccount />
             ))}
           </div>
