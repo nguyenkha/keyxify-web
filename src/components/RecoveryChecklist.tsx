@@ -339,7 +339,7 @@ export function RecoveryChecklist() {
                         ) : (
                           <button
                             onClick={() => { setImportAccountId(account.id); setImportError(null); fileInputRef.current?.click(); }}
-                            className="px-3 py-1.5 rounded-md text-[11px] font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
+                            className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                           >
                             Import key file
                           </button>
@@ -348,7 +348,7 @@ export function RecoveryChecklist() {
                           <p className="text-[10px] text-red-400">{importError}</p>
                         )}
                         <p className="text-[10px] text-text-muted leading-relaxed">
-                          More options in Expert mode.
+                          More options available in Expert mode.
                         </p>
                       </div>
                     )}
@@ -359,7 +359,7 @@ export function RecoveryChecklist() {
                         <button
                           onClick={() => { setEscrowAccountId(account.id); setEscrowError(null); escrowFileRef.current?.click(); }}
                           disabled={escrowUploading}
-                          className="px-3 py-1.5 rounded-md text-[11px] font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+                          className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
                         >
                           {escrowUploading && escrowAccountId === account.id ? "Uploading..." : "Upload key file as backup"}
                         </button>
@@ -367,7 +367,7 @@ export function RecoveryChecklist() {
                           <p className="text-[10px] text-red-400">{escrowError}</p>
                         )}
                         <p className="text-[10px] text-text-muted leading-relaxed">
-                          More options in Expert mode.
+                          More options available in Expert mode.
                         </p>
                       </div>
                     )}
@@ -378,7 +378,7 @@ export function RecoveryChecklist() {
                         <button
                           onClick={() => handleHkdfDownload(account)}
                           disabled={hkdfDownloadingId === account.id}
-                          className="px-3 py-1.5 rounded-md text-[11px] font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
+                          className="px-3 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-50"
                         >
                           {hkdfDownloadingId === account.id ? "Downloading..." : "Download server key backup"}
                         </button>

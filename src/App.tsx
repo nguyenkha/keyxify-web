@@ -150,10 +150,16 @@ function RecoveryBanner() {
   );
 }
 
+declare const __GIT_HASH__: string;
+declare const __GIT_TAG__: string;
+
+const CLIENT_VERSION = __GIT_TAG__ || (__GIT_HASH__ ? `Build ${__GIT_HASH__}` : "Build dev");
+
 function DashboardLayout() {
   const recovery = isRecoveryMode();
   const [user, setUser] = useState<MeUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [serverVersion, setServerVersion] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -164,6 +170,9 @@ function DashboardLayout() {
 
   useEffect(() => {
     refreshUser();
+    if (!recovery) {
+      fetch(apiUrl("/api/health")).then((r) => r.json()).then((d) => setServerVersion(d.version ?? null)).catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -308,12 +317,9 @@ function DashboardLayout() {
             <HideBalancesToggle />
           </div>
         ) : email ? (<>
-          <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono">
-            {(import.meta.env.VITE_GIT_TAG as string | undefined)
-              ? `Version ${import.meta.env.VITE_GIT_TAG}`
-              : (import.meta.env.VITE_GIT_HASH as string | undefined)
-                ? `Build ${(import.meta.env.VITE_GIT_HASH as string).slice(0, 7)}`
-                : "Build dev"}
+          <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono space-y-0.5">
+            <p>Client: {CLIENT_VERSION}</p>
+            <p>Server: {serverVersion ?? "..."}</p>
           </div>
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">

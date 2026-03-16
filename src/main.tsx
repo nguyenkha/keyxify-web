@@ -9,9 +9,9 @@ initSentry()
 initTheme()
 
 declare const __BUILD_TIME__: string;
-const tag = import.meta.env.VITE_GIT_TAG as string | undefined;
-const hash = (import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7);
-const version = tag ? `Version ${tag}` : hash ? `Build ${hash}` : "Build dev";
+declare const __GIT_HASH__: string;
+declare const __GIT_TAG__: string;
+const version = __GIT_TAG__ || (__GIT_HASH__ ? `Build ${__GIT_HASH__}` : "Build dev");
 console.log(`${version} — ${__BUILD_TIME__}`);
 
 createRoot(document.getElementById('root')!).render(
