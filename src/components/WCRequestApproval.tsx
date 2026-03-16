@@ -980,23 +980,30 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     </div>
                   </div>
 
-                  {/* Gas limit */}
-                  <div className="flex items-center justify-between px-1">
-                    <span className="text-[10px] text-text-muted">Gas limit{estimatedGasLimit ? " (estimated)" : ""}</span>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      value={gasLimitInput || defaultGasLimit.toString()}
-                      onChange={(e) => setGasLimitInput(e.target.value.replace(/[^0-9]/g, ""))}
-                      className="text-[11px] tabular-nums text-text-secondary text-right bg-transparent border-none outline-none w-24 focus:text-text-primary"
-                    />
-                  </div>
-
-                  {/* Expert: nonce */}
+                  {/* Expert: advanced tx overrides */}
                   {expert && (
-                    <div className="flex items-center justify-between px-1">
-                      <span className="text-[10px] text-text-muted">Nonce</span>
-                      <span className="text-[11px] tabular-nums text-text-secondary">{currentNonce ?? "..."}</span>
+                    <div className="space-y-2">
+                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-text-muted mb-1">Nonce</label>
+                          <input
+                            value=""
+                            readOnly
+                            placeholder={currentNonce != null ? currentNonce.toString() : "Auto"}
+                            className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-text-muted mb-1">Gas limit</label>
+                          <input
+                            value={gasLimitInput}
+                            onChange={(e) => setGasLimitInput(e.target.value.replace(/[^0-9]/g, ""))}
+                            placeholder={defaultGasLimit.toString()}
+                            className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                          />
+                        </div>
+                      </div>
                     </div>
                   )}
 

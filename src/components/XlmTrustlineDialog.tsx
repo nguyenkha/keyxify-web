@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
+// Expert mode available via useExpertMode() for future raw data display
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
