@@ -368,35 +368,34 @@ export function AccountRowView({
         return newTokens.map((token) => (
           <div
             key={token.id}
-            className="flex items-center justify-between px-3 md:px-5 py-3 bg-blue-500/5 border-t border-blue-500/15"
+            className="px-3 md:px-5 py-2.5 border-t border-border-secondary"
           >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-xs text-blue-400 font-medium">
-                {token.symbol} found
-              </span>
-              <span className="text-[11px] text-text-muted tabular-nums">
-                ({maskBalance(token.balance, hidden)})
-              </span>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={() => onTokenDecision(token.id, true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
-              >
-                Show
-              </button>
-              <button
-                onClick={() => onTokenDecision(token.id, false)}
-                className="text-xs text-text-muted hover:text-text-secondary transition-colors"
-              >
-                Hide
-              </button>
-              <button
-                onClick={() => setDismissedTokens((prev) => new Set(prev).add(token.id))}
-                className="text-xs text-text-muted hover:text-text-secondary transition-colors"
-              >
-                Later
-              </button>
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] text-text-muted">
+                <span className="text-text-secondary font-medium">{token.symbol}</span>
+                {" "}found
+                <span className="tabular-nums ml-1">({maskBalance(token.balance, hidden)})</span>
+              </p>
+              <div className="flex items-center gap-3 shrink-0">
+                <button
+                  onClick={() => onTokenDecision(token.id, true)}
+                  className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors"
+                >
+                  Show
+                </button>
+                <button
+                  onClick={() => onTokenDecision(token.id, false)}
+                  className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  Hide
+                </button>
+                <button
+                  onClick={() => setDismissedTokens((prev) => new Set(prev).add(token.id))}
+                  className="text-xs text-text-muted hover:text-text-secondary transition-colors"
+                >
+                  Later
+                </button>
+              </div>
             </div>
           </div>
         ));
