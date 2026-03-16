@@ -32,6 +32,7 @@ import {
   fetchFeeRates,
   mempoolApiUrl,
   buildBtcTransaction,
+  type UTXO,
   bip143Sighash,
   legacySighash,
   detectAddressType,
@@ -168,6 +169,12 @@ export function SendDialog({
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
   const [rbfEnabled, setRbfEnabled] = useState(true);
+
+  // UTXO manual selection (expert mode)
+  const [showUtxoPicker, setShowUtxoPicker] = useState(false);
+  const [availableUtxos, setAvailableUtxos] = useState<UTXO[] | null>(null);
+  const [selectedUtxoKeys, setSelectedUtxoKeys] = useState<Set<string>>(new Set());
+  const [utxoLoading, setUtxoLoading] = useState(false);
 
   // Estimated gas and nonce from node
   const [estimatedGas, setEstimatedGas] = useState<bigint | null>(null);
@@ -400,21 +407,25 @@ export function SendDialog({
     : baseGasPrice != null
       ? BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[feeLevel]))
       : null;
+  const manualUtxos = selectedUtxoKeys.size > 0 && availableUtxos
+    ? availableUtxos.filter(u => selectedUtxoKeys.has(`${u.txid}:${u.vout}`))
+    : null;
+  const utxoInputCount = manualUtxos?.length || 1;
   const effectiveBtcFeeRate = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride)
     ? parseInt(btcFeeRateOverride)
     : btcFeeRates?.[feeLevel] ?? null;
   const btcFeeRate = effectiveBtcFeeRate;
-  const btcEstimatedFee = btcFeeRate != null ? estimateBtcFee(1, btcFeeRate, true, detectAddressType(address)) : null;
+  const btcEstimatedFee = btcFeeRate != null ? estimateBtcFee(utxoInputCount, btcFeeRate, true, detectAddressType(address)) : null;
   const effectiveLtcFeeRate = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride)
     ? parseInt(btcFeeRateOverride)
     : ltcFeeRates?.[feeLevel] ?? null;
   const ltcFeeRate = effectiveLtcFeeRate;
-  const ltcEstimatedFee = ltcFeeRate != null ? estimateLtcFee(1, ltcFeeRate, true, detectLtcAddressType(address)) : null;
+  const ltcEstimatedFee = ltcFeeRate != null ? estimateLtcFee(utxoInputCount, ltcFeeRate, true, detectLtcAddressType(address)) : null;
   const effectiveBchFeeRate = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride)
     ? parseInt(btcFeeRateOverride)
     : bchFeeRates?.[feeLevel] ?? null;
   const bchFeeRate = effectiveBchFeeRate;
-  const bchEstimatedFee = bchFeeRate != null ? estimateBchFee(1, bchFeeRate, true) : null;
+  const bchEstimatedFee = bchFeeRate != null ? estimateBchFee(utxoInputCount, bchFeeRate, true) : null;
 
   const defaultGasLimit = estimatedGas ?? (asset.isNative ? GAS_LIMIT_NATIVE : GAS_LIMIT_ERC20);
   const gasLimit = gasLimitOverride && /^\d+$/.test(gasLimitOverride)
@@ -653,6 +664,22 @@ export function SendDialog({
     }
   }
 
+  // ── UTXO fetch for manual selection ─────────────────────────────
+  async function handleFetchUtxos() {
+    setUtxoLoading(true);
+    try {
+      let utxos: UTXO[];
+      if (chain.type === "btc") utxos = await fetchUtxos(address, mempoolApiUrl(chain.explorerUrl));
+      else if (chain.type === "bch") utxos = await fetchBchUtxos(address, bchApiUrl());
+      else utxos = await fetchLtcUtxos(address, ltcApiUrl(chain.explorerUrl));
+      setAvailableUtxos(utxos);
+    } catch {
+      setAvailableUtxos([]);
+    } finally {
+      setUtxoLoading(false);
+    }
+  }
+
   // ── BTC signing flow ──────────────────────────────────────────
   async function executeBtcSigningFlow() {
     if (!keyFile || !btcFeeRate) return;
@@ -669,7 +696,7 @@ export function SendDialog({
       }
 
       // 1. Fetch UTXOs and build transaction
-      const utxos = await fetchUtxos(address, btcApi);
+      const utxos = manualUtxos ?? await fetchUtxos(address, btcApi);
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectAddressType(address);
       const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled);
@@ -780,7 +807,7 @@ export function SendDialog({
       }
 
       // 1. Fetch UTXOs and build transaction
-      const utxos = await fetchBchUtxos(address, api);
+      const utxos = manualUtxos ?? await fetchBchUtxos(address, api);
       const amountSats = parseUnits(amount, asset.decimals);
       const bchTx = buildBchTransaction(to, amountSats, utxos, bchFeeRate, address);
 
@@ -878,7 +905,7 @@ export function SendDialog({
       }
 
       // 1. Fetch UTXOs and build transaction
-      const utxos = await fetchLtcUtxos(address, ltcApi);
+      const utxos = manualUtxos ?? await fetchLtcUtxos(address, ltcApi);
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectLtcAddressType(address);
       const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled);
@@ -1744,6 +1771,98 @@ message = buildSplTransferMessage({
                       <span className="text-xs text-text-secondary">RBF (Replace-By-Fee)</span>
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => { setShowUtxoPicker(v => !v); if (!availableUtxos && !utxoLoading) handleFetchUtxos(); }}
+                    className="w-full text-left px-2.5 py-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary"
+                  >
+                    {selectedUtxoKeys.size > 0
+                      ? `${selectedUtxoKeys.size} UTXO${selectedUtxoKeys.size > 1 ? "s" : ""} selected`
+                      : "Select UTXOs..."}
+                  </button>
+                  {showUtxoPicker && (
+                    <div className="bg-surface-primary border border-border-primary rounded-xl p-3 space-y-2 max-h-52 overflow-y-auto">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">UTXOs</span>
+                        <div className="flex items-center gap-2">
+                          {selectedUtxoKeys.size > 0 && (
+                            <button type="button" onClick={() => setSelectedUtxoKeys(new Set())} className="text-[10px] text-text-muted hover:text-text-secondary">
+                              Clear
+                            </button>
+                          )}
+                          <button type="button" onClick={handleFetchUtxos} disabled={utxoLoading} className="text-[10px] text-blue-400 hover:text-blue-300 disabled:text-text-muted">
+                            {utxoLoading ? "Loading..." : "Refresh"}
+                          </button>
+                        </div>
+                      </div>
+                      {utxoLoading && !availableUtxos && (
+                        <p className="text-[10px] text-text-muted animate-pulse py-2 text-center">Fetching UTXOs...</p>
+                      )}
+                      {availableUtxos && availableUtxos.length === 0 && (
+                        <p className="text-[10px] text-text-muted py-2 text-center">No UTXOs found</p>
+                      )}
+                      {availableUtxos && availableUtxos.length > 0 && (
+                        <>
+                          <div className="flex items-center justify-between text-[10px] text-text-muted">
+                            <span>{availableUtxos.length} available</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (selectedUtxoKeys.size === availableUtxos.length)
+                                  setSelectedUtxoKeys(new Set());
+                                else
+                                  setSelectedUtxoKeys(new Set(availableUtxos.map(u => `${u.txid}:${u.vout}`)));
+                              }}
+                              className="text-blue-400 hover:text-blue-300"
+                            >
+                              {selectedUtxoKeys.size === availableUtxos.length ? "Deselect all" : "Select all"}
+                            </button>
+                          </div>
+                          {[...availableUtxos].sort((a, b) => b.value - a.value).map((utxo) => {
+                            const key = `${utxo.txid}:${utxo.vout}`;
+                            const checked = selectedUtxoKeys.has(key);
+                            const val = (utxo.value / 1e8).toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
+                            return (
+                              <label key={key} className={`flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${checked ? "bg-blue-500/5" : "hover:bg-surface-secondary"}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={() => {
+                                    const next = new Set(selectedUtxoKeys);
+                                    if (checked) next.delete(key); else next.add(key);
+                                    setSelectedUtxoKeys(next);
+                                  }}
+                                  className="mt-0.5 accent-blue-500"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-[10px] font-mono text-text-primary truncate max-w-[160px]">
+                                      {utxo.txid.slice(0, 8)}...{utxo.txid.slice(-6)}:{utxo.vout}
+                                    </span>
+                                    <span className="text-[10px] font-mono text-text-secondary ml-2 whitespace-nowrap tabular-nums">
+                                      {val} {asset.symbol}
+                                    </span>
+                                  </div>
+                                  <span className={`text-[9px] ${utxo.status.confirmed ? "text-green-400" : "text-yellow-400"}`}>
+                                    {utxo.status.confirmed ? "Confirmed" : "Unconfirmed"}
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          })}
+                          {selectedUtxoKeys.size > 0 && (
+                            <div className="flex items-center justify-between pt-1.5 border-t border-border-primary text-[10px]">
+                              <span className="text-text-muted">{selectedUtxoKeys.size} selected</span>
+                              <span className="font-mono text-text-secondary tabular-nums">
+                                {(availableUtxos.filter(u => selectedUtxoKeys.has(`${u.txid}:${u.vout}`)).reduce((s, u) => s + u.value, 0) / 1e8)
+                                  .toFixed(8).replace(/0+$/, "").replace(/\.$/, "")} {asset.symbol}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1935,6 +2054,14 @@ message = buildSplTransferMessage({
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">Gas limit</span>
                     <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
+                  </div>
+                )}
+                {manualUtxos && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
+                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                    <span className="text-xs text-text-muted">UTXOs</span>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-blue-500/10 text-blue-400">
+                      {manualUtxos.length} selected
+                    </span>
                   </div>
                 )}
                 {(chain.type === "btc" || chain.type === "ltc") && (
