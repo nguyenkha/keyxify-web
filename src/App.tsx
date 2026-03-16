@@ -292,15 +292,20 @@ function DashboardLayout() {
               <p className="text-xs text-text-tertiary truncate" title={email}>
                 {email}
               </p>
-              <button
-                onClick={() => {
-                  clearToken();
-                  window.location.href = "/login";
-                }}
-                className="text-xs text-text-muted hover:text-text-secondary mt-1"
-              >
-                Logout
-              </button>
+              <div className="flex items-center gap-2 mt-1">
+                <button
+                  onClick={() => {
+                    clearToken();
+                    window.location.href = "/login";
+                  }}
+                  className="text-xs text-text-muted hover:text-text-secondary"
+                >
+                  Logout
+                </button>
+                <span className="text-[10px] text-text-muted/50 font-mono">
+                  {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
+                </span>
+              </div>
             </div>
             <HideBalancesToggle />
             <ThemeToggle />

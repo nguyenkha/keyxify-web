@@ -548,10 +548,6 @@ export function Wallet() {
         </div>
       )}
 
-      {/* Build SHA — fixed bottom-right */}
-      <div className="fixed bottom-2 right-3 text-[10px] text-text-muted/30 font-mono pointer-events-none">
-        {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
-      </div>
     </div>
   );
 }
