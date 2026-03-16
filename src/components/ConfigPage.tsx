@@ -3,21 +3,12 @@ import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from 
 import type { Settings } from "../shared/types";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, setUserOverrides, clearUserOverrides, type UserOverrides } from "../lib/userOverrides";
+import Editor from "react-simple-code-editor";
+import Prism from "prismjs";
+import "prismjs/components/prism-json";
 
-/** Simple JSON syntax highlighter — returns HTML string */
-function highlightJson(json: string): string {
-  return json.replace(
-    /("(?:\\.|[^"\\])*")\s*(:)?|(\b(?:true|false|null)\b)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
-    (match, str, colon, bool, num) => {
-      if (str) {
-        if (colon) return `<span class="text-blue-400">${str}</span>:`;
-        return `<span class="text-green-400">${str}</span>`;
-      }
-      if (bool) return `<span class="text-orange-400">${match}</span>`;
-      if (num) return `<span class="text-purple-400">${match}</span>`;
-      return match;
-    }
-  );
+function highlightCode(code: string): string {
+  return Prism.highlight(code, Prism.languages.json, "json");
 }
 
 const REFRESH_OPTIONS = [
@@ -486,12 +477,15 @@ export function ConfigPage() {
               {jsonTab === "edit" ? (
                 <>
                   <p className="text-[10px] text-text-muted mb-2">Your overrides (changes only)</p>
-                  <textarea
-                    value={jsonText}
-                    onChange={(e) => { setJsonText(e.target.value); setJsonError(""); }}
-                    className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-xs text-text-primary font-mono resize-none focus:outline-none focus:border-blue-500 transition-colors"
-                    spellCheck={false}
-                  />
+                  <div className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg overflow-auto focus-within:border-blue-500 transition-colors">
+                    <Editor
+                      value={jsonText}
+                      onValueChange={(v) => { setJsonText(v); setJsonError(""); }}
+                      highlight={highlightCode}
+                      padding={12}
+                      style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace", fontSize: 12, lineHeight: 1.6, minHeight: "100%" }}
+                    />
+                  </div>
                   {jsonError && (
                     <p className="text-[10px] text-red-400 mt-1">{jsonError}</p>
                   )}
@@ -500,10 +494,12 @@ export function ConfigPage() {
                 <>
                   <p className="text-[10px] text-text-muted mb-2">Preview merged config — verify before saving</p>
                   {pendingMergedConfig ? (
-                    <pre
-                      className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-xs font-mono overflow-auto leading-relaxed"
-                      dangerouslySetInnerHTML={{ __html: highlightJson(JSON.stringify(pendingMergedConfig, null, 2)) }}
-                    />
+                    <div className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg overflow-auto">
+                      <pre
+                        className="px-3 py-2.5 text-xs font-mono leading-relaxed"
+                        dangerouslySetInnerHTML={{ __html: highlightCode(JSON.stringify(pendingMergedConfig, null, 2)) }}
+                      />
+                    </div>
                   ) : (
                     <div className="w-full h-72 bg-surface-primary border border-red-500/30 rounded-lg px-3 py-2.5 flex items-center justify-center">
                       <p className="text-xs text-red-400">Invalid JSON — go back to fix</p>
