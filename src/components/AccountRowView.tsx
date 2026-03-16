@@ -10,7 +10,7 @@ import {
 } from "../lib/balance";
 import { clearCache, balanceCacheKey, tokenBalancesCacheKey } from "../lib/dataCache";
 import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
-import { isTokenVisible } from "../lib/displayPrefs";
+import { isTokenVisible, findNewTokens } from "../lib/displayPrefs";
 import { explorerLink } from "../shared/utils";
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 
@@ -20,10 +20,12 @@ export function AccountRowView({
   row,
   displayPrefs,
   pollInterval = DEFAULT_POLL_INTERVAL,
+  onTokenDecision,
 }: {
   row: AccountRow;
   displayPrefs: Record<string, boolean> | null;
   pollInterval?: number;
+  onTokenDecision?: (assetId: string, visible: boolean) => void;
 }) {
   const navigate = useNavigate();
   const { hidden } = useHideBalances();
@@ -33,6 +35,7 @@ export function AccountRowView({
   const [tokenState, setTokenState] = useState<"idle" | "loading" | "loaded" | "error">("idle");
   const [copied, setCopied] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [dismissedTokens, setDismissedTokens] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let cancelled = false;
@@ -356,6 +359,48 @@ export function AccountRowView({
             );
           })
       }
+
+      {/* Token discovery prompts */}
+      {tokenState === "loaded" && onTokenDecision && (() => {
+        const newTokens = findNewTokens(tokenBalances, displayPrefs)
+          .filter((t) => !dismissedTokens.has(t.id));
+        if (newTokens.length === 0) return null;
+        return newTokens.map((token) => (
+          <div
+            key={token.id}
+            className="flex items-center justify-between px-3 md:px-5 py-2.5 bg-blue-500/5 border-t border-blue-500/15"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[11px] text-blue-400">
+                {token.symbol} found
+              </span>
+              <span className="text-[10px] text-text-muted tabular-nums">
+                ({maskBalance(token.balance, hidden)})
+              </span>
+            </div>
+            <div className="flex gap-1.5 shrink-0">
+              <button
+                onClick={() => onTokenDecision(token.id, true)}
+                className="text-[10px] px-2 py-1 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+              >
+                Show
+              </button>
+              <button
+                onClick={() => onTokenDecision(token.id, false)}
+                className="text-[10px] px-2 py-1 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+              >
+                Not interested
+              </button>
+              <button
+                onClick={() => setDismissedTokens((prev) => new Set(prev).add(token.id))}
+                className="text-[10px] px-2 py-1 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+              >
+                Later
+              </button>
+            </div>
+          </div>
+        ));
+      })()}
 
     </div>
   );

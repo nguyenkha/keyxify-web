@@ -433,6 +433,7 @@ export function Wallet() {
                 row={row}
                 displayPrefs={displayMap[group.keyId] ?? null}
                 pollInterval={pollInterval}
+                onTokenDecision={(assetId, visible) => handleDisplayChange(group.keyId, assetId, visible)}
               />
             ))}
           </div>

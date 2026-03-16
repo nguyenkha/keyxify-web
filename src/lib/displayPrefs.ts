@@ -31,9 +31,27 @@ export function isChainVisible(
 export function isTokenVisible(
   assetId: string,
   stored: Record<string, boolean> | null,
-  balance: string | null,
+  _balance: string | null,
 ): boolean {
+  // Only show tokens explicitly enabled by user
   if (stored && assetId in stored) return stored[assetId];
-  if (balance === null) return false;
-  return parseFloat(balance) > 0;
+  return false;
+}
+
+/** Check if a token has a stored decision (yes or no) */
+export function hasTokenDecision(assetId: string, stored: Record<string, boolean> | null): boolean {
+  return stored != null && assetId in stored;
+}
+
+/**
+ * Find tokens with balance > 0 that the user hasn't made a decision about yet.
+ * These are candidates for the "new token discovered" prompt.
+ */
+export function findNewTokens(
+  balances: { asset: { id: string; symbol: string }; formatted: string }[],
+  stored: Record<string, boolean> | null,
+): { id: string; symbol: string; balance: string }[] {
+  return balances
+    .filter((b) => parseFloat(b.formatted) > 0 && !hasTokenDecision(b.asset.id, stored))
+    .map((b) => ({ id: b.asset.id, symbol: b.asset.symbol, balance: b.formatted }));
 }
