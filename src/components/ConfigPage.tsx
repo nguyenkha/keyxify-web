@@ -391,17 +391,7 @@ export function ConfigPage() {
                 {expanded && (
                   <div className="px-3 md:px-5 pb-4 pt-1 space-y-3">
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-xs text-text-muted">RPC URL</label>
-                        {getChainField(chain.name, "rpcUrl") && (
-                          <button
-                            onClick={() => setChainField(chain.name, "rpcUrl", "")}
-                            className="text-[10px] text-text-muted hover:text-text-secondary transition-colors"
-                          >
-                            Reset to default
-                          </button>
-                        )}
-                      </div>
+                      <label className="block text-xs text-text-muted mb-1.5">RPC URL</label>
                       <div className="relative">
                         <input
                           value={getChainField(chain.name, "rpcUrl")}
@@ -423,17 +413,7 @@ export function ConfigPage() {
                       </div>
                     </div>
                     <div>
-                      <div className="flex items-center justify-between mb-1.5">
-                        <label className="text-xs text-text-muted">Explorer URL</label>
-                        {getChainField(chain.name, "explorerUrl") && (
-                          <button
-                            onClick={() => setChainField(chain.name, "explorerUrl", "")}
-                            className="text-[10px] text-text-muted hover:text-text-secondary transition-colors"
-                          >
-                            Reset to default
-                          </button>
-                        )}
-                      </div>
+                      <label className="block text-xs text-text-muted mb-1.5">Explorer URL</label>
                       <div className="relative">
                         <input
                           value={getChainField(chain.name, "explorerUrl")}
