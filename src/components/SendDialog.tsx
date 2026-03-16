@@ -340,16 +340,26 @@ export function SendDialog({
     return () => { clearInterval(feeIv); clearInterval(countIv); };
   }, [chain.rpcUrl, chain.explorerUrl, chain.type]);
 
-  // Effective fee values based on selected level
-  const gasPrice = baseGasPrice != null
-    ? BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[feeLevel]))
-    : null;
-  const btcFeeRate = btcFeeRates?.[feeLevel] ?? null;
+  // Effective fee values based on selected level + expert overrides
+  const gasPrice = maxFeeOverride && /^\d+(\.\d+)?$/.test(maxFeeOverride)
+    ? BigInt(Math.round(parseFloat(maxFeeOverride) * 1e9))
+    : baseGasPrice != null
+      ? BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[feeLevel]))
+      : null;
+  const effectiveBtcFeeRate = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride)
+    ? parseInt(btcFeeRateOverride)
+    : btcFeeRates?.[feeLevel] ?? null;
+  const btcFeeRate = effectiveBtcFeeRate;
   const btcEstimatedFee = btcFeeRate != null ? estimateBtcFee(1, btcFeeRate, true, detectAddressType(address)) : null;
-  const bchFeeRate = bchFeeRates?.[feeLevel] ?? null;
+  const effectiveBchFeeRate = btcFeeRateOverride && /^\d+/.test(btcFeeRateOverride)
+    ? parseInt(btcFeeRateOverride)
+    : bchFeeRates?.[feeLevel] ?? null;
+  const bchFeeRate = effectiveBchFeeRate;
   const bchEstimatedFee = bchFeeRate != null ? estimateBchFee(1, bchFeeRate, true) : null;
 
-  const gasLimit = asset.isNative ? GAS_LIMIT_NATIVE : GAS_LIMIT_ERC20;
+  const gasLimit = gasLimitOverride && /^\d+$/.test(gasLimitOverride)
+    ? BigInt(gasLimitOverride)
+    : asset.isNative ? GAS_LIMIT_NATIVE : GAS_LIMIT_ERC20;
   const estimatedFeeWei = gasPrice != null ? gasPrice * gasLimit : null;
 
   // Unified fee display: { formatted, symbol, usd, rateLabel? }
@@ -1492,7 +1502,7 @@ message = buildSplTransferMessage({
                       <input
                         value={nonceOverride}
                         onChange={(e) => setNonceOverride(e.target.value)}
-                        placeholder="Auto"
+                        placeholder="Auto (next)"
                         className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
@@ -1501,7 +1511,7 @@ message = buildSplTransferMessage({
                       <input
                         value={gasLimitOverride}
                         onChange={(e) => setGasLimitOverride(e.target.value)}
-                        placeholder="Auto"
+                        placeholder={asset.isNative ? GAS_LIMIT_NATIVE.toString() : GAS_LIMIT_ERC20.toString()}
                         className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
@@ -1519,7 +1529,7 @@ message = buildSplTransferMessage({
                       <input
                         value={priorityFeeOverride}
                         onChange={(e) => setPriorityFeeOverride(e.target.value)}
-                        placeholder="Auto"
+                        placeholder={baseGasPrice != null ? formatGwei(baseGasPrice / 10n) : "Auto"}
                         className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                       />
                     </div>
