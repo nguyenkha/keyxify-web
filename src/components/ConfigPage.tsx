@@ -93,6 +93,7 @@ export function ConfigPage() {
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const healthCheckTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   useEffect(() => {
     Promise.all([fetchChains(), fetchAssets(), fetchSettings(), getMe()]).then(([c, a, s, me]) => {
@@ -144,15 +145,18 @@ export function ConfigPage() {
     else delete updatedChains[name];
     save({ ...overrides, chains: Object.keys(updatedChains).length ? updatedChains : undefined });
 
-    // Re-check RPC health when URL changes
+    // Re-check RPC health when URL changes (debounced — wait 1s after typing stops)
     if (field === "rpcUrl") {
       const chainData = chains.find((c) => c.name === name);
       const url = value || chainData?.rpcUrl || "";
+      clearTimeout(healthCheckTimers.current[name]);
       if (url) {
-        setRpcStatus((prev) => ({ ...prev, [name]: "checking" }));
-        checkRpcHealth(url, chainData?.type || "evm").then((ok) => {
-          setRpcStatus((prev) => ({ ...prev, [name]: ok ? "ok" : "error" }));
-        });
+        healthCheckTimers.current[name] = setTimeout(() => {
+          setRpcStatus((prev) => ({ ...prev, [name]: "checking" }));
+          checkRpcHealth(url, chainData?.type || "evm").then((ok) => {
+            setRpcStatus((prev) => ({ ...prev, [name]: ok ? "ok" : "error" }));
+          });
+        }, 1000);
       }
     }
   }
