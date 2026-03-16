@@ -280,8 +280,8 @@ export function AccountRowView({
             }`}
             title={tokensExpanded ? "Collapse tokens" : `${tokenBalances.length} tokens — click to expand`}
           >
-            <span className="group-hover/token:hidden">{tokensExpanded ? tokenBalances.length : tokenBalances.length}</span>
-            <svg className="w-3.5 h-3.5 hidden group-hover/token:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <span className="md:group-hover/token:hidden">{tokenBalances.length}</span>
+            <svg className="w-3.5 h-3.5 hidden md:group-hover/token:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               {tokensExpanded
                 ? <path strokeLinecap="round" strokeLinejoin="round" d="M5 15l7-7 7 7" />
                 : <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
