@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useState, useMemo } from "react";
 import type { Chain, Asset } from "../shared/types";
 import type { AccountRow } from "../lib/accountRows";
 import { ToggleSwitch } from "./ToggleSwitch";
@@ -14,6 +14,9 @@ export function ManageDisplayPanel({
   defaultChains: string[] | null;
   onToggle: (key: string, visible: boolean) => void;
 }) {
+  const [search, setSearch] = useState("");
+  const query = search.toLowerCase().trim();
+
   const uniqueChains = useMemo(() => {
     const seen = new Set<string>();
     const result: { chain: Chain }[] = [];
@@ -39,6 +42,19 @@ export function ManageDisplayPanel({
     return result;
   }, [rows]);
 
+  const filteredChains = query
+    ? uniqueChains.filter(({ chain }) => chain.displayName.toLowerCase().includes(query) || chain.name.toLowerCase().includes(query))
+    : uniqueChains;
+
+  const filteredTokens = query
+    ? tokenAssets.filter(({ asset, chainLabel }) =>
+        asset.symbol.toLowerCase().includes(query) ||
+        asset.name.toLowerCase().includes(query) ||
+        chainLabel.toLowerCase().includes(query))
+    : tokenAssets;
+
+  const showSearch = uniqueChains.length + tokenAssets.length > 8;
+
   return (
     <div className="mb-2 bg-surface-secondary rounded-lg border border-border-primary overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border-secondary">
@@ -46,8 +62,20 @@ export function ManageDisplayPanel({
           Choose which chains and tokens to display.
         </p>
       </div>
-      <div className="divide-y divide-border-secondary">
-        {uniqueChains.map(({ chain }) => {
+
+      {showSearch && (
+        <div className="px-3 py-2 border-b border-border-secondary">
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Filter..."
+            className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+          />
+        </div>
+      )}
+
+      <div className="divide-y divide-border-secondary max-h-64 overflow-auto">
+        {filteredChains.map(({ chain }) => {
           const key = `chain:${chain.name}`;
           const isOn = displayPrefs?.[key] ?? (defaultChains ? defaultChains.includes(chain.name) : true);
           return (
@@ -72,13 +100,15 @@ export function ManageDisplayPanel({
           );
         })}
 
-        {tokenAssets.length > 0 && (
+        {filteredTokens.length > 0 && (
           <>
-            <div className="px-4 py-1.5 bg-surface-tertiary/20">
-              <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Tokens</span>
-            </div>
-            {tokenAssets.map(({ asset, chainLabel }) => {
-              const isOn = displayPrefs?.[asset.id] ?? true;
+            {(!query || filteredChains.length > 0) && (
+              <div className="px-4 py-1.5 bg-surface-tertiary/20">
+                <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Tokens</span>
+              </div>
+            )}
+            {filteredTokens.map(({ asset, chainLabel }) => {
+              const isOn = displayPrefs?.[asset.id] ?? false;
               return (
                 <div
                   key={asset.id}
@@ -111,6 +141,12 @@ export function ManageDisplayPanel({
               );
             })}
           </>
+        )}
+
+        {query && filteredChains.length === 0 && filteredTokens.length === 0 && (
+          <div className="px-4 py-4 text-center">
+            <p className="text-xs text-text-muted">No matches</p>
+          </div>
         )}
       </div>
     </div>
