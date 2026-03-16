@@ -51,16 +51,16 @@ export function BalancePreview({
             <div className="px-3 py-2 flex items-center justify-between">
               <span className="text-xs text-text-muted">{change.symbol}</span>
               <div className="text-right">
-                <span className={`text-[11px] tabular-nums font-medium ${isNegative ? "text-red-400" : isPositive ? "text-green-400" : "text-text-muted"}`}>
+                <div className={`text-[11px] tabular-nums font-medium ${isNegative ? "text-red-400" : isPositive ? "text-green-400" : "text-text-muted"}`}>
                   {isPositive ? "+" : ""}{deltaFormatted} {change.symbol}
-                </span>
+                </div>
                 {deltaUsd != null && deltaUsd > 0 && (
-                  <span className="text-[10px] text-text-muted ml-1.5 tabular-nums">
-                    ({formatUsd(deltaUsd)})
-                  </span>
+                  <div className="text-[10px] text-text-muted tabular-nums">
+                    {formatUsd(deltaUsd)}
+                  </div>
                 )}
                 {afterBal < 0n && (
-                  <span className="text-[10px] text-red-400 ml-1.5">Insufficient</span>
+                  <div className="text-[10px] text-red-400">Insufficient</div>
                 )}
               </div>
             </div>

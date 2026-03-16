@@ -17,13 +17,13 @@ export function SimulationPreview({ simResult, prices }: { simResult: Simulation
               <div className="px-3 py-2 flex items-center justify-between">
                 <span className="text-xs text-text-muted">{c.asset.symbol}</span>
                 <div className="text-right">
-                  <span className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
+                  <div className={`text-[11px] tabular-nums font-medium ${c.direction === "out" ? "text-red-400" : "text-green-400"}`}>
                     {c.direction === "out" ? "-" : "+"}{c.amount} {c.asset.symbol}
-                  </span>
+                  </div>
                   {usd != null && usd > 0 && (
-                    <span className="text-[10px] text-text-muted ml-1.5 tabular-nums">
-                      ({formatUsd(usd)})
-                    </span>
+                    <div className="text-[10px] text-text-muted tabular-nums">
+                      {formatUsd(usd)}
+                    </div>
                   )}
                 </div>
               </div>
