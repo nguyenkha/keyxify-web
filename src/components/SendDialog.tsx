@@ -1736,12 +1736,9 @@ message = buildSplTransferMessage({
                     <button
                       type="button"
                       onClick={() => setRbfEnabled((v) => !v)}
-                      className="flex items-center justify-between w-full"
+                      className="flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary transition-colors"
                     >
-                      <div>
-                        <span className="block text-xs text-text-secondary">Replace-By-Fee</span>
-                        <span className="block text-[10px] text-text-muted">Allow fee bumping after broadcast</span>
-                      </div>
+                      <span className="text-xs text-text-secondary">Replace-By-Fee</span>
                       <div className={`w-7 h-4 rounded-full transition-colors relative shrink-0 ${rbfEnabled ? "bg-blue-500" : "bg-surface-tertiary"}`}>
                         <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${rbfEnabled ? "left-3.5" : "left-0.5"}`} />
                       </div>
