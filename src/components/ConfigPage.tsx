@@ -226,8 +226,7 @@ export function ConfigPage() {
           onClick={openJsonEditor}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
         >
-          <span className="text-sm font-mono leading-none">{"{ }"}</span>
-          JSON
+          <span className="font-mono">{"{config:json}"}</span>
         </button>
       </div>
 
