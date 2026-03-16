@@ -1,7 +1,24 @@
-import { useState, useEffect, useRef } from "react";
-import { fetchChains, fetchSettings, type Chain } from "../lib/api";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
+import type { Settings } from "../shared/types";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, setUserOverrides, clearUserOverrides, type UserOverrides } from "../lib/userOverrides";
+
+/** Simple JSON syntax highlighter — returns HTML string */
+function highlightJson(json: string): string {
+  return json.replace(
+    /("(?:\\.|[^"\\])*")\s*(:)?|(\b(?:true|false|null)\b)|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    (match, str, colon, bool, num) => {
+      if (str) {
+        if (colon) return `<span class="text-blue-400">${str}</span>:`;
+        return `<span class="text-green-400">${str}</span>`;
+      }
+      if (bool) return `<span class="text-orange-400">${match}</span>`;
+      if (num) return `<span class="text-purple-400">${match}</span>`;
+      return match;
+    }
+  );
+}
 
 const REFRESH_OPTIONS = [
   { label: "30s", value: 30 },
@@ -11,6 +28,8 @@ const REFRESH_OPTIONS = [
 
 export function ConfigPage() {
   const [chains, setChains] = useState<Chain[]>([]);
+  const [assets, setAssets] = useState<Asset[]>([]);
+  const [serverSettings, setServerSettings] = useState<Settings>({});
   const [serverDefaults, setServerDefaults] = useState<string[]>([]);
   const [serverRefresh, setServerRefresh] = useState(60);
   const [overrides, setOverrides] = useState<UserOverrides>({});
@@ -19,13 +38,16 @@ export function ConfigPage() {
   const [expandedChain, setExpandedChain] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [jsonMode, setJsonMode] = useState(false);
+  const [jsonTab, setJsonTab] = useState<"edit" | "preview">("edit");
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    Promise.all([fetchChains(), fetchSettings(), getMe()]).then(([c, s, me]) => {
+    Promise.all([fetchChains(), fetchAssets(), fetchSettings(), getMe()]).then(([c, a, s, me]) => {
       setChains(c);
+      setAssets(a);
+      setServerSettings(s);
       setServerDefaults((s.default_chains as string[]) ?? []);
       if (s.refresh_interval && typeof s.refresh_interval === "number") {
         setServerRefresh(s.refresh_interval);
@@ -36,6 +58,7 @@ export function ConfigPage() {
       setLoading(false);
     });
   }, []);
+
 
   function save(next: UserOverrides) {
     setOverrides(next);
@@ -157,9 +180,36 @@ export function ConfigPage() {
 
   // ── JSON editor ──
 
+  // Compute preview of what the merged config would look like with pending JSON edits
+  const pendingMergedConfig = useMemo(() => {
+    if (jsonTab !== "preview") return null;
+    try {
+      const pending = JSON.parse(jsonText) as UserOverrides;
+      const mergedChains = chains
+        .filter((c) => !pending.chains?.[c.name]?.hidden)
+        .map((c) => {
+          const { hidden: _, ...fields } = pending.chains?.[c.name] ?? {};
+          return Object.keys(fields).length ? { ...c, ...fields } : c;
+        });
+      return {
+        chains: mergedChains,
+        assets,
+        preferences: {
+          ...serverSettings,
+          default_chains: pending.preferences?.default_chains ?? serverDefaults,
+          refresh_interval: pending.preferences?.refresh_interval ?? serverRefresh,
+          ...pending.preferences,
+        },
+      };
+    } catch {
+      return null;
+    }
+  }, [jsonText, jsonTab, chains, assets, serverSettings, serverDefaults, serverRefresh]);
+
   function openJsonEditor() {
     setJsonText(JSON.stringify(overrides, null, 2));
     setJsonError("");
+    setJsonTab("edit");
     setJsonMode(true);
   }
 
@@ -170,6 +220,17 @@ export function ConfigPage() {
       setJsonMode(false);
     } catch {
       setJsonError("Invalid JSON");
+      setJsonTab("edit");
+    }
+  }
+
+  function previewJsonEditor() {
+    try {
+      JSON.parse(jsonText);
+      setJsonError("");
+      setJsonTab("preview");
+    } catch {
+      setJsonError("Invalid JSON — fix before previewing");
     }
   }
 
@@ -435,9 +496,29 @@ export function ConfigPage() {
       {jsonMode && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50" onClick={() => setJsonMode(false)} />
-          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl flex flex-col max-h-[80vh]">
+          <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-lg shadow-xl flex flex-col max-h-[80vh]">
             <div className="flex items-center justify-between px-5 py-4 border-b border-border-primary">
-              <h3 className="text-sm font-semibold text-text-primary">Edit Config JSON</h3>
+              <div className="flex items-center gap-3">
+                <h3 className="text-sm font-semibold text-text-primary">JSON Config</h3>
+                <div className="flex bg-surface-primary border border-border-primary rounded-lg p-0.5 gap-0.5">
+                  <button
+                    onClick={() => setJsonTab("edit")}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                      jsonTab === "edit" ? "bg-surface-tertiary text-text-primary shadow-sm" : "text-text-muted hover:text-text-secondary"
+                    }`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setJsonTab("preview")}
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${
+                      jsonTab === "preview" ? "bg-surface-tertiary text-text-primary shadow-sm" : "text-text-muted hover:text-text-secondary"
+                    }`}
+                  >
+                    Preview
+                  </button>
+                </div>
+              </div>
               <button
                 onClick={() => setJsonMode(false)}
                 className="p-1.5 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
@@ -448,14 +529,33 @@ export function ConfigPage() {
               </button>
             </div>
             <div className="px-5 py-4 flex-1 overflow-auto">
-              <textarea
-                value={jsonText}
-                onChange={(e) => { setJsonText(e.target.value); setJsonError(""); }}
-                className="w-full h-64 bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-xs text-text-primary font-mono resize-none focus:outline-none focus:border-blue-500 transition-colors"
-                spellCheck={false}
-              />
-              {jsonError && (
-                <p className="text-[10px] text-red-400 mt-1">{jsonError}</p>
+              {jsonTab === "edit" ? (
+                <>
+                  <p className="text-[10px] text-text-muted mb-2">Your overrides (changes only)</p>
+                  <textarea
+                    value={jsonText}
+                    onChange={(e) => { setJsonText(e.target.value); setJsonError(""); }}
+                    className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-xs text-text-primary font-mono resize-none focus:outline-none focus:border-blue-500 transition-colors"
+                    spellCheck={false}
+                  />
+                  {jsonError && (
+                    <p className="text-[10px] text-red-400 mt-1">{jsonError}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-[10px] text-text-muted mb-2">Preview merged config — verify before saving</p>
+                  {pendingMergedConfig ? (
+                    <pre
+                      className="w-full h-72 bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-xs font-mono overflow-auto leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: highlightJson(JSON.stringify(pendingMergedConfig, null, 2)) }}
+                    />
+                  ) : (
+                    <div className="w-full h-72 bg-surface-primary border border-red-500/30 rounded-lg px-3 py-2.5 flex items-center justify-center">
+                      <p className="text-xs text-red-400">Invalid JSON — go back to fix</p>
+                    </div>
+                  )}
+                </>
               )}
             </div>
             <div className="px-5 py-4 border-t border-border-primary flex justify-end gap-2">
@@ -465,12 +565,30 @@ export function ConfigPage() {
               >
                 Cancel
               </button>
-              <button
-                onClick={saveJsonEditor}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
-              >
-                Save
-              </button>
+              {jsonTab === "edit" ? (
+                <button
+                  onClick={previewJsonEditor}
+                  className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium transition-colors"
+                >
+                  Preview
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setJsonTab("edit")}
+                    className="px-4 py-2 rounded-lg text-xs text-text-secondary hover:bg-surface-tertiary transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={saveJsonEditor}
+                    disabled={!pendingMergedConfig}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-xs font-medium transition-colors"
+                  >
+                    Save
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
