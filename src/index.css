@@ -108,6 +108,12 @@
 [data-recovery] .disabled\:bg-surface-tertiary:disabled { background-color: #d4d4d4 !important; }
 [data-theme="dark"][data-recovery] .disabled\:bg-surface-tertiary:disabled { background-color: #2a2a2a !important; }
 
+/* Ensure modal overlays cover full viewport on mobile (fixed + inset-0 can fall short of dynamic toolbar) */
+.fixed.inset-0 {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+}
+
 /* RPC health heartbeat — subtle brightness pulse */
 @keyframes heartbeat {
   0%, 100% { opacity: 0.6; }
