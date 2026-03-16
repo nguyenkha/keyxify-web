@@ -18,6 +18,9 @@ export const EVM_FEE_MULTIPLIER: Record<FeeLevel, number> = { low: 0.8, medium: 
 export const GAS_LIMIT_NATIVE = 21_000n;
 export const GAS_LIMIT_ERC20 = 65_000n;
 
+/** Buffer added to eth_estimateGas results (10% = 10n means divide by 10) */
+export const GAS_ESTIMATE_BUFFER_DIVISOR = 10n;
+
 export type SendStep = "input" | "preview" | "signing" | "result";
 
 export type SigningPhase =

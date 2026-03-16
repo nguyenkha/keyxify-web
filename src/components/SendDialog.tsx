@@ -170,6 +170,7 @@ export function SendDialog({
 
   // Estimated gas and nonce from node
   const [estimatedGas, setEstimatedGas] = useState<bigint | null>(null);
+  const [gasEstimateError, setGasEstimateError] = useState<string | null>(null);
   const [currentNonce, setCurrentNonce] = useState<number | null>(null);
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
@@ -386,7 +387,10 @@ export function SendDialog({
       ? "0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)
       : undefined;
     const txTo = !asset.isNative && asset.contractAddress ? asset.contractAddress : to;
-    estimateGas(chain.rpcUrl, { from: address, to: txTo, value, data }).then(setEstimatedGas).catch(() => {});
+    setGasEstimateError(null);
+    estimateGas(chain.rpcUrl, { from: address, to: txTo, value, data })
+      .then((gas) => { setEstimatedGas(gas); setGasEstimateError(null); })
+      .catch((err) => { setEstimatedGas(null); setGasEstimateError(err?.message || "Gas estimation failed — transaction may revert"); });
   }, [chain.type, chain.rpcUrl, address, to, amount, asset]);
 
   // Effective fee values based on selected level + expert overrides
@@ -588,13 +592,13 @@ export function SendDialog({
       if (asset.isNative) {
         unsignedTx = await buildTransaction({
           rpcUrl: chain.rpcUrl, from: address, to, value: amountWei,
-          gasLimit: GAS_LIMIT_NATIVE, chainId, gasPrice: gasPrice ?? undefined,
+          gasLimit: gasLimit, chainId, gasPrice: gasPrice ?? undefined,
         });
       } else {
         const calldata = encodeErc20Transfer(to, amountWei);
         unsignedTx = await buildTransaction({
           rpcUrl: chain.rpcUrl, from: address, to: asset.contractAddress!,
-          value: 0n, data: calldata, gasLimit: GAS_LIMIT_ERC20, chainId,
+          value: 0n, data: calldata, gasLimit: gasLimit, chainId,
           gasPrice: gasPrice ?? undefined,
         });
       }
@@ -1817,6 +1821,14 @@ message = buildSplTransferMessage({
             {/* Body — Preview step */}
             <div className="p-5 space-y-5">
               <PolicyWarning policyCheck={policyCheck} />
+
+              {chain.type === "evm" && gasEstimateError && (
+                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
+                  <p className="text-xs text-red-400 leading-relaxed">
+                    Gas estimation failed: {gasEstimateError}. This transaction is likely to revert.
+                  </p>
+                </div>
+              )}
 
               {/* Amount hero */}
               <div className="text-center py-2">

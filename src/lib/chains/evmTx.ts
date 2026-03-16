@@ -4,6 +4,7 @@
 import { keccak_256 } from "@noble/hashes/sha3";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
+import { GAS_LIMIT_NATIVE, GAS_ESTIMATE_BUFFER_DIVISOR } from "../../components/sendTypes";
 
 // ── RLP Encoding ────────────────────────────────────────────────
 
@@ -78,11 +79,12 @@ async function ethRpc(rpcUrl: string, method: string, params: unknown[]): Promis
   return data.result;
 }
 
-/** Estimate gas for a transaction. Returns gas units with 10% buffer. */
+/** Estimate gas for a transaction. Simple ETH transfers (21000) stay fixed; otherwise adds configurable buffer. */
 export async function estimateGas(rpcUrl: string, tx: { from: string; to: string; value?: string; data?: string }): Promise<bigint> {
   const result = await ethRpc(rpcUrl, "eth_estimateGas", [tx]);
   const estimate = BigInt(result);
-  return estimate + estimate / 10n; // +10% buffer
+  if (estimate <= GAS_LIMIT_NATIVE) return GAS_LIMIT_NATIVE;
+  return estimate + estimate / GAS_ESTIMATE_BUFFER_DIVISOR;
 }
 
 /** Get the next nonce for an address. */
