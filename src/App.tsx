@@ -196,7 +196,6 @@ function DashboardLayout() {
         <div className="px-5 py-6 border-b border-border-primary flex items-center justify-between">
           <div>
             <div>
-              <p className="text-[10px] text-text-muted/40 font-mono">{(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}</p>
               <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
               <p className="text-[11px] text-text-muted mt-0.5">
                 <span className={recovery ? "text-orange-400 recovery-accent" : ""}>keys simplified</span>
@@ -287,7 +286,10 @@ function DashboardLayout() {
             </div>
             <HideBalancesToggle />
           </div>
-        ) : email ? (
+        ) : email ? (<>
+          <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono">
+            {(import.meta.env.VITE_GIT_HASH as string | undefined)?.slice(0, 7) ?? "dev"}
+          </div>
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-text-tertiary truncate" title={email}>
@@ -306,7 +308,7 @@ function DashboardLayout() {
             <HideBalancesToggle />
             <ThemeToggle />
           </div>
-        ) : null}
+        </>) : null}
       </aside>
 
       {/* Main content */}
