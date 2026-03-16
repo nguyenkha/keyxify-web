@@ -71,6 +71,12 @@ export function CreateAccountDialog({
   const [browserSaveError, setBrowserSaveError] = useState("");
   const [escrowStatus, setEscrowStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
 
+  const [selectedRules, setSelectedRules] = useState<Record<string, boolean>>({
+    transfer: true,
+    contract_call: true,
+    raw_message: false,
+  });
+
   const canClose = step === "welcome" || step === "name" || step === "passphrase" || (step === "backup" && downloaded);
 
   function chooseMode(isExpert: boolean) {
@@ -295,23 +301,25 @@ export function CreateAccountDialog({
                       { key: "transfer", label: "Transfers", desc: "Allow sending tokens to other addresses. Includes strict fraud detection to block risky recipients." },
                       { key: "contract_call", label: "Contract calls", desc: "Allow interacting with smart contracts and dApps. Includes strict fraud detection to block flagged contracts." },
                       { key: "raw_message", label: "Message signing", desc: "Allow signing raw messages (personal_sign, signTypedData). Disabled by default — enable only if needed for dApp login or off-chain signatures." },
-                    ].map((rule) => (
-                      <label
-                        key={rule.key}
-                        className="flex items-center gap-2.5 px-3 py-2.5 bg-surface-primary rounded-lg border border-border-secondary cursor-pointer hover:border-border-primary transition-colors"
-                      >
-                        <input
-                          type="checkbox"
-                          defaultChecked={rule.key !== "raw_message"}
-                          className="accent-blue-500 shrink-0"
+                    ].map((rule) => {
+                      const selected = selectedRules[rule.key];
+                      return (
+                        <button
+                          key={rule.key}
+                          type="button"
+                          onClick={() => setSelectedRules((s) => ({ ...s, [rule.key]: !s[rule.key] }))}
+                          className={`w-full text-left px-3 py-2.5 rounded-lg border transition-colors ${
+                            selected
+                              ? "bg-blue-500/10 border-blue-500/30"
+                              : "bg-surface-primary border-border-secondary hover:border-border-primary"
+                          }`}
                           data-rule={rule.key}
-                        />
-                        <div className="min-w-0">
-                          <span className="text-xs text-text-primary font-medium">{rule.label}</span>
+                        >
+                          <span className={`text-xs font-medium ${selected ? "text-blue-400" : "text-text-primary"}`}>{rule.label}</span>
                           <p className="text-[10px] text-text-muted leading-relaxed mt-0.5">{rule.desc}</p>
-                        </div>
-                      </label>
-                    ))}
+                        </button>
+                      );
+                    })}
                   </div>
                   <p className="text-[10px] text-text-muted mt-2">
                     Fraud check (Strict) is enabled by default. These rules take effect immediately.
