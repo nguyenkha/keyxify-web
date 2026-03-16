@@ -292,20 +292,23 @@ export function CreateAccountDialog({
                   <label className="block text-xs text-text-tertiary mb-1.5">Default policy rules</label>
                   <div className="space-y-2">
                     {[
-                      { key: "transfer", label: "Transfers", desc: "Send tokens to other addresses" },
-                      { key: "contract_call", label: "Contract calls", desc: "Interact with smart contracts and dApps" },
-                      { key: "raw_message", label: "Message signing", desc: "Sign messages (personal_sign, signTypedData)" },
+                      { key: "transfer", label: "Transfers", desc: "Allow sending tokens to other addresses. Includes strict fraud detection to block risky recipients." },
+                      { key: "contract_call", label: "Contract calls", desc: "Allow interacting with smart contracts and dApps. Includes strict fraud detection to block flagged contracts." },
+                      { key: "raw_message", label: "Message signing", desc: "Allow signing raw messages (personal_sign, signTypedData). Disabled by default — enable only if needed for dApp login or off-chain signatures." },
                     ].map((rule) => (
-                      <label key={rule.key} className="flex items-start gap-2.5 cursor-pointer">
+                      <label
+                        key={rule.key}
+                        className="flex items-center gap-2.5 px-3 py-2.5 bg-surface-primary rounded-lg border border-border-secondary cursor-pointer hover:border-border-primary transition-colors"
+                      >
                         <input
                           type="checkbox"
                           defaultChecked={rule.key !== "raw_message"}
-                          className="mt-0.5 accent-blue-500"
+                          className="accent-blue-500 shrink-0"
                           data-rule={rule.key}
                         />
-                        <div>
+                        <div className="min-w-0">
                           <span className="text-xs text-text-primary font-medium">{rule.label}</span>
-                          <p className="text-[10px] text-text-muted">{rule.desc}</p>
+                          <p className="text-[10px] text-text-muted leading-relaxed mt-0.5">{rule.desc}</p>
                         </div>
                       </label>
                     ))}
