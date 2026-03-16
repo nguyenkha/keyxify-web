@@ -224,7 +224,7 @@ function PeerImport({
           <button
             onClick={() => onDecrypt(state.raw)}
             disabled={!passphrase}
-            className="flex-1 bg-text-tertiary hover:bg-text-secondary disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium text-surface-primary transition-colors"
+            className="flex-1 recovery-accent bg-yellow-600 hover:bg-yellow-500 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
           >
             Decrypt
           </button>
