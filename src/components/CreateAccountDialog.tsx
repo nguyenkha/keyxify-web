@@ -10,8 +10,11 @@ import {
   setStoragePreference,
 } from "../lib/keystore";
 import { apiUrl } from "../lib/apiBase";
+import { useExpertMode, useSetExpertMode } from "../context/ExpertModeContext";
+import { getMe } from "../lib/auth";
+import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
 
-type CreateStep = "name" | "creating" | "passphrase" | "backup";
+type CreateStep = "welcome" | "name" | "creating" | "passphrase" | "backup";
 
 const TIPS = [
   "You are responsible for your own key share. Keep your downloaded file safe.",
@@ -54,7 +57,10 @@ export function CreateAccountDialog({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const [step, setStep] = useState<CreateStep>("name");
+  const expert = useExpertMode();
+  const setExpertContext = useSetExpertMode();
+  const isFirstAccount = keyCount === 0;
+  const [step, setStep] = useState<CreateStep>(isFirstAccount ? "welcome" : "name");
   const [name, setName] = useState("");
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
@@ -65,7 +71,18 @@ export function CreateAccountDialog({
   const [browserSaveError, setBrowserSaveError] = useState("");
   const [escrowStatus, setEscrowStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
 
-  const canClose = step === "name" || step === "passphrase" || (step === "backup" && downloaded);
+  const canClose = step === "welcome" || step === "name" || step === "passphrase" || (step === "backup" && downloaded);
+
+  function chooseMode(isExpert: boolean) {
+    // Save preference
+    getMe().then((me) => {
+      const overrides = getUserOverrides(me?.id);
+      const prefs = { ...overrides.preferences, expert_mode: isExpert || undefined };
+      setUserOverrides({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined }, me?.id);
+    });
+    setExpertContext(isExpert);
+    setStep("name");
+  }
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -179,7 +196,7 @@ export function CreateAccountDialog({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
           <h3 className="text-sm font-semibold text-text-primary">
-            {step === "backup" ? "🔐 Backup Key" : "✨ New Account"}
+            {step === "welcome" ? "👋 Welcome" : step === "backup" ? "🔐 Backup Key" : "✨ New Account"}
           </h3>
           {canClose && (
             <button
@@ -195,6 +212,64 @@ export function CreateAccountDialog({
 
         {/* Body */}
         <div className="px-5 py-5">
+
+          {step === "welcome" && (
+            <div className="space-y-5">
+              <div className="text-center">
+                <p className="text-sm text-text-primary">How would you like to use kexify?</p>
+                <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                  This helps us set the right defaults for you. You can always change this later in Config.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <button
+                  onClick={() => chooseMode(false)}
+                  className="w-full bg-surface-primary border border-border-primary hover:border-blue-500/30 rounded-xl px-4 py-4 text-left transition-colors group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary group-hover:text-blue-400 transition-colors">Simple & Safe</p>
+                      <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                        Best for most users. Clean interface with fraud protection enabled by default.
+                        Advanced options are hidden to keep things simple.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={() => chooseMode(true)}
+                  className="w-full bg-surface-primary border border-border-primary hover:border-border-secondary rounded-xl px-4 py-4 text-left transition-colors group"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
+                      <svg className="w-5 h-5 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary group-hover:text-text-secondary transition-colors">Expert Mode</p>
+                      <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                        For developers and power users. Shows gas controls, nonce, raw transaction data,
+                        detailed logs, and full key share management.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              <p className="text-[10px] text-text-muted text-center leading-relaxed">
+                Both modes include fraud protection and policy rules by default.
+              </p>
+            </div>
+          )}
+
           {/* Step: Name */}
           {step === "name" && (
             <div className="space-y-4">
@@ -210,6 +285,45 @@ export function CreateAccountDialog({
                   className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-blue-500 transition-colors"
                 />
               </div>
+
+              {/* Expert: default policy rules */}
+              {expert && (
+                <div>
+                  <label className="block text-xs text-text-tertiary mb-1.5">Default policy rules</label>
+                  <div className="space-y-2">
+                    {[
+                      { key: "transfer", label: "Transfers", desc: "Send tokens to other addresses" },
+                      { key: "contract_call", label: "Contract calls", desc: "Interact with smart contracts and dApps" },
+                      { key: "raw_message", label: "Message signing", desc: "Sign messages (personal_sign, signTypedData)" },
+                    ].map((rule) => (
+                      <label key={rule.key} className="flex items-start gap-2.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          defaultChecked={rule.key !== "raw_message"}
+                          className="mt-0.5 accent-blue-500"
+                          data-rule={rule.key}
+                        />
+                        <div>
+                          <span className="text-xs text-text-primary font-medium">{rule.label}</span>
+                          <p className="text-[10px] text-text-muted">{rule.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-text-muted mt-2">
+                    Fraud check (Strict) is enabled by default on all rules. You can adjust after creation in Policy Rules.
+                  </p>
+                </div>
+              )}
+
+              {/* Non-expert: safe defaults note */}
+              {!expert && isFirstAccount && (
+                <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-3 py-2">
+                  <p className="text-[11px] text-green-400 leading-relaxed">
+                    Your account will be protected with fraud detection and safe default rules. You can customize these anytime in Policy Rules.
+                  </p>
+                </div>
+              )}
 
               {error && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
