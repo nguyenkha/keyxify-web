@@ -1681,7 +1681,7 @@ message = buildSplTransferMessage({
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
                 <div className="px-3 py-2.5 flex items-center justify-between">
                   <span className="text-xs text-text-muted">From</span>
-                  <span className={`${expert ? "text-[9px]" : "text-xs"} font-mono text-text-secondary`}>{expert ? address : shortAddrPreview(address)}</span>
+                  <span className={`${expert ? "text-[10px]" : "text-xs"} font-mono text-text-secondary`}>{expert ? address : shortAddrPreview(address)}</span>
                 </div>
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                   <div className="flex items-center gap-2 shrink-0">
@@ -1690,7 +1690,7 @@ message = buildSplTransferMessage({
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">Contract</span>
                     )}
                   </div>
-                  <span className={`${expert ? "text-[9px]" : "text-xs"} font-mono text-text-secondary`}>
+                  <span className={`${expert ? "text-[10px]" : "text-xs"} font-mono text-text-secondary`}>
                     {!asset.isNative && asset.contractAddress
                       ? (expert ? asset.contractAddress : shortAddrPreview(asset.contractAddress))
                       : (expert ? to : shortAddrPreview(to))}
@@ -1699,7 +1699,7 @@ message = buildSplTransferMessage({
                 {!asset.isNative && asset.contractAddress && expert && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">Recipient</span>
-                    <span className="text-[9px] font-mono text-text-secondary">{to}</span>
+                    <span className="text-[10px] font-mono text-text-secondary">{to}</span>
                   </div>
                 )}
                 {!asset.isNative && asset.contractAddress && (
