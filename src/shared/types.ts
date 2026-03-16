@@ -128,6 +128,7 @@ export interface PolicyRuleBody {
   amountMax: string | null;
   usdMax: string | null;
   toAddress: string | null;
+  fraudCheck?: "high" | "medium" | "low" | null;
 }
 
 export interface PolicyVersion {

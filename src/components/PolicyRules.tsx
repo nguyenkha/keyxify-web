@@ -17,6 +17,13 @@ const EMPTY_RULE: PolicyRuleBody = {
   amountMax: null,
   usdMax: null,
   toAddress: null,
+  fraudCheck: null,
+};
+
+const FRAUD_LEVEL_LABELS: Record<string, string> = {
+  high: "High (sanctions & crime)",
+  medium: "Medium (+ phishing & laundering)",
+  low: "Low (all flags)",
 };
 
 function formatCountdown(effectiveAt: string): string {
@@ -197,6 +204,9 @@ export function PolicyRules({
               ) : (
                 <span className="text-text-muted"> (any contract)</span>
               )}
+              {rule.fraudCheck && (
+                <span className="text-orange-400 text-[10px]"> fraud={rule.fraudCheck}</span>
+              )}
             </span>
           ) : (
             <span>
@@ -208,6 +218,9 @@ export function PolicyRules({
                 <span className="text-text-muted font-mono text-[10px]">
                   {" "}to={rule.toAddress.slice(0, 10)}…
                 </span>
+              )}
+              {rule.fraudCheck && (
+                <span className="text-orange-400 text-[10px]"> fraud={rule.fraudCheck}</span>
               )}
             </span>
           )}
@@ -325,6 +338,21 @@ export function PolicyRules({
                 className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary font-mono"
               />
             </div>
+            <div>
+              <label className="text-[10px] text-text-muted block mb-1">
+                Fraud Check <span className="text-text-muted/50">(block flagged addresses)</span>
+              </label>
+              <select
+                value={newRule.fraudCheck || ""}
+                onChange={(e) => setNewRule({ ...newRule, fraudCheck: (e.target.value || null) as PolicyRuleBody["fraudCheck"] })}
+                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
+              >
+                <option value="">Disabled</option>
+                <option value="high">{FRAUD_LEVEL_LABELS.high}</option>
+                <option value="medium">{FRAUD_LEVEL_LABELS.medium}</option>
+                <option value="low">{FRAUD_LEVEL_LABELS.low}</option>
+              </select>
+            </div>
           </div>
         )}
 
@@ -340,6 +368,21 @@ export function PolicyRules({
                 placeholder="0x..."
                 className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary font-mono"
               />
+            </div>
+            <div>
+              <label className="text-[10px] text-text-muted block mb-1">
+                Fraud Check <span className="text-text-muted/50">(block flagged contracts)</span>
+              </label>
+              <select
+                value={newRule.fraudCheck || ""}
+                onChange={(e) => setNewRule({ ...newRule, fraudCheck: (e.target.value || null) as PolicyRuleBody["fraudCheck"] })}
+                className="w-full bg-surface-secondary border border-border-primary rounded px-2 py-1.5 text-xs text-text-primary"
+              >
+                <option value="">Disabled</option>
+                <option value="high">{FRAUD_LEVEL_LABELS.high}</option>
+                <option value="medium">{FRAUD_LEVEL_LABELS.medium}</option>
+                <option value="low">{FRAUD_LEVEL_LABELS.low}</option>
+              </select>
             </div>
           </div>
         )}
