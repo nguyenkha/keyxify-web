@@ -950,23 +950,8 @@
     "preferences": {
         "default_chains": [
             "ETHEREUM",
-            "BASE",
-            "ARBITRUM",
-            "OPTIMISM",
-            "AVALANCHE",
-            "BSC",
-            "POLYGON",
-            "LINEA",
-            "ZKSYNC",
-            "SCROLL",
-            "MANTLE",
-            "GNOSIS",
-            "FANTOM",
-            "CELO",
             "BITCOIN",
-            "BITCOIN_CASH",
-            "SOLANA",
-            "RIPPLE"
+            "SOLANA"
         ],
         "refresh_interval": 60,
         "evm_gas_buffer_pct": 10
