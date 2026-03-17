@@ -53,10 +53,10 @@ export function PasskeyGate({
         </svg>
       </div>
       <p className="text-sm font-medium text-text-primary mb-2">
-        {inline ? "Secure your wallet with a passkey" : "Set up a passkey to continue"}
+        {inline ? "Add fingerprint or Face ID" : "Set up a passkey to continue"}
       </p>
       <p className="text-xs text-text-muted leading-relaxed mb-2 max-w-[300px] mx-auto">
-        A passkey uses your device's built-in security — like Face ID, fingerprint, or PIN — to protect your wallet. It works just like unlocking your phone.
+        Approve transactions with a quick tap instead of passwords. Uses your device's built-in security — Face ID, fingerprint, or PIN.
       </p>
       <p className="text-[11px] text-text-muted/70 leading-relaxed mb-6 max-w-[280px] mx-auto">
         No passwords to remember. Your device handles it securely.

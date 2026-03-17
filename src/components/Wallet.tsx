@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type Settings } from "../lib/api";
 import staticConfig from "../config.json";
@@ -23,6 +24,7 @@ import { useRecovery } from "../context/RecoveryContext";
 import { ManageDisplayPanel } from "./ManageDisplayPanel";
 import { AccountRowView } from "./AccountRowView";
 import { CreateAccountDialog } from "./CreateAccountDialog";
+import { BackupReminder } from "./backup-reminder";
 
 /** Default polling interval for balance/price refresh (ms) — overridden by server setting */
 const DEFAULT_POLL_INTERVAL = 60_000;
@@ -38,6 +40,7 @@ function formatLastUpdated(date: Date): string {
 }
 
 export function Wallet() {
+  const navigate = useNavigate();
   const frozen = useFrozen();
   const expert = useExpertMode();
   const { isRecovery, recoveryKeys } = useRecovery();
@@ -132,6 +135,13 @@ export function Wallet() {
   const [manageDisplayKeyId, setManageDisplayKeyId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  // Auto-open create dialog for first-time users once loading completes
+  useEffect(() => {
+    if (!loading && keys.length === 0 && !isRecovery) {
+      setShowCreateDialog(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]);
   const [infoKeyId, setInfoKeyId] = useState<string | null>(null);
   const [badgeExplain, setBadgeExplain] = useState<string | null>(null);
   const [menuKeyId, setMenuKeyId] = useState<string | null>(null);
@@ -506,6 +516,11 @@ export function Wallet() {
           </div>
         </div>
       ))}
+
+      {/* Backup reminder for keys without backup */}
+      {keyGroups.some(g => !g.backedUp && !g.selfCustody) && !isRecovery && (
+        <BackupReminder onBackup={() => navigate("/backup-recovery")} />
+      )}
 
       {policyKeyId && (
         <PolicyRules

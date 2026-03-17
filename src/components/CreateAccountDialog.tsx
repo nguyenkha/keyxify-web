@@ -118,6 +118,11 @@ export function CreateAccountDialog({
     });
     setExpertContext(isExpert);
 
+    // Auto-name first account — skip name step
+    if (isFirstAccount) {
+      setName("My Wallet");
+    }
+
     // Check if user has passkeys — if not, show inline passkey setup as next step
     try {
       const passkeys = await fetchPasskeys();
@@ -126,6 +131,12 @@ export function CreateAccountDialog({
         return;
       }
     } catch { /* proceed anyway */ }
+
+    // First account: skip name step, go straight to creating
+    if (isFirstAccount) {
+      guardedCreate();
+      return;
+    }
     setStep("name");
   }
 
@@ -262,6 +273,12 @@ export function CreateAccountDialog({
 
         setCreatingDone(true);
         await new Promise((r) => setTimeout(r, 1100));
+
+        // First account: skip passphrase/backup — go directly to done
+        if (isFirstAccount) {
+          setStep("done");
+          return;
+        }
         setStep("passphrase");
       } else {
         setCreatingDone(true);
@@ -317,68 +334,113 @@ export function CreateAccountDialog({
 
           {step === "welcome" && (
             <div className="space-y-5">
-              <div className="text-center">
-                <p className="text-sm text-text-primary">How would you like to use kexify?</p>
-                <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
-                  This helps us set the right defaults for you. You can always change this later in Config.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <button
-                  onClick={() => chooseMode(false)}
-                  className="w-full bg-surface-primary border border-border-primary hover:border-blue-500/30 rounded-lg px-4 py-4 text-left transition-colors group"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
-                      <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+              {isFirstAccount ? (
+                /* Simplified first-account welcome — no mode selector */
+                <div className="space-y-4 py-2">
+                  <div className="text-center mb-2">
+                    <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a2.25 2.25 0 00-2.25-2.25H15a3 3 0 11-6 0H5.25A2.25 2.25 0 003 12m18 0v6a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 9m18 0V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v3" />
                       </svg>
                     </div>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary group-hover:text-blue-400 transition-colors">Simple & Safe</p>
-                      <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
-                        Best for most users. Clean interface with fraud protection enabled by default.
-                        Advanced options are hidden to keep things simple.
-                      </p>
-                    </div>
+                    <p className="text-sm font-medium text-text-primary">Let's create your wallet</p>
+                    <p className="text-xs text-text-muted mt-1 leading-relaxed max-w-[260px] mx-auto">
+                      Your keys are split between this device and our server — neither side can sign alone.
+                    </p>
                   </div>
-                </button>
-
-                <button
-                  onClick={() => chooseMode(true)}
-                  className="w-full bg-surface-primary border border-border-primary hover:border-border-secondary rounded-lg px-4 py-4 text-left transition-colors group"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
-                      <svg className="w-5 h-5 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-text-primary group-hover:text-text-secondary transition-colors">Expert Mode</p>
-                      <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
-                        For developers and power users. Shows gas controls, nonce, raw transaction data,
-                        detailed logs, and full key share management.
-                      </p>
-                    </div>
+                  <button
+                    onClick={() => chooseMode(false)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    Get Started
+                  </button>
+                </div>
+              ) : (
+                /* Full mode selector for subsequent accounts */
+                <>
+                  <div className="text-center">
+                    <p className="text-sm text-text-primary">How would you like to use kexify?</p>
+                    <p className="text-xs text-text-muted mt-1.5 leading-relaxed">
+                      This helps us set the right defaults for you. You can always change this later in Config.
+                    </p>
                   </div>
-                </button>
-              </div>
 
-              <p className="text-[10px] text-text-muted text-center leading-relaxed">
-                Both modes include fraud protection and policy rules by default.
-              </p>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => chooseMode(false)}
+                      className="w-full bg-surface-primary border border-border-primary hover:border-blue-500/30 rounded-lg px-4 py-4 text-left transition-colors group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                          <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-text-primary group-hover:text-blue-400 transition-colors">Simple & Safe</p>
+                          <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                            Best for most users. Clean interface with fraud protection enabled by default.
+                            Advanced options are hidden to keep things simple.
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+
+                    <button
+                      onClick={() => chooseMode(true)}
+                      className="w-full bg-surface-primary border border-border-primary hover:border-border-secondary rounded-lg px-4 py-4 text-left transition-colors group"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
+                          <svg className="w-5 h-5 text-text-secondary" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5" />
+                          </svg>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-text-primary group-hover:text-text-secondary transition-colors">Expert Mode</p>
+                          <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+                            For developers and power users. Shows gas controls, nonce, raw transaction data,
+                            detailed logs, and full key share management.
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+
+                  <p className="text-[10px] text-text-muted text-center leading-relaxed">
+                    Both modes include fraud protection and policy rules by default.
+                  </p>
+                </>
+              )}
             </div>
           )}
 
           {/* Step: Passkey (integrated into creation flow for first-time users) */}
           {step === "passkey" && (
-            <PasskeyGate
-              inline
-              onRegistered={() => setStep("name")}
-              onCancel={() => setStep("name")}
-            />
+            <div className="space-y-4">
+              <PasskeyGate
+                inline
+                onRegistered={() => {
+                  if (isFirstAccount) {
+                    guardedCreate();
+                  } else {
+                    setStep("name");
+                  }
+                }}
+                onCancel={() => {
+                  if (isFirstAccount) {
+                    guardedCreate();
+                  } else {
+                    setStep("name");
+                  }
+                }}
+              />
+              {isFirstAccount && (
+                <p className="text-[10px] text-text-muted text-center">
+                  You'll need a passkey before sending crypto
+                </p>
+              )}
+            </div>
           )}
 
           {/* Step: Name */}
@@ -785,8 +847,29 @@ export function CreateAccountDialog({
               </button>
             </div>
           )}
-          {/* Step: Done — "What's next?" for non-expert users */}
-          {step === "done" && (
+          {/* Step: Done — simplified for first account, "What's next?" for subsequent */}
+          {step === "done" && isFirstAccount && (
+            <div className="text-center py-4">
+              <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-text-primary mb-1">Your wallet is ready</p>
+              <p className="text-xs text-text-muted mb-6">You can receive crypto right away</p>
+              <button
+                onClick={() => { onCreated(); onClose(); }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+              >
+                Go to Wallet
+              </button>
+              <p className="text-[10px] text-text-muted mt-3">
+                Back up your wallet in Settings to protect against device loss
+              </p>
+            </div>
+          )}
+          {/* Step: Done — "What's next?" for non-expert subsequent accounts */}
+          {step === "done" && !isFirstAccount && (
             <div className="space-y-5">
               <div className="text-center">
                 <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
