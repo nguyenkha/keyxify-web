@@ -727,7 +727,7 @@ export function CreateAccountDialog({
               </div>
 
               {/* What's next */}
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 text-left">
                 <p className="text-[11px] text-text-tertiary font-medium uppercase tracking-wider">What's next</p>
 
                 <div className="bg-surface-primary border border-border-primary rounded-lg px-3.5 py-3 flex items-start gap-3">
@@ -736,7 +736,7 @@ export function CreateAccountDialog({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-text-primary">Fund your wallet</p>
                     <p className="text-[11px] text-text-muted leading-relaxed mt-0.5">
                       Send crypto from an exchange or another wallet to your new address. Tap any chain on the next screen to see your receive address.
@@ -750,7 +750,7 @@ export function CreateAccountDialog({
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.556a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364L16.243 8.65" />
                     </svg>
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-text-primary">Connect to dApps</p>
                     <p className="text-[11px] text-text-muted leading-relaxed mt-0.5">
                       Use WalletConnect to interact with DeFi apps, NFT marketplaces, and more.
@@ -760,11 +760,11 @@ export function CreateAccountDialog({
               </div>
 
               {/* Backup reminder for non-expert */}
-              <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3.5 py-2.5 flex items-start gap-2.5">
+              <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3.5 py-2.5 flex items-start gap-2.5 text-left">
                 <svg className="w-4 h-4 text-yellow-500/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
                 </svg>
-                <div>
+                <div className="flex-1 min-w-0">
                   <p className="text-[11px] text-yellow-500/80 font-medium">Download a backup when you get a chance</p>
                   <p className="text-[11px] text-yellow-500/60 leading-relaxed mt-0.5">
                     Go to Backup & Recovery to download your key file. If you lose access to this browser, you'll need it to recover your wallet.
