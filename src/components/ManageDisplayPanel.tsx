@@ -2,19 +2,31 @@ import { useState, useMemo } from "react";
 import type { Chain, Asset } from "../shared/types";
 import type { AccountRow } from "../lib/accountRows";
 import { ToggleSwitch } from "./ToggleSwitch";
+import { fetchTokenMetadata } from "../lib/tokenMetadata";
+import { getUserOverrides, setUserOverrides, type CustomToken } from "../lib/userOverrides";
+import { getMe } from "../lib/auth";
+import staticConfig from "../config.json";
 
 export function ManageDisplayPanel({
   rows,
   displayPrefs,
   defaultChains,
   onToggle,
+  onTokenAdded,
 }: {
   rows: AccountRow[];
   displayPrefs: Record<string, boolean> | null;
   defaultChains: string[] | null;
   onToggle: (key: string, visible: boolean) => void;
+  onTokenAdded?: () => void;
 }) {
   const [search, setSearch] = useState("");
+  const [showAddToken, setShowAddToken] = useState(false);
+  const [addChainId, setAddChainId] = useState("");
+  const [addContract, setAddContract] = useState("");
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [addPreview, setAddPreview] = useState<{ symbol: string; name: string; decimals: number; iconUrl: string | null } | null>(null);
   const query = search.toLowerCase().trim();
 
   const uniqueChains = useMemo(() => {
@@ -146,6 +158,131 @@ export function ManageDisplayPanel({
         {query && filteredChains.length === 0 && filteredTokens.length === 0 && (
           <div className="px-4 py-4 text-center">
             <p className="text-xs text-text-muted">No matches</p>
+          </div>
+        )}
+      </div>
+
+      {/* Add custom token */}
+      <div className="border-t border-border-secondary">
+        {!showAddToken ? (
+          <button
+            onClick={() => setShowAddToken(true)}
+            className="w-full px-4 py-2.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-surface-tertiary/30 transition-colors text-left"
+          >
+            + Add custom token
+          </button>
+        ) : (
+          <div className="px-4 py-3 space-y-2.5">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Add Token</span>
+              <button onClick={() => { setShowAddToken(false); setAddPreview(null); setAddError(""); setAddContract(""); }} className="text-[10px] text-text-muted hover:text-text-secondary">Cancel</button>
+            </div>
+
+            {/* Chain selector */}
+            <select
+              value={addChainId}
+              onChange={(e) => { setAddChainId(e.target.value); setAddPreview(null); setAddError(""); }}
+              className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary focus:outline-none focus:border-blue-500 transition-colors"
+            >
+              <option value="">Select network...</option>
+              {uniqueChains
+                .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm")
+                .map(({ chain }) => (
+                  <option key={chain.id} value={chain.id}>{chain.displayName}</option>
+                ))}
+            </select>
+
+            {/* Contract address input */}
+            <input
+              value={addContract}
+              onChange={(e) => { setAddContract(e.target.value); setAddPreview(null); setAddError(""); }}
+              placeholder={addChainId && uniqueChains.find(c => c.chain.id === addChainId)?.chain.type === "xlm" ? "CODE:ISSUER_ADDRESS" : "Contract address"}
+              className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+            />
+
+            {/* Fetch button */}
+            <button
+              onClick={async () => {
+                const chain = uniqueChains.find(c => c.chain.id === addChainId)?.chain;
+                if (!chain || !addContract.trim()) return;
+                setAddLoading(true);
+                setAddError("");
+                setAddPreview(null);
+                try {
+                  const meta = await fetchTokenMetadata(chain.type, addContract.trim(), chain.rpcUrl, chain.evmChainId);
+                  // Check for symbol conflict with config.json on same chain
+                  const configAssets = (staticConfig.assets as Asset[]).filter(a => a.chainId === chain.id);
+                  const conflict = configAssets.find(a => a.symbol.toUpperCase() === meta.symbol.toUpperCase());
+                  if (conflict) {
+                    setAddError(`Symbol "${meta.symbol}" already exists on ${chain.displayName} as a built-in token.`);
+                    return;
+                  }
+                  setAddPreview(meta);
+                } catch (err: any) {
+                  setAddError(err.message || "Failed to fetch token info");
+                } finally {
+                  setAddLoading(false);
+                }
+              }}
+              disabled={!addChainId || !addContract.trim() || addLoading}
+              className="w-full py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              {addLoading ? "Fetching..." : "Fetch token info"}
+            </button>
+
+            {addError && <p className="text-[11px] text-red-400">{addError}</p>}
+
+            {/* Preview + confirm */}
+            {addPreview && (
+              <div className="bg-surface-primary border border-border-primary rounded-lg p-2.5 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  {addPreview.iconUrl ? (
+                    <img src={addPreview.iconUrl} alt="" className="w-5 h-5 rounded-full bg-surface-tertiary" />
+                  ) : (
+                    <div className="w-5 h-5 rounded-full bg-surface-tertiary" />
+                  )}
+                  <span className="text-xs font-medium text-text-primary">{addPreview.symbol}</span>
+                  <span className="text-[10px] text-text-muted">{addPreview.name}</span>
+                </div>
+                <p className="text-[10px] text-text-muted">Decimals: {addPreview.decimals}</p>
+                <button
+                  onClick={async () => {
+                    const chain = uniqueChains.find(c => c.chain.id === addChainId)?.chain;
+                    if (!chain || !addPreview) return;
+                    const me = await getMe();
+                    const overrides = getUserOverrides(me?.id);
+                    const existing = overrides.customTokens ?? [];
+                    const tokenId = `custom:${chain.id}:${addContract.trim().toLowerCase()}`;
+                    // Skip if already added
+                    if (existing.some(t => t.id === tokenId)) {
+                      setAddError("This token is already added.");
+                      return;
+                    }
+                    const newToken: CustomToken = {
+                      id: tokenId,
+                      symbol: addPreview.symbol,
+                      name: addPreview.name,
+                      decimals: addPreview.decimals,
+                      contractAddress: addContract.trim(),
+                      iconUrl: addPreview.iconUrl,
+                      chainId: chain.id,
+                      addedAt: Date.now(),
+                    };
+                    setUserOverrides({ ...overrides, customTokens: [...existing, newToken] }, me?.id);
+                    // Auto-enable display
+                    onToggle(tokenId, true);
+                    setShowAddToken(false);
+                    setAddPreview(null);
+                    setAddContract("");
+                    setAddChainId("");
+                    onTokenAdded?.();
+                  }}
+                  className="w-full py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-500 transition-colors"
+                >
+                  Add {addPreview.symbol}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

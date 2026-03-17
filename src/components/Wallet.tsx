@@ -430,6 +430,10 @@ export function Wallet() {
               onToggle={(prefKey, visible) =>
                 handleDisplayChange(group.keyId, prefKey, visible)
               }
+              onTokenAdded={() => {
+                // Reload assets to include newly added custom token
+                fetchAssets().then(a => setAssetsData(a));
+              }}
             />
             </div>
           )}
