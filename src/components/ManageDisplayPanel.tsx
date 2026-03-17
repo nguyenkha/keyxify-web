@@ -27,6 +27,7 @@ export function ManageDisplayPanel({
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState("");
   const [addPreview, setAddPreview] = useState<{ symbol: string; name: string; decimals: number; iconUrl: string | null } | null>(null);
+  const [addSuccess, setAddSuccess] = useState("");
   const query = search.toLowerCase().trim();
 
   const uniqueChains = useMemo(() => {
@@ -164,9 +165,12 @@ export function ManageDisplayPanel({
 
       {/* Add custom token */}
       <div className="border-t border-border-secondary">
+        {addSuccess && (
+          <div className="px-4 py-2 text-xs text-green-400">{addSuccess}</div>
+        )}
         {!showAddToken ? (
           <button
-            onClick={() => setShowAddToken(true)}
+            onClick={() => { setShowAddToken(true); setAddSuccess(""); }}
             className="w-full px-4 py-2.5 text-xs text-blue-400 hover:text-blue-300 hover:bg-surface-tertiary/30 transition-colors text-left"
           >
             + Add custom token
@@ -275,6 +279,8 @@ export function ManageDisplayPanel({
                     setAddPreview(null);
                     setAddContract("");
                     setAddChainId("");
+                    setAddSuccess(`${addPreview.symbol} added — balance will appear shortly`);
+                    setTimeout(() => setAddSuccess(""), 4000);
                     onTokenAdded?.();
                   }}
                   className="w-full py-1.5 rounded-lg text-xs font-medium text-white bg-green-600 hover:bg-green-500 transition-colors"
