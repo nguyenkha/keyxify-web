@@ -38,8 +38,8 @@ const SIMPLE_TIPS = [
 
 function CreatingProgressBar({ currentStep, done }: { currentStep: number; done: boolean }) {
   // Steps: ECDSA(0) → EdDSA(1) → Save(2). Main step = 0 (ECDSA keygen, 90%).
-  const pct = useSteppedProgress(currentStep, 0, 2, CREATING_DURATION_MS, done, 2000);
-  return <ProgressBar pct={pct} />;
+  const progress = useSteppedProgress(currentStep, 0, 2, CREATING_DURATION_MS, done, 2000);
+  return <ProgressBar {...progress} />;
 }
 
 function RollingTips({ expert }: { expert: boolean }) {

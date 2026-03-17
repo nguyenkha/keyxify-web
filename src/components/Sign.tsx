@@ -58,7 +58,7 @@ export function Sign() {
   const [verified, setVerified] = useState<boolean | null>(null);
   // Stepped progress: phases are loading(0) → signing(1) → verifying(2)
   const signPhaseIdx = phases.indexOf(signingPhase);
-  const smoothPct = useSteppedProgress(
+  const progress = useSteppedProgress(
     showDialog && !signature && !signingError ? signPhaseIdx : -1,
     1, // main step = MPC signing (index 1)
     1, // 1 step after main: verify
@@ -504,7 +504,7 @@ export function Sign() {
                 /* Signing progress state */
                 <div className="py-6">
                   <p className="text-sm font-medium text-text-primary text-center mb-1">
-                    {getPhaseLabels(smoothPct)[signingPhase]}
+                    {getPhaseLabels(progress.phase === "main" ? progress.pct : undefined)[signingPhase]}
                   </p>
                   <p className="text-[11px] text-text-muted text-center mb-4">
                     {algorithm.toUpperCase()} signing in progress
@@ -512,7 +512,7 @@ export function Sign() {
 
                   {/* Progress bar */}
                   <div className="mb-5">
-                    <ProgressBar pct={smoothPct} />
+                    <ProgressBar {...progress} />
                   </div>
 
                   <div className="space-y-2 max-w-[220px] mx-auto">
@@ -537,7 +537,7 @@ export function Sign() {
                             </div>
                           )}
                           <span className={`text-xs ${isDone ? "text-text-tertiary" : isCurrent ? "text-text-secondary" : "text-text-muted"}`}>
-                            {getPhaseLabels(smoothPct)[phase]}
+                            {getPhaseLabels(progress.phase === "main" ? progress.pct : undefined)[phase]}
                           </span>
                         </div>
                       );

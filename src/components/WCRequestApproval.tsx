@@ -154,7 +154,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   // Stepped progress: 90% for MPC signing, 10% for other steps (1s each)
   const wcStepsAfterMain = isTx ? 2 : 1; // tx: broadcast+confirm; msg: verify
-  const smoothPct = useSteppedProgress(
+  const progress = useSteppedProgress(
     phase === "signing" ? signingStepIdx : -1,
     1, // main step = MPC signing (index 1)
     wcStepsAfterMain,
@@ -796,8 +796,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   // Signing progress steps
   const signLabel = isRecoveryMode() ? "Local signing" : "MPC signing";
-  const signLabelActive = signingStepIdx === 1 && smoothPct > 0
-    ? `${signLabel} ${smoothPct}%`
+  const signLabelActive = progress.phase === "main"
+    ? `${signLabel} ${progress.pct}%`
     : signLabel;
   const displaySteps = isTx
     ? [{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]
@@ -1890,7 +1890,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
               {/* Progress bar */}
               <div className="mb-5">
-                <ProgressBar pct={smoothPct} />
+                <ProgressBar {...progress} />
               </div>
 
               {/* Progress steps */}

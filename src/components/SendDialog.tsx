@@ -1586,7 +1586,7 @@ message = buildSplTransferMessage({
 
   // Stepped progress: 90% for MPC signing, 10% split across other steps (1s each)
   const stepsAfterMain = (confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling") ? 0 : 2;
-  const smoothPct = useSteppedProgress(
+  const progress = useSteppedProgress(
     step === "signing" ? phaseIndex[signingPhase] : -1,
     1, // main step = MPC signing (index 1)
     stepsAfterMain,
@@ -1596,9 +1596,9 @@ message = buildSplTransferMessage({
 
   const recovery = isRecoveryMode();
   const signLabel = recovery ? "Local signing" : "MPC signing";
-  // Show smooth percentage only while signing is active
-  const signLabelActive = signingPhase === "mpc-signing" && smoothPct > 0
-    ? `${signLabel} ${smoothPct}%`
+  // Show smooth percentage only during the main MPC signing step
+  const signLabelActive = progress.phase === "main"
+    ? `${signLabel} ${progress.pct}%`
     : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
     "loading-keyshare": "Build transaction",
@@ -2598,7 +2598,7 @@ message = buildSplTransferMessage({
 
                 {/* Progress bar */}
                 <div className="mb-5">
-                  <ProgressBar pct={smoothPct} />
+                  <ProgressBar {...progress} />
                 </div>
 
                 {/* Progress steps */}
