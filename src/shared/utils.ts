@@ -26,6 +26,16 @@ export function bytesToHex(bytes: Uint8Array): string {
 /** Build an explorer link, preserving any query params (e.g. ?cluster=devnet). */
 export function explorerLink(explorerUrl: string, path: string): string {
   const idx = explorerUrl.indexOf("?");
-  if (idx === -1) return `${explorerUrl}${path}`;
-  return `${explorerUrl.slice(0, idx)}${path}${explorerUrl.slice(idx)}`;
+  const base = idx === -1 ? explorerUrl : explorerUrl.slice(0, idx);
+  const query = idx === -1 ? "" : explorerUrl.slice(idx);
+
+  // Tronscan uses hash-based routing: /#/transaction/, /#/address/
+  if (base.includes("tronscan.org")) {
+    const mapped = path
+      .replace(/^\/tx\//, "/#/transaction/")
+      .replace(/^\/address\//, "/#/address/");
+    return `${base}${mapped}${query}`;
+  }
+
+  return `${base}${path}${query}`;
 }
