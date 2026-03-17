@@ -130,6 +130,15 @@ import {
   broadcastXlmTransaction,
   waitForXlmConfirmation,
 } from "../lib/chains/xlmTx";
+import {
+  buildTrxTransfer,
+  buildTrc20Transfer,
+  hashForSigning as tronHashForSigning,
+  assembleSignedTx as tronAssembleSignedTx,
+  broadcastTronTransaction,
+  waitForTronConfirmation,
+  formatSun,
+} from "../lib/chains/tronTx";
 import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult, SpeedUpData } from "./sendTypes";
 import {
   FEE_LABELS,
@@ -545,6 +554,18 @@ export function SendDialog({
         isFixed: true,
       };
     }
+    if (chain.type === "tron") {
+      // TRON: native transfers use bandwidth (often free), TRC-20 uses energy (~5-30 TRX)
+      const estFee = asset.isNative ? 0n : 15_000_000n; // ~15 TRX for TRC-20, 0 for native
+      return {
+        formatted: formatSun(estFee),
+        symbol: "TRX",
+        usd: getUsdValue(String(Number(estFee) / 1e6), "TRX", prices),
+        rateLabel: asset.isNative ? "Bandwidth (usually free)" : "~15 TRX energy fee",
+        hasLevelSelector: false,
+        isFixed: true,
+      };
+    }
     if (chain.type === "xlm") {
       const xlmFeeRate = xlmFeeRates?.[feeLevel] ?? null;
       const feeXlm = xlmFeeRate != null ? (xlmFeeRate / 1e7).toFixed(7).replace(/\.?0+$/, "") : null;
@@ -623,6 +644,8 @@ export function SendDialog({
       feeBaseUnits = SOLANA_BASE_FEE;
     } else if (chain.type === "xrp") {
       feeBaseUnits = XRP_BASE_FEE;
+    } else if (chain.type === "tron") {
+      feeBaseUnits = 0n; // native TRX transfers usually free (bandwidth)
     } else if (chain.type === "btc" && btcEstimatedFee != null) {
       feeBaseUnits = BigInt(btcEstimatedFee);
     } else if (chain.type === "ltc" && ltcEstimatedFee != null) {
@@ -644,7 +667,7 @@ export function SendDialog({
     return netFrac ? `${netInt}.${netFrac}` : netInt;
   })();
 
-  const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", ltc: "ltc1q...", bch: "bitcoincash:q...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r..." };
+  const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", ltc: "ltc1q...", bch: "bitcoincash:q...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r...", tron: "T..." };
   const placeholder = ADDR_PLACEHOLDER[chain.type] ?? "Address";
 
   const totalUsd = (() => {
@@ -1468,6 +1491,102 @@ message = buildSplTransferMessage({
 
     } catch (err: any) {
       console.error("[send] XLM Error:", err);
+      setSigningError(err.message || String(err));
+    } finally {
+      clearClientKey(keyFile.id);
+    }
+  }
+
+  // ── TRON signing flow ──────────────────────────────────────
+  async function executeTronSigningFlow() {
+    if (!keyFile || !chain.rpcUrl) return;
+
+    setStep("signing");
+    setSigningPhase("building-tx");
+    setSigningError(null);
+
+    try {
+      if (!clientKeys.has(keyFile.id)) {
+        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
+      }
+
+      // 1. Build transaction via TronGrid API
+      const amountSun = BigInt(Math.round(parseFloat(amount.replace(/,/g, "")) * 1e6));
+      let tronTx;
+      if (asset.isNative) {
+        tronTx = await buildTrxTransfer(chain.rpcUrl, address, to, amountSun);
+      } else {
+        tronTx = await buildTrc20Transfer(chain.rpcUrl, address, to, asset.contractAddress!, amountSun);
+      }
+
+      // 2. MPC signing
+      setSigningPhase("mpc-signing");
+      setSigningStep(0);
+      const sighash = tronHashForSigning(tronTx);
+
+      const { signature: sigRaw, sessionId } = await performMpcSign({
+        algorithm: "ecdsa",
+        keyId: keyFile.id,
+        hash: sighash,
+        initPayload: {
+          id: keyFile.id,
+          chainType: "tron",
+          tronTx: {
+            from: address,
+            to,
+            amountSun: amountSun.toString(),
+            rawDataHex: tronTx.raw_data_hex,
+            contractAddress: asset.contractAddress || undefined,
+            nativeSymbol: asset.isNative ? "TRX" : undefined,
+          },
+          from: address,
+        },
+        headers: sensitiveHeaders(),
+        onStep: setSigningStep,
+      });
+
+      // 3. Parse DER signature and assemble 65-byte TRON signature (r || s || v)
+      const { r, s } = parseDerSignature(sigRaw);
+      const pubKeyRaw = hexToBytes(keyFile.publicKey);
+      const recoveryBit = recoverV(sighash, r, s, pubKeyRaw);
+      const { signedTxJson, txId } = tronAssembleSignedTx(tronTx, r, s, recoveryBit);
+
+      if (confirmBeforeBroadcast) {
+        setSignedRawTx(signedTxJson);
+        setTxResult({ status: "success", txHash: "sign-only" });
+        setKeyFile(null); setPendingEncrypted(null);
+        setStep("result");
+        return;
+      }
+
+      // 4. Broadcast
+      setSigningPhase("broadcasting");
+      const txHash = await broadcastTronTransaction(chain.rpcUrl, signedTxJson);
+
+      fetch(apiUrl("/api/sign/broadcast"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ keyShareId: keyFile.id, sessionId, txHash: txHash || txId, chainId: chain.id }),
+      }).catch(() => {});
+
+      onTxSubmitted?.(txHash || txId, to, amount);
+
+      // 5. Wait for confirmation
+      setPendingTxHash(txHash || txId);
+      setSigningPhase("polling");
+      const result = await waitForTronConfirmation(chain.rpcUrl, txHash || txId, () => {}, 30, 3000);
+
+      setTxResult({
+        status: result.confirmed ? "success" : "pending",
+        txHash: txHash || txId,
+        blockNumber: result.blockNumber,
+      });
+      if (result.confirmed) onTxConfirmed?.(txHash || txId);
+      setKeyFile(null); setPendingEncrypted(null);
+      setStep("result");
+
+    } catch (err: any) {
+      console.error("[send] TRON Error:", err);
       setSigningError(err.message || String(err));
     } finally {
       clearClientKey(keyFile.id);
@@ -2453,7 +2572,7 @@ message = buildSplTransferMessage({
               <button
                 disabled={policyCheck?.allowed === false}
                 onClick={() => {
-                  const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, ltc: executeLtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow, xlm: executeXlmSigningFlow };
+                  const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, ltc: executeLtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow, xlm: executeXlmSigningFlow, tron: executeTronSigningFlow };
                   const flow = flows[chain.type];
                   if (flow) guardedSign(flow);
                   else setSigningError(`Send is not yet supported for ${chain.displayName}.`);

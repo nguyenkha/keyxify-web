@@ -6,6 +6,7 @@ import { xrpAdapter } from "./xrpAdapter";
 import { bchAdapter } from "./bchAdapter";
 import { ltcAdapter } from "./ltcAdapter";
 import { xlmAdapter } from "./xlmAdapter";
+import { tronAdapter } from "./tronAdapter";
 
 const adapters: Record<ChainType, ChainAdapter> = {
   evm: evmAdapter,
@@ -15,6 +16,7 @@ const adapters: Record<ChainType, ChainAdapter> = {
   solana: solanaAdapter,
   xrp: xrpAdapter,
   xlm: xlmAdapter,
+  tron: tronAdapter,
 };
 
 export function getChainAdapter(type: ChainType): ChainAdapter {

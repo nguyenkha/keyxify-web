@@ -150,6 +150,23 @@ export function buildAccountRows(
       }
     }
 
+    const tronChains = chains.filter((c) => c.type === "tron");
+    if (tronChains.length > 0) {
+      const tronAdapt = getChainAdapter("tron");
+      const tronAddr = tronAdapt.deriveAddress(pubKeyHex);
+      for (const chain of tronChains) {
+        const chainAssets = assets.filter((a) => a.chainId === chain.id);
+        rows.push({
+          keyId: key.id,
+          address: tronAddr,
+          addressType: "tron",
+          label: chain.displayName,
+          chain,
+          assets: chainAssets,
+        });
+      }
+    }
+
     const xlmChains = chains.filter((c) => c.type === "xlm");
     if (xlmChains.length > 0) {
       const xlmAdapt = getChainAdapter("xlm");

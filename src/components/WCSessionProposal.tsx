@@ -36,7 +36,7 @@ interface WCAccount {
   name: string;
   address: string;
   selected: boolean;
-  type: "evm" | "solana";
+  type: "evm" | "solana" | "tron";
 }
 
 export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
@@ -62,12 +62,21 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
   ];
   const uniqueSolanaChains = [...new Set(requestedSolanaChains)];
 
+  const requestedTronChains = [
+    ...(proposal.params.requiredNamespaces?.tron?.chains || []),
+    ...(proposal.params.optionalNamespaces?.tron?.chains || []),
+  ];
+  const uniqueTronChains = [...new Set(requestedTronChains)];
+
   const wantsSolana = uniqueSolanaChains.length > 0 ||
     !!proposal.params.requiredNamespaces?.solana ||
     !!proposal.params.optionalNamespaces?.solana;
   const wantsEvm = uniqueEvmChains.length > 0 ||
     !!proposal.params.requiredNamespaces?.eip155 ||
     !!proposal.params.optionalNamespaces?.eip155;
+  const wantsTron = uniqueTronChains.length > 0 ||
+    !!proposal.params.requiredNamespaces?.tron ||
+    !!proposal.params.optionalNamespaces?.tron;
 
   useEffect(() => {
     const keysPromise = isRecoveryMode()
@@ -109,6 +118,22 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
             address,
             selected: true,
             type: "solana",
+          });
+        }
+      }
+
+      // TRON accounts
+      if (wantsTron) {
+        const tronAdapter = getChainAdapter("tron");
+        for (const key of keys) {
+          if (!key.publicKey || !key.enabled) continue;
+          const address = tronAdapter.deriveAddress(key.publicKey);
+          allAccounts.push({
+            keyId: key.id,
+            name: key.name || `Key ${key.id.slice(0, 8)}`,
+            address,
+            selected: true,
+            type: "tron",
           });
         }
       }
@@ -161,6 +186,16 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
       }
     }
 
+    // TRON accounts
+    const selectedTron = selected.filter((a) => a.type === "tron");
+    if (selectedTron.length > 0) {
+      // TRON mainnet chainId: 0x2b6653dc (728126428)
+      const tronChainId = "0x2b6653dc";
+      for (const a of selectedTron) {
+        accountStrings.push(`tron:${tronChainId}:${a.address}`);
+      }
+    }
+
     onApprove(accountStrings);
   }
 
@@ -184,9 +219,10 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
   const shortAddr = (addr: string) =>
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
-  const allRequestedChains = [...uniqueEvmChains, ...uniqueSolanaChains];
+  const allRequestedChains = [...uniqueEvmChains, ...uniqueSolanaChains, ...uniqueTronChains];
   const evmAccounts = accounts.filter((a) => a.type === "evm");
   const solanaAccounts = accounts.filter((a) => a.type === "solana");
+  const tronAccounts = accounts.filter((a) => a.type === "tron");
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -264,7 +300,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
               <p className="text-xs text-text-muted">No accounts available.</p>
             ) : (
               <div className="space-y-1">
-                {evmAccounts.length > 0 && solanaAccounts.length > 0 && (
+                {evmAccounts.length > 0 && (solanaAccounts.length > 0 || tronAccounts.length > 0) && (
                   <p className="text-[10px] text-text-muted uppercase tracking-wider pt-1">EVM</p>
                 )}
                 {evmAccounts.map((account) => {
@@ -296,7 +332,7 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
                   );
                 })}
 
-                {evmAccounts.length > 0 && solanaAccounts.length > 0 && (
+                {evmAccounts.length > 0 && (solanaAccounts.length > 0) && (
                   <p className="text-[10px] text-text-muted uppercase tracking-wider pt-2">Solana</p>
                 )}
                 {solanaAccounts.map((account) => {
@@ -313,6 +349,38 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
                     >
                       <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
                         account.selected ? "bg-purple-500 border-purple-500" : "border-border-secondary"
+                      }`}>
+                        {account.selected && (
+                          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-text-primary">{account.name}</p>
+                        <p className="text-[10px] text-text-muted font-mono">{shortAddr(account.address)}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+
+                {tronAccounts.length > 0 && (accounts.length > tronAccounts.length) && (
+                  <p className="text-[10px] text-text-muted uppercase tracking-wider pt-2">TRON</p>
+                )}
+                {tronAccounts.map((account) => {
+                  const idx = accounts.indexOf(account);
+                  return (
+                    <button
+                      key={`tron-${account.keyId}`}
+                      onClick={() => toggleAccount(idx)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors ${
+                        account.selected
+                          ? "bg-red-500/10 border border-red-500/30"
+                          : "bg-surface-tertiary border border-transparent hover:border-border-secondary"
+                      }`}
+                    >
+                      <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${
+                        account.selected ? "bg-red-500 border-red-500" : "border-border-secondary"
                       }`}>
                         {account.selected && (
                           <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={4}>

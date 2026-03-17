@@ -318,6 +318,39 @@
             "rpcUrl": "https://celo-rpc.publicnode.com",
             "explorerUrl": "https://celoscan.io",
             "iconUrl": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/celo/info/logo.png"
+        },
+        {
+            "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "name": "TRON",
+            "displayName": "TRON",
+            "type": "tron",
+            "coinType": 195,
+            "evmChainId": null,
+            "rpcUrl": "https://api.trongrid.io",
+            "explorerUrl": "https://tronscan.org",
+            "iconUrl": "https://assets.coingecko.com/coins/images/1094/large/tron-logo.png"
+        },
+        {
+            "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+            "name": "TRON_SHASTA",
+            "displayName": "TRON (Shasta Testnet)",
+            "type": "tron",
+            "coinType": 195,
+            "evmChainId": null,
+            "rpcUrl": "https://api.shasta.trongrid.io",
+            "explorerUrl": "https://shasta.tronscan.org",
+            "iconUrl": "https://assets.coingecko.com/coins/images/1094/large/tron-logo.png"
+        },
+        {
+            "id": "c3d4e5f6-a7b8-9012-cdef-123456789012",
+            "name": "TRON_NILE",
+            "displayName": "TRON (Nile Testnet)",
+            "type": "tron",
+            "coinType": 195,
+            "evmChainId": null,
+            "rpcUrl": "https://nile.trongrid.io",
+            "explorerUrl": "https://nile.tronscan.org",
+            "iconUrl": "https://assets.coingecko.com/coins/images/1094/large/tron-logo.png"
         }
     ],
     "assets": [
@@ -945,7 +978,12 @@
         {"id":"e0aa0001-0001-4001-8001-000000000001","symbol":"IMX","name":"Immutable X","decimals":18,"contractAddress":"0xF57e7e7C23978C3cAEC3C3548E3D615c346e79fF","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/17233/large/immutableX-symbol-BLK-RGB.png","chainId":"6621212c-19a5-4b5f-86bb-679658dfbd88"},
         {"id":"e0ab0001-0001-4001-8001-000000000001","symbol":"ONDO","name":"Ondo Finance","decimals":18,"contractAddress":"0xfAbA6f8e4a5E8Ab82F62fe7C39859FA577269BE3","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/26580/large/ONDO.png","chainId":"6621212c-19a5-4b5f-86bb-679658dfbd88"},
         {"id":"e0ac0001-0001-4001-8001-000000000001","symbol":"WLD","name":"Worldcoin","decimals":18,"contractAddress":"0x163f8C2467924be0ae7B5347228CABF260318753","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/31069/large/worldcoin.jpeg","chainId":"6621212c-19a5-4b5f-86bb-679658dfbd88"},
-        {"id":"e0ac0001-0002-4001-8001-000000000001","symbol":"WLD","name":"Worldcoin (Optimism)","decimals":18,"contractAddress":"0xdC6fF44d5d932Cbd77B52E5612Ba0529DC6226F1","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/31069/large/worldcoin.jpeg","chainId":"c3e4f5a6-b7c8-d9e0-f1a2-b3c4d5e6f7a8"}
+        {"id":"e0ac0001-0002-4001-8001-000000000001","symbol":"WLD","name":"Worldcoin (Optimism)","decimals":18,"contractAddress":"0xdC6fF44d5d932Cbd77B52E5612Ba0529DC6226F1","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/31069/large/worldcoin.jpeg","chainId":"c3e4f5a6-b7c8-d9e0-f1a2-b3c4d5e6f7a8"},
+        {"id":"t0000001-0001-4001-8001-000000000001","symbol":"TRX","name":"TRONIX","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/1094/large/tron-logo.png","chainId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+        {"id":"t0000001-0002-4001-8001-000000000001","symbol":"USDT","name":"Tether USD (TRC-20)","decimals":6,"contractAddress":"TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t","isNative":false,"iconUrl":"https://assets.coingecko.com/coins/images/325/large/Tether.png","chainId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+        {"id":"t0000001-0003-4001-8001-000000000001","symbol":"USDC","name":"USD Coin (TRC-20)","decimals":6,"contractAddress":"TEkxiTehnzSmSe2XqrBj4w32RUN966rdz8","isNative":false,"iconUrl":"https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png","chainId":"a1b2c3d4-e5f6-7890-abcd-ef1234567890"},
+        {"id":"t0000002-0001-4001-8001-000000000001","symbol":"TRX","name":"TRONIX (Shasta)","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/1094/large/tron-logo.png","chainId":"b2c3d4e5-f6a7-8901-bcde-f12345678901"},
+        {"id":"t0000003-0001-4001-8001-000000000001","symbol":"TRX","name":"TRONIX (Nile)","decimals":6,"contractAddress":null,"isNative":true,"iconUrl":"https://assets.coingecko.com/coins/images/1094/large/tron-logo.png","chainId":"c3d4e5f6-a7b8-9012-cdef-123456789012"}
     ],
     "preferences": {
         "default_chains": [

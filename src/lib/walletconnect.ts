@@ -23,6 +23,13 @@ const SOLANA_METHODS = [
 
 const SOLANA_EVENTS: string[] = [];
 
+const TRON_METHODS = [
+  "tron_signTransaction",
+  "tron_signMessage",
+];
+
+const TRON_EVENTS: string[] = [];
+
 class WalletConnectService {
   private web3wallet: InstanceType<typeof Web3Wallet> | null = null;
   private listeners = new Map<string, Set<Listener>>();
@@ -110,6 +117,16 @@ class WalletConnectService {
         accounts: solanaAccounts,
         methods: SOLANA_METHODS,
         events: SOLANA_EVENTS,
+      };
+    }
+
+    // TRON
+    const tronAccounts = accounts.filter((a) => a.startsWith("tron:"));
+    if (allRequested.tron && tronAccounts.length > 0) {
+      namespaces.tron = {
+        accounts: tronAccounts,
+        methods: TRON_METHODS,
+        events: TRON_EVENTS,
       };
     }
 
