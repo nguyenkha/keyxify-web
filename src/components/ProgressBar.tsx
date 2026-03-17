@@ -78,7 +78,7 @@ export function useSteppedProgress(
 
 /** Signing: 4s base + 5s per additional signature */
 export function signingDurationMs(signatureCount: number): number {
-  return 4000 + Math.max(0, signatureCount - 1) * 5000;
+  return 6000 + Math.max(0, signatureCount - 1) * 5000;
 }
 
 /** Wallet creation: 8s */
