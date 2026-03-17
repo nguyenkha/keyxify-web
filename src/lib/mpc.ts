@@ -256,7 +256,6 @@ export async function performMpcSign(opts: {
   });
 
   const startedAt = Date.now();
-  onStep?.(1);
 
   let sigRaw: Uint8Array;
 
@@ -282,8 +281,6 @@ export async function performMpcSign(opts: {
     if (transportErr) throw transportErr;
     throw err;
   }
-
-  onStep?.(3);
 
   // If client didn't get the signature, check server result
   if (sigRaw.length === 0) {
@@ -379,7 +376,6 @@ export async function performBatchMpcSign(opts: {
   });
 
   const startedAt = Date.now();
-  onStep?.(1);
 
   const mpcPromise = (async () => {
     const sigs = await mpc.ecdsa2pSign(
@@ -396,8 +392,6 @@ export async function performBatchMpcSign(opts: {
     if (transportErr) throw transportErr;
     throw err;
   }
-
-  onStep?.(3);
 
   // If client got empty signatures, check server result
   if (rawSigs.every((s) => s.length === 0)) {

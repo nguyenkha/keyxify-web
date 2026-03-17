@@ -248,28 +248,27 @@ export function SendDialog({
   const [signingStep, setSigningStep] = useState(0);
   const [smoothPct, setSmoothPct] = useState(0);
 
-  // Smooth signing percentage animation — time-based with step boosts
-  const signingStartRef = useRef(0);
+  // Smooth signing percentage animation
+  // MPC ECDSA signing typically does 3-4 HTTP round-trips, EdDSA 2-3.
+  // signingStep increments on each round-trip from the transport layer.
+  const expectedSteps = (chain.type === "solana" || chain.type === "xlm") ? 3 : 4;
   useEffect(() => {
     if (signingPhase !== "mpc-signing") {
       if (signingPhase === "broadcasting" || signingPhase === "polling") setSmoothPct(100);
       else setSmoothPct(0);
-      signingStartRef.current = 0;
       return;
     }
-    if (!signingStartRef.current) signingStartRef.current = Date.now();
-    const start = signingStartRef.current;
-
-    // Each step boost adds a fixed jump, time fills in between asymptotically
-    const stepBoost = Math.min(signingStep * 12, 50); // steps contribute up to 50%
-
+    // Step-based target: each step fills toward 95%
+    const stepTarget = Math.min(95, Math.round((signingStep / expectedSteps) * 95));
+    // Smoothly animate from current to target
     const iv = setInterval(() => {
-      const elapsed = (Date.now() - start) / 1000;
-      // Asymptotic curve: approaches 95% over ~30s, never reaches 100
-      const timePct = 95 * (1 - Math.exp(-elapsed / 12));
-      const combined = Math.min(95, Math.max(timePct, stepBoost + timePct * 0.5));
-      setSmoothPct(Math.round(combined));
-    }, 150);
+      setSmoothPct((prev) => {
+        if (prev >= stepTarget) return prev;
+        // Move 20% of the remaining distance each tick for smooth ease-out
+        const next = prev + Math.max(1, Math.round((stepTarget - prev) * 0.2));
+        return Math.min(next, stepTarget);
+      });
+    }, 100);
     return () => clearInterval(iv);
   }, [signingStep, signingPhase]);
 
