@@ -2734,6 +2734,8 @@ message = buildSplTransferMessage({
                               txHash = await broadcastXrpTransaction(chain.rpcUrl, rawTx);
                             } else if (chain.type === "xlm") {
                               txHash = await broadcastXlmTransaction(chain.rpcUrl, rawTx);
+                            } else if (chain.type === "tron") {
+                              txHash = await broadcastTronTransaction(chain.rpcUrl, rawTx);
                             } else {
                               throw new Error(`Unsupported chain type: ${chain.type}`);
                             }
