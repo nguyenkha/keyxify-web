@@ -15,6 +15,7 @@ export function useSteppedProgress(
   stepsAfterMain: number,
   mainDurationMs: number,
   done: boolean,
+  postStepDurationMs = 1000,
 ): number {
   const [pct, setPct] = useState(0);
   const pctRef = useRef(0);
@@ -51,7 +52,7 @@ export function useSteppedProgress(
       const idx = currentStep - mainStep; // 1, 2, ...
       const perStep = stepsAfterMain > 0 ? 9 / stepsAfterMain : 9;
       target = Math.min(99, Math.round(90 + idx * perStep));
-      fillMs = 1000;
+      fillMs = postStepDurationMs;
     }
 
     const startPct = pctRef.current;
@@ -70,7 +71,7 @@ export function useSteppedProgress(
       });
     }, msPerPct);
     return () => clearInterval(iv);
-  }, [currentStep, done, mainStep, stepsAfterMain, mainDurationMs]);
+  }, [currentStep, done, mainStep, stepsAfterMain, mainDurationMs, postStepDurationMs]);
 
   return pct;
 }
