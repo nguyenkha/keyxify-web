@@ -265,6 +265,14 @@ export const tronAdapter: ChainAdapter = {
           continue;
         }
 
+        // TronGrid returns hex addresses — convert to base58 for comparison & display
+        try {
+          if (from) from = tronHexToAddress(from);
+          if (to) to = tronHexToAddress(to);
+        } catch {
+          // keep raw hex if conversion fails
+        }
+
         const direction: "in" | "out" | "self" =
           from === address && to === address ? "self"
           : to === address ? "in"
