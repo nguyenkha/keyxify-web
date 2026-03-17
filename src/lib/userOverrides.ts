@@ -89,6 +89,7 @@ export function getCustomTokens(): CustomToken[] {
 
 // Preferences that only take effect in expert mode — return undefined (default) when non-expert
 const EXPERT_ONLY_PREFS: Set<string> = new Set([
+  "show_testnet",
   "confirm_before_broadcast",
   "evm_gas_buffer_pct",
 ]);

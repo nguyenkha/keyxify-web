@@ -380,8 +380,8 @@ export function ConfigPage() {
           Preferences
         </p>
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
-          {/* Show testnets */}
-          <div className="px-3 md:px-5 py-4">
+          {/* Show testnets (expert only) */}
+          {expert && <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-text-primary">Show test networks</p>
@@ -398,7 +398,7 @@ export function ConfigPage() {
                 }`} />
               </button>
             </div>
-          </div>
+          </div>}
 
           {/* Expert mode */}
           <div className="px-3 md:px-5 py-4">
