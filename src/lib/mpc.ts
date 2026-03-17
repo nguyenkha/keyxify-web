@@ -2,7 +2,6 @@ import { initCbMpc, NID_secp256k1, NID_ED25519 } from "cb-mpc";
 import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-mpc";
 import { isRecoveryMode, performLocalMpcSign } from "./recovery";
 import { apiUrl } from "./apiBase";
-// @ts-ignore -- Vite ?url suffix resolves to a servable URL string
 import cbmpcWasmUrl from "cb-mpc/cbmpc.wasm?url";
 
 export { NID_secp256k1, NID_ED25519 };
@@ -19,7 +18,7 @@ export async function getMpcInstance(): Promise<CbMpc> {
       // Import Emscripten glue and wrap factory with locateFile override.
       // Vite's dev server can't resolve the relative paths that Emscripten
       // uses internally, so we point it to Vite-resolved URLs explicitly.
-      // @ts-ignore -- cb-mpc has no type declarations
+      // @ts-expect-error -- cb-mpc has no type declarations
       const mod = await import("cb-mpc/cbmpc.js");
       const rawFactory = mod.default || mod.createCbMpc || mod;
       const factory = (opts?: Record<string, unknown>) =>

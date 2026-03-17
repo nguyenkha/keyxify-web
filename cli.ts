@@ -24,7 +24,6 @@ import { base58, bech32 } from "@scure/base";
 import { Core } from "@walletconnect/core";
 import { Web3Wallet } from "@walletconnect/web3wallet";
 import type { Web3WalletTypes } from "@walletconnect/web3wallet";
-import type { ProposalTypes, SessionTypes } from "@walletconnect/types";
 
 // ── Constants ────────────────────────────────────────────────────
 
@@ -1192,7 +1191,7 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
   });
 
   // ── Session Delete Handler ──
-  web3wallet.on("session_delete", (event: { id: number; topic: string }) => {
+  web3wallet.on("session_delete", (_event: { id: number; topic: string }) => {
     console.log("\nSession disconnected by dApp.");
   });
 

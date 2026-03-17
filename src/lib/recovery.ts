@@ -65,9 +65,8 @@ export async function enterRecoveryMode(p1: KeyFileData, p2: KeyFileData): Promi
   const mpc0 = await getMpcInstance();
   // Create a second independent instance
   const { initCbMpc } = await import("cb-mpc");
-  // @ts-ignore -- cb-mpc has no type declarations
+  // @ts-expect-error -- cb-mpc has no type declarations
   const mod = await import("cb-mpc/cbmpc.js");
-  // @ts-ignore -- Vite ?url suffix
   const { default: wasmUrl } = await import("cb-mpc/cbmpc.wasm?url");
   const rawFactory = mod.default || mod.createCbMpc || mod;
   const factory = (opts?: Record<string, unknown>) =>

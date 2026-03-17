@@ -11,7 +11,7 @@ export function detectEvmSimProvider(rpcUrl: string): EvmSimProvider {
     if (host.includes("alchemy.com")) return "alchemy";
     if (host.includes("tenderly.co")) return "tenderly";
     if (host.includes("infura.io")) return "infura";
-  } catch {}
+  } catch { /* invalid URL */ }
   return "none";
 }
 
@@ -27,7 +27,7 @@ export function detectBtcProvider(url: string): BtcProvider {
     if (host.includes("mempool.space")) return "mempool";
     if (host.includes("blockstream.info")) return "blockstream";
     if (host.includes("blockchair.com")) return "blockchair";
-  } catch {}
+  } catch { /* invalid URL */ }
   return "unknown";
 }
 
@@ -35,7 +35,7 @@ export function detectBchProvider(url: string): BchProvider {
   try {
     const host = new URL(url).hostname;
     if (host.includes("blockchair.com")) return "blockchair";
-  } catch {}
+  } catch { /* invalid URL */ }
   return "unknown";
 }
 
@@ -43,7 +43,7 @@ export function detectXlmProvider(url: string): XlmProvider {
   try {
     const host = new URL(url).hostname;
     if (host.includes("stellar.org") || host.includes("stellar.expert")) return "horizon";
-  } catch {}
+  } catch { /* invalid URL */ }
   return "unknown";
 }
 
