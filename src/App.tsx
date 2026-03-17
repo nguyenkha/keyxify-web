@@ -42,7 +42,6 @@ import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
 import { Broadcast as BroadcastPage } from "./components/Broadcast";
-import { SignTx as SignTxPage } from "./components/SignTx";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
 
@@ -58,7 +57,6 @@ const advancedNavItems: { path: string; label: string; expertOnly?: boolean }[] 
   { path: "/passkeys", label: "🔑 Passkeys" },
   { path: "/sign", label: "✍️ Raw Signing", expertOnly: true },
   { path: "/broadcast", label: "📡 Broadcast Tx", expertOnly: true },
-  { path: "/sign-tx", label: "🔏 Sign Tx", expertOnly: true },
 ];
 
 
@@ -189,7 +187,7 @@ function DashboardLayout() {
 
   // In recovery mode, hide server-dependent nav items; hide expert-only items when not expert
   const filteredAdvanced = advancedNavItems
-    .filter((item) => !recovery || item.path === "/sign" || item.path === "/sign-tx" || item.path === "/broadcast" || item.path === "/config")
+    .filter((item) => !recovery || item.path === "/sign" || item.path === "/broadcast" || item.path === "/config")
     .filter((item) => !item.expertOnly || expert);
   const filteredAll = [...mainNavItems, ...filteredAdvanced];
 
@@ -428,7 +426,6 @@ function App() {
           <Route path="/walletconnect" element={<WalletConnectPage />} />
           <Route path="/sign" element={<Sign />} />
           <Route path="/broadcast" element={<BroadcastPage />} />
-          <Route path="/sign-tx" element={<SignTxPage />} />
           <Route path="/" element={<Navigate to="/accounts" replace />} />
         </Route>
       </Routes>
