@@ -380,6 +380,26 @@ export function ConfigPage() {
           Preferences
         </p>
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          {/* Expert mode — first row, always visible */}
+          <div className="px-3 md:px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Expert mode</p>
+                <p className="text-xs text-text-muted mt-0.5">Show advanced transaction controls, raw data, and detailed logs</p>
+              </div>
+              <button
+                onClick={() => setExpertMode(!getExpertMode())}
+                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                  getExpertMode() ? "bg-blue-500" : "bg-surface-tertiary"
+                }`}
+              >
+                <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                  getExpertMode() ? "left-[16px]" : "left-[2px]"
+                }`} />
+              </button>
+            </div>
+          </div>
+
           {/* Show testnets (expert only) */}
           {expert && <div className="px-3 md:px-5 py-4">
             <div className="flex items-center justify-between">
@@ -399,26 +419,6 @@ export function ConfigPage() {
               </button>
             </div>
           </div>}
-
-          {/* Expert mode */}
-          <div className="px-3 md:px-5 py-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-text-primary">Expert mode</p>
-                <p className="text-xs text-text-muted mt-0.5">Show advanced transaction controls, raw data, and detailed logs</p>
-              </div>
-              <button
-                onClick={() => setExpertMode(!getExpertMode())}
-                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
-                  getExpertMode() ? "bg-blue-500" : "bg-surface-tertiary"
-                }`}
-              >
-                <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
-                  getExpertMode() ? "left-[16px]" : "left-[2px]"
-                }`} />
-              </button>
-            </div>
-          </div>
 
           {/* Confirm before broadcast (expert only) */}
           {expert && <div className="px-3 md:px-5 py-4">

@@ -239,6 +239,29 @@ export function SendDialog({
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
   const [signingStep, setSigningStep] = useState(0);
+  const [smoothPct, setSmoothPct] = useState(0);
+
+  // Smooth signing percentage animation
+  const estTotalSteps = (chain.type === "solana" || chain.type === "xlm") ? 3 : 4;
+  useEffect(() => {
+    if (signingPhase !== "mpc-signing") {
+      // Signing done — snap to 100%
+      if (signingPhase === "broadcasting" || signingPhase === "polling") setSmoothPct(100);
+      else setSmoothPct(0);
+      return;
+    }
+    // Target: gradually fill toward the next step boundary
+    const stepPct = Math.round(100 / estTotalSteps);
+    const basePct = Math.min(100, signingStep * stepPct);
+    const ceilPct = Math.min(98, basePct + stepPct - 3); // leave room until next step
+    let current = Math.max(smoothPct, basePct);
+    const iv = setInterval(() => {
+      current += 1;
+      if (current >= ceilPct) current = ceilPct;
+      setSmoothPct(current);
+    }, 100);
+    return () => clearInterval(iv);
+  }, [signingStep, signingPhase]);
 
   // Passkey guard (triggered on confirm, not on dialog open)
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
@@ -1406,12 +1429,9 @@ message = buildSplTransferMessage({
 
   const recovery = isRecoveryMode();
   const signLabel = recovery ? "Local signing" : "MPC signing";
-  // Estimate total steps: ECDSA ~4 rounds, EdDSA ~3 rounds
-  const estimatedTotalSteps = (chain.type === "solana" || chain.type === "xlm") ? 3 : 4;
-  const signingPct = signingStep > 0 ? Math.min(99, Math.round((signingStep / estimatedTotalSteps) * 100)) : 0;
-  // Show percentage only while signing is active (not after completion)
-  const signLabelActive = signingStep > 0 && signingPhase === "mpc-signing"
-    ? `${signLabel} ${signingPct}%`
+  // Show smooth percentage only while signing is active
+  const signLabelActive = signingPhase === "mpc-signing" && smoothPct > 0
+    ? `${signLabel} ${smoothPct}%`
     : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
     "loading-keyshare": "Build transaction",

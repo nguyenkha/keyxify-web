@@ -122,6 +122,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [browserShareError, setBrowserShareError] = useState("");
   const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
   const [signingStepIdx, setSigningStepIdx] = useState(0);
+  const [smoothPct, setSmoothPct] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fee state (for eth_sendTransaction)
@@ -673,12 +674,29 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   const shortAddr = (addr: string) => expert ? addr : `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
+  // Smooth signing percentage animation
+  useEffect(() => {
+    if (signingStepIdx !== 1) {
+      setSmoothPct(signingStepIdx > 1 ? 100 : 0);
+      return;
+    }
+    let current = smoothPct;
+    const iv = setInterval(() => {
+      current += 1;
+      if (current >= 98) current = 98;
+      setSmoothPct(current);
+    }, 100);
+    return () => clearInterval(iv);
+  }, [signingStepIdx]);
+
   // Signing progress steps
-  // 4-step for transactions, 3-step for message signing
   const signLabel = isRecoveryMode() ? "Local signing" : "MPC signing";
+  const signLabelActive = signingStepIdx === 1 && smoothPct > 0
+    ? `${signLabel} ${smoothPct}%`
+    : signLabel;
   const displaySteps = isTx
-    ? [{ label: "Build transaction" }, { label: signLabel }, { label: "Broadcast" }, { label: "Confirming" }]
-    : [{ label: "Prepare" }, { label: signLabel }, { label: "Verify" }];
+    ? [{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]
+    : [{ label: "Prepare" }, { label: signLabelActive }, { label: "Verify" }];
 
   const txPhaseIndex: Record<WcSignPhase, number> = {
     "building-tx": 0,
