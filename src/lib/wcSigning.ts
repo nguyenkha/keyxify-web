@@ -36,6 +36,7 @@ async function signHash(
   keyFile: KeyFileData,
   address: string,
   messageType?: string,
+  messagePayload?: Record<string, unknown>,
 ): Promise<string> {
   if (!clientKeys.has(keyFile.id)) {
     await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
@@ -45,7 +46,7 @@ async function signHash(
     algorithm: "ecdsa",
     keyId: keyFile.id,
     hash,
-    initPayload: { id: keyFile.id, data: toBase64(hash), from: address, ...(messageType ? { messageType } : {}) },
+    initPayload: { id: keyFile.id, data: toBase64(hash), from: address, ...(messageType ? { messageType } : {}), ...(messagePayload ?? {}) },
     headers: sensitiveHeaders(),
   });
 
@@ -79,7 +80,9 @@ export async function wcPersonalSign(
   prefixed.set(messageBytes, prefix.length);
   const hash = keccak_256(prefixed);
 
-  return signHash(hash, keyFile, address, "personal_sign");
+  return signHash(hash, keyFile, address, "personal_sign", {
+    raw: messageHex.startsWith("0x") ? messageHex.slice(2) : messageHex,
+  });
 }
 
 // ── eth_sign (raw hash signing) ──────────────────────────────────
@@ -112,7 +115,9 @@ export async function wcSignTypedData(
     ethers.TypedDataEncoder.hash(domain, filteredTypes, message).slice(2),
   );
 
-  return signHash(hash, keyFile, address, "eth_signTypedData");
+  return signHash(hash, keyFile, address, "eth_signTypedData", {
+    typedData: JSON.stringify(parsed),
+  });
 }
 
 // ── eth_sendTransaction ──────────────────────────────────────────
