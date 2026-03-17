@@ -440,19 +440,12 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           {transactions.filter((t) => !t.confirmed).length > 0 && (
             <div className="divide-y divide-border-secondary">
               {transactions.filter((t) => !t.confirmed).map((tx, i) => (
-                <div key={`pending-${tx.hash}-${i}`}>
-                  <TxRow tx={tx} explorerUrl={chain.explorerUrl} />
-                  {(chain.type === "btc" || chain.type === "ltc") && !frozen && (
-                    <div className="px-4 pb-2 -mt-1 flex justify-end">
-                      <button
-                        onClick={(e) => { e.preventDefault(); handleSpeedUp(tx.hash); }}
-                        className="text-[11px] text-yellow-400 hover:text-yellow-300 transition-colors font-medium"
-                      >
-                        Speed Up (RBF)
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <TxRow
+                  key={`pending-${tx.hash}-${i}`}
+                  tx={tx}
+                  explorerUrl={chain.explorerUrl}
+                  onSpeedUp={(chain.type === "btc" || chain.type === "ltc") && !frozen ? () => handleSpeedUp(tx.hash) : undefined}
+                />
               ))}
             </div>
           )}

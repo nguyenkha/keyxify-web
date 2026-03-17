@@ -20,7 +20,7 @@ export function formatTxTime(ts: number): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
 }
 
-export function TxRow({ tx, explorerUrl }: { tx: Transaction; explorerUrl: string }) {
+export function TxRow({ tx, explorerUrl, onSpeedUp }: { tx: Transaction; explorerUrl: string; onSpeedUp?: () => void }) {
   const isPending = !tx.confirmed;
   const isFailed = !!tx.failed;
   const dirColor = isFailed
@@ -108,6 +108,17 @@ export function TxRow({ tx, explorerUrl }: { tx: Transaction; explorerUrl: strin
           {dirSign}{tx.formatted}
         </div>
         <div className="text-[11px] text-text-muted">{tx.symbol}</div>
+        {onSpeedUp && (
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onSpeedUp(); }}
+            className="inline-flex items-center gap-1 text-[11px] text-yellow-400 hover:text-yellow-300 transition-colors font-medium mt-1"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            Speed Up
+          </button>
+        )}
       </div>
 
       {/* External link icon on hover — hidden on mobile */}
