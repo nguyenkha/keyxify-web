@@ -41,6 +41,8 @@ import { WalletConnectProvider } from "./context/WalletConnectContext";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
+import { Broadcast as BroadcastPage } from "./components/Broadcast";
+import { SignTx as SignTxPage } from "./components/SignTx";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
 
@@ -49,12 +51,14 @@ const mainNavItems = [
   { path: "/walletconnect", label: "🔗 WalletConnect" },
 ];
 
-const advancedNavItems = [
+const advancedNavItems: { path: string; label: string; expertOnly?: boolean }[] = [
   { path: "/backup-recovery", label: "🗄️ Backup & Recovery" },
   { path: "/activity", label: "📋 Activity Log" },
   { path: "/config", label: "⚙️ Config" },
   { path: "/passkeys", label: "🔑 Passkeys" },
-  { path: "/sign", label: "✍️ Raw Signing" },
+  { path: "/sign", label: "✍️ Raw Signing", expertOnly: true },
+  { path: "/broadcast", label: "📡 Broadcast Tx", expertOnly: true },
+  { path: "/sign-tx", label: "🔏 Sign Tx", expertOnly: true },
 ];
 
 
@@ -181,10 +185,12 @@ function DashboardLayout() {
 
   const email = recovery ? "" : (user?.email || "");
 
-  // In recovery mode, hide server-dependent nav items
-  const filteredAdvanced = recovery
-    ? advancedNavItems.filter((item) => item.path === "/sign" || item.path === "/config")
-    : advancedNavItems;
+  const expert = useExpertMode();
+
+  // In recovery mode, hide server-dependent nav items; hide expert-only items when not expert
+  const filteredAdvanced = advancedNavItems
+    .filter((item) => !recovery || item.path === "/sign" || item.path === "/sign-tx" || item.path === "/broadcast" || item.path === "/config")
+    .filter((item) => !item.expertOnly || expert);
   const filteredAll = [...mainNavItems, ...filteredAdvanced];
 
   const [advancedOpen, setAdvancedOpen] = useState(() =>
@@ -421,6 +427,8 @@ function App() {
           <Route path="/config" element={<ConfigPage />} />
           <Route path="/walletconnect" element={<WalletConnectPage />} />
           <Route path="/sign" element={<Sign />} />
+          <Route path="/broadcast" element={<BroadcastPage />} />
+          <Route path="/sign-tx" element={<SignTxPage />} />
           <Route path="/" element={<Navigate to="/accounts" replace />} />
         </Route>
       </Routes>

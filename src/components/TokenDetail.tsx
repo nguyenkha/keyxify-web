@@ -15,6 +15,7 @@ import { XlmTrustlineDialog } from "./XlmTrustlineDialog";
 import { truncateBalance } from "./sendTypes";
 import type { SpeedUpData } from "./sendTypes";
 import { mempoolApiUrl, fetchFeeRates } from "../lib/chains/btcTx";
+import { useExpertMode } from "../context/ExpertModeContext";
 
 export interface PendingTxFromNavigation {
   hash: string;
@@ -51,6 +52,7 @@ function formatLastUpdated(date: Date): string {
 
 export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval: pollIntervalProp, pendingTx, chainAssets }: TokenDetailProps) {
   const frozen = useFrozen();
+  const expert = useExpertMode();
   const pollInterval = pollIntervalProp ?? DEFAULT_POLL_INTERVAL;
   const [balance, setBalance] = useState<string>(() => {
     // Show cached balance instantly
@@ -444,7 +446,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
                   key={`pending-${tx.hash}-${i}`}
                   tx={tx}
                   explorerUrl={chain.explorerUrl}
-                  onSpeedUp={(chain.type === "btc" || chain.type === "ltc") && !frozen ? () => handleSpeedUp(tx.hash) : undefined}
+                  onSpeedUp={(chain.type === "btc" || chain.type === "ltc") && !frozen && expert ? () => handleSpeedUp(tx.hash) : undefined}
                 />
               ))}
             </div>
