@@ -23,11 +23,17 @@ import { fetchNativeBalance, getCachedNativeBalance, fetchTokenBalances } from "
 import { clearCache, tokenBalancesCacheKey } from "../lib/dataCache";
 import type { BalanceResult } from "../lib/balance";
 import { explorerLink } from "../shared/utils";
-import { useProgressBar, signingDurationMs, ProgressBar } from "./ProgressBar";
+import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import { BalancePreview, type BalanceChange } from "./BalancePreview";
 import { simulateEvmTransaction, type SimulationResult } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError } from "./tx";
+
+function friendlyError(err: any): string {
+  const msg = err?.message || String(err);
+  if (msg === "passkey_auth_required") return "Passkey session expired. Please try again.";
+  return msg;
+}
 
 interface Props {
   request: PendingRequest;
@@ -124,9 +130,6 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const [browserShareError, setBrowserShareError] = useState("");
   const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
   const [signingStepIdx, setSigningStepIdx] = useState(0);
-  const signingActive = phase === "signing";
-  const signingDone = signingStepIdx > 1;
-  const smoothPct = useProgressBar(signingDurationMs(1), signingActive, signingDone);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fee state (for eth_sendTransaction)
@@ -148,6 +151,16 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
   const isTronTx = request.method === "tron_signTransaction";
   const isTx = request.method === "eth_sendTransaction" || isSolanaTx || isTronTx;
   const isContractCall = !isSolana && !isTron && isTx && request.params[0]?.data && request.params[0].data !== "0x";
+
+  // Stepped progress: 90% for MPC signing, 10% for other steps (1s each)
+  const wcStepsAfterMain = isTx ? 2 : 1; // tx: broadcast+confirm; msg: verify
+  const smoothPct = useSteppedProgress(
+    phase === "signing" ? signingStepIdx : -1,
+    1, // main step = MPC signing (index 1)
+    wcStepsAfterMain,
+    signingDurationMs(1),
+    false,
+  );
 
   // TRON state
   const [tronResources, setTronResources] = useState<{ bandwidthFree: number; energyFree: number } | null>(null);
@@ -563,7 +576,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       }
       await executeSign(keyFile);
     } catch (err: any) {
-      setError(err.message || String(err));
+      setError(friendlyError(err));
       setPhase("error");
     }
   }
@@ -771,7 +784,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         setPhase("done");
       }
     } catch (err: any) {
-      setError(err.message || String(err));
+      setError(friendlyError(err));
       setPhase("error");
     }
   }

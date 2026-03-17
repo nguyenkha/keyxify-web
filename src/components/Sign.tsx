@@ -11,7 +11,7 @@ import { PassphraseInput } from "./PassphraseInput";
 import { listKeyShares, getKeyShareWithPrf, getKeyShareWithPassphrase, type KeyShareInfo } from "../lib/keystore";
 import { useFrozen } from "../context/FrozenContext";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
-import { useProgressBar, signingDurationMs, ProgressBar } from "./ProgressBar";
+import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 
 interface KeyFile {
   id: string;
@@ -56,9 +56,15 @@ export function Sign() {
   const [signingError, setSigningError] = useState<string | null>(null);
   const [signature, setSignature] = useState("");
   const [verified, setVerified] = useState<boolean | null>(null);
-  const signingActive = showDialog && !signature && !signingError;
-  const signingDone = signingPhase === "verifying" || !!signature || !!signingError;
-  const smoothPct = useProgressBar(signingDurationMs(1), signingActive, signingDone);
+  // Stepped progress: phases are loading(0) → signing(1) → verifying(2)
+  const signPhaseIdx = phases.indexOf(signingPhase);
+  const smoothPct = useSteppedProgress(
+    showDialog && !signature && !signingError ? signPhaseIdx : -1,
+    1, // main step = MPC signing (index 1)
+    1, // 1 step after main: verify
+    signingDurationMs(1),
+    false,
+  );
 
   // Load browser-stored shares on mount (skip in recovery — key already set)
   useEffect(() => {
@@ -180,9 +186,10 @@ export function Sign() {
           setVerified(false);
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("[sign] Error:", err);
-      setSigningError(String(err));
+      const msg = err?.message || String(err);
+      setSigningError(msg === "passkey_auth_required" ? "Passkey session expired. Please try again." : msg);
     }
   }
 

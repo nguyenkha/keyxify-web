@@ -140,7 +140,7 @@ import {
   formatSun,
 } from "../lib/chains/tronTx";
 import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult, SpeedUpData } from "./sendTypes";
-import { useProgressBar, signingDurationMs, ProgressBar } from "./ProgressBar";
+import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import {
   FEE_LABELS,
   EVM_FEE_MULTIPLIER,
@@ -153,6 +153,12 @@ import {
   getChainId,
   truncateBalance,
 } from "./sendTypes";
+
+function friendlyError(err: any): string {
+  const msg = err?.message || String(err);
+  if (msg === "passkey_auth_required") return "Passkey session expired. Please try again.";
+  return msg;
+}
 
 export function SendDialog({
   keyId,
@@ -256,9 +262,6 @@ export function SendDialog({
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
   const [signatureCount, setSignatureCount] = useState(1);
-  const signingActive = step === "signing";
-  const signingDone = signingPhase !== "mpc-signing" && signingPhase !== "loading-keyshare" && signingPhase !== "building-tx";
-  const smoothPct = useProgressBar(signingDurationMs(signatureCount), signingActive, signingDone);
 
   // Passkey guard (triggered on confirm, not on dialog open)
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
@@ -762,7 +765,7 @@ export function SendDialog({
 
     } catch (err: any) {
       console.error("[send] Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -904,7 +907,7 @@ export function SendDialog({
 
     } catch (err: any) {
       console.error("[send] BTC Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1014,7 +1017,7 @@ export function SendDialog({
 
     } catch (err: any) {
       console.error("[send] BCH Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1140,7 +1143,7 @@ export function SendDialog({
 
     } catch (err: any) {
       console.error("[send] LTC Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1231,7 +1234,7 @@ message = buildSplTransferMessage({
 
     } catch (err: any) {
       console.error("[send] Solana Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1352,7 +1355,7 @@ message = buildSplTransferMessage({
 
     } catch (err: any) {
       console.error("[send] XRP Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1470,7 +1473,7 @@ message = buildSplTransferMessage({
 
     } catch (err: any) {
       console.error("[send] XLM Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
@@ -1566,11 +1569,30 @@ message = buildSplTransferMessage({
 
     } catch (err: any) {
       console.error("[send] TRON Error:", err);
-      setSigningError(err.message || String(err));
+      setSigningError(friendlyError(err));
     } finally {
       clearClientKey(keyFile.id);
     }
   }
+
+  // Map internal phases to 4 display steps: Build (0) → Sign (1) → Broadcast (2) → Confirming (3)
+  const phaseIndex: Record<SigningPhase, number> = {
+    "loading-keyshare": 0,
+    "building-tx": 0,
+    "mpc-signing": 1,
+    "broadcasting": 2,
+    "polling": 3,
+  };
+
+  // Stepped progress: 90% for MPC signing, 10% split across other steps (1s each)
+  const stepsAfterMain = (confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling") ? 0 : 2;
+  const smoothPct = useSteppedProgress(
+    step === "signing" ? phaseIndex[signingPhase] : -1,
+    1, // main step = MPC signing (index 1)
+    stepsAfterMain,
+    signingDurationMs(signatureCount),
+    false,
+  );
 
   const recovery = isRecoveryMode();
   const signLabel = recovery ? "Local signing" : "MPC signing";
@@ -1584,15 +1606,6 @@ message = buildSplTransferMessage({
     "mpc-signing": signLabelActive,
     "broadcasting": "Broadcast",
     "polling": "Confirming",
-  };
-
-  // Map internal phases to 4 display steps: Build (0) → Sign (1) → Broadcast (2) → Confirming (3)
-  const phaseIndex: Record<SigningPhase, number> = {
-    "loading-keyshare": 0,
-    "building-tx": 0,
-    "mpc-signing": 1,
-    "broadcasting": 2,
-    "polling": 3,
   };
 
   const canClose = step === "input" || step === "preview" || step === "result" || signingError != null
@@ -2749,7 +2762,7 @@ message = buildSplTransferMessage({
                             if (confirmed) onTxConfirmed?.(txHash);
                             setStep("result");
                           } catch (err: any) {
-                            setSigningError(err.message || String(err));
+                            setSigningError(friendlyError(err));
                           }
                         }}
                         disabled={false}

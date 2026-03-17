@@ -1,68 +1,76 @@
 import { useState, useEffect, useRef } from "react";
 
 /**
- * Time-based progress bar hook.
+ * Stepped progress bar hook.
  *
- * - Only starts ticking when `active` is true.
- * - Linearly fills 0→99% over `totalMs`.
- * - When `done` flips to true, animates remaining → 100% over 1 second.
- * - If it reaches 99% before done, holds at 99% until done.
- * - Resets to 0 when `active` goes back to false (new operation).
+ * - Main step fills 0→90% over `mainDurationMs`.
+ * - Each step after main fills its share of the remaining 10% over 1s.
+ * - Holds at each step's target until `currentStep` advances.
+ * - When `done` is true, animates remaining → 100% over 1s.
+ * - Pass `currentStep = -1` to reset (inactive).
  */
-export function useProgressBar(totalMs: number, active: boolean, done: boolean): number {
+export function useSteppedProgress(
+  currentStep: number,
+  mainStep: number,
+  stepsAfterMain: number,
+  mainDurationMs: number,
+  done: boolean,
+): number {
   const [pct, setPct] = useState(0);
   const pctRef = useRef(0);
-  const doneTriggered = useRef(false);
 
-  // Keep ref in sync
-  useEffect(() => {
-    pctRef.current = pct;
-  }, [pct]);
+  useEffect(() => { pctRef.current = pct; }, [pct]);
 
-  // Reset when active goes false
+  // Reset when inactive
   useEffect(() => {
-    if (!active) {
+    if (currentStep < 0) {
       setPct(0);
       pctRef.current = 0;
-      doneTriggered.current = false;
     }
-  }, [active]);
+  }, [currentStep]);
 
-  // Phase 1: linear 0→99 over totalMs
+  // Animate toward the current step's target
   useEffect(() => {
-    if (!active || done) return;
-    const msPerPct = totalMs / 99;
-    const iv = setInterval(() => {
-      setPct((p) => {
-        if (p >= 99) return 99;
-        return p + 1;
-      });
-    }, msPerPct);
-    return () => clearInterval(iv);
-  }, [totalMs, active, done]);
+    if (currentStep < 0) return;
 
-  // Phase 2: when done, animate remaining → 100 over 1s
-  useEffect(() => {
-    if (!active || !done || doneTriggered.current) return;
-    doneTriggered.current = true;
-    const startPct = pctRef.current;
-    const remaining = 100 - startPct;
-    if (remaining <= 0) {
-      setPct(100);
+    // Compute target and fill duration
+    let target: number;
+    let fillMs: number;
+
+    if (done) {
+      target = 100;
+      fillMs = 1000;
+    } else if (currentStep < mainStep) {
+      // Pre-main steps: bar stays at 0, no animation
       return;
+    } else if (currentStep === mainStep) {
+      target = 90;
+      fillMs = mainDurationMs;
+    } else {
+      // Post-main steps: split remaining 9% (90→99) evenly, 1s each
+      const idx = currentStep - mainStep; // 1, 2, ...
+      const perStep = stepsAfterMain > 0 ? 9 / stepsAfterMain : 9;
+      target = Math.min(99, Math.round(90 + idx * perStep));
+      fillMs = 1000;
     }
-    const msPerPct = 1000 / remaining;
+
+    const startPct = pctRef.current;
+    const distance = target - startPct;
+    if (distance <= 0) return;
+    if (fillMs <= 0) { setPct(target); return; }
+
+    const msPerPct = fillMs / distance;
     const iv = setInterval(() => {
       setPct((p) => {
-        if (p >= 100) {
+        if (p >= target) {
           clearInterval(iv);
-          return 100;
+          return target;
         }
         return p + 1;
       });
     }, msPerPct);
     return () => clearInterval(iv);
-  }, [active, done]);
+  }, [currentStep, done, mainStep, stepsAfterMain, mainDurationMs]);
 
   return pct;
 }

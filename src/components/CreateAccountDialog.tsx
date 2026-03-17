@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
-import { sensitiveHeaders, authenticatePasskey, fetchPasskeys } from "../lib/passkey";
+import { sensitiveHeaders, authenticatePasskey, fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
+import { PasskeyChallenge } from "./PasskeyChallenge";
+import { isRecoveryMode } from "../lib/recovery";
 import { encryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
 import { PasskeyGate } from "./PasskeyGate";
@@ -14,7 +16,7 @@ import { apiUrl } from "../lib/apiBase";
 import { useExpertMode, useSetExpertMode } from "../context/ExpertModeContext";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
-import { useProgressBar, CREATING_DURATION_MS, ProgressBar } from "./ProgressBar";
+import { useSteppedProgress, CREATING_DURATION_MS, ProgressBar } from "./ProgressBar";
 
 type CreateStep = "welcome" | "passkey" | "name" | "creating" | "passphrase" | "backup" | "done";
 
@@ -34,8 +36,9 @@ const SIMPLE_TIPS = [
   "Transactions require both halves to agree, so no one can move your funds without you.",
 ];
 
-function CreatingProgressBar({ done }: { done: boolean }) {
-  const pct = useProgressBar(CREATING_DURATION_MS, true, done);
+function CreatingProgressBar({ currentStep, done }: { currentStep: number; done: boolean }) {
+  // Steps: ECDSA(0) → EdDSA(1) → Save(2). Main step = 0 (ECDSA keygen, 90%).
+  const pct = useSteppedProgress(currentStep, 0, 2, CREATING_DURATION_MS, done);
   return <ProgressBar pct={pct} />;
 }
 
@@ -96,6 +99,9 @@ export function CreateAccountDialog({
     raw_message: false,
   });
 
+  // Passkey guard before creating
+  const [showPasskeyChallenge, setShowPasskeyChallenge] = useState(false);
+
   const canClose = step === "welcome" || step === "passkey" || step === "name" || step === "passphrase" || step === "done" || (step === "backup" && downloaded) || (step === "creating" && !!error);
 
   async function chooseMode(isExpert: boolean) {
@@ -125,6 +131,12 @@ export function CreateAccountDialog({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [canClose, onClose]);
+
+  function guardedCreate() {
+    if (isRecoveryMode()) { create(); return; }
+    if (isWithinPasskeyGrace()) { create(); return; }
+    setShowPasskeyChallenge(true);
+  }
 
   async function create() {
     setError("");
@@ -162,14 +174,17 @@ export function CreateAccountDialog({
         return rules;
       })() : undefined;
 
-      const { transport: ecdsaTransport, getServerResult: getEcdsaResult } = createHttpTransport({
+      const { transport: ecdsaTransport, getServerResult: getEcdsaResult, transportFailed: ecdsaFailed } = createHttpTransport({
         initUrl: apiUrl("/api/generate/init"),
         stepUrl: apiUrl("/api/generate/step"),
         initExtra: { name: keyName, ...(policyRules ? { policyRules } : {}) },
         headers,
       });
 
-      const ecdsaKey = await mpc.ecdsa2pDkg(ecdsaTransport, 0, PARTY_NAMES, NID_secp256k1);
+      const ecdsaKey = await Promise.race([
+        mpc.ecdsa2pDkg(ecdsaTransport, 0, PARTY_NAMES, NID_secp256k1),
+        ecdsaFailed,
+      ]);
       const ecdsaResult = getEcdsaResult();
       if (!ecdsaResult?.id) throw new Error("Account creation did not complete");
 
@@ -179,14 +194,17 @@ export function CreateAccountDialog({
       // ── Phase 2: EdDSA key generation ──
       setProgress(expert ? "Generating EdDSA key..." : "Securing your account...");
 
-      const { transport: eddsaTransport, getServerResult: getEddsaServerResult } = createHttpTransport({
+      const { transport: eddsaTransport, getServerResult: getEddsaServerResult, transportFailed: eddsaFailed } = createHttpTransport({
         initUrl: apiUrl("/api/generate/eddsa-init"),
         stepUrl: apiUrl("/api/generate/eddsa-step"),
         initExtra: { keyId },
         headers,
       });
 
-      const eddsaKey = await mpc.ecKey2pDkg(eddsaTransport, 0, PARTY_NAMES, NID_ED25519);
+      const eddsaKey = await Promise.race([
+        mpc.ecKey2pDkg(eddsaTransport, 0, PARTY_NAMES, NID_ED25519),
+        eddsaFailed,
+      ]);
       const eddsaInfo = mpc.ecKey2pInfo(eddsaKey);
       const party0PubKey = toHex(eddsaInfo.publicKey);
 
@@ -247,7 +265,12 @@ export function CreateAccountDialog({
       }
     } catch (err) {
       console.error("[generate] Error:", err);
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg === "passkey_auth_required") {
+        setError("Passkey authentication required. Please try again.");
+      } else {
+        setError(msg);
+      }
     }
   }
 
@@ -427,7 +450,7 @@ export function CreateAccountDialog({
               )}
 
               <button
-                onClick={create}
+                onClick={guardedCreate}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
               >
                 ✨ Create Account
@@ -456,7 +479,7 @@ export function CreateAccountDialog({
                       Close
                     </button>
                     <button
-                      onClick={() => { setError(""); create(); }}
+                      onClick={() => { setError(""); guardedCreate(); }}
                       className="px-4 py-2 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors"
                     >
                       Try Again
@@ -479,7 +502,10 @@ export function CreateAccountDialog({
                     )}
                   </div>
                   {/* Smooth progress bar */}
-                  <CreatingProgressBar done={creatingDone} />
+                  <CreatingProgressBar
+                    currentStep={progress.includes("Saving") ? 2 : progress.includes("EdDSA") || progress.includes("Securing") ? 1 : 0}
+                    done={creatingDone}
+                  />
                   {/* Progress steps */}
                   <div className="space-y-2 max-w-[220px] mx-auto">
                     {[
@@ -831,6 +857,16 @@ export function CreateAccountDialog({
           )}
         </div>
       </div>
+
+      {/* Passkey challenge overlay — triggered when token expired before creating */}
+      {showPasskeyChallenge && (
+        <PasskeyChallenge
+          onAuthenticated={() => { setShowPasskeyChallenge(false); create(); }}
+          onCancel={() => setShowPasskeyChallenge(false)}
+          withPrf={false}
+          autoStart
+        />
+      )}
     </div>
   );
 }
