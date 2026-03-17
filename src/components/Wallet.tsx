@@ -110,6 +110,7 @@ export function Wallet() {
 
   const [policyKeyId, setPolicyKeyId] = useState<string | null>(null);
   const [manageDisplayKeyId, setManageDisplayKeyId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [infoKeyId, setInfoKeyId] = useState<string | null>(null);
   const [badgeExplain, setBadgeExplain] = useState<string | null>(null);
@@ -462,8 +463,8 @@ export function Wallet() {
                 handleDisplayChange(group.keyId, prefKey, visible)
               }
               onTokenAdded={() => {
-                // Reload assets to include newly added custom token
-                fetchAssets().then(a => setAssetsData(a));
+                // Reload assets and bump refresh key to force AccountRowView re-mount (clears stale cache)
+                fetchAssets().then(a => { setAssetsData(a); setRefreshKey(k => k + 1); });
               }}
             />
             </div>
@@ -474,7 +475,7 @@ export function Wallet() {
               .filter((row) => isChainVisible(row.chain.name, displayMap[group.keyId] ?? null, defaultChains))
               .map((row) => (
               <AccountRowView
-                key={`${row.keyId}:${row.chain.id}:${row.address}`}
+                key={`${row.keyId}:${row.chain.id}:${row.address}:${refreshKey}`}
                 row={row}
                 displayPrefs={displayMap[group.keyId] ?? null}
                 pollInterval={pollInterval}
