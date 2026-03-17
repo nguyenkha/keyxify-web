@@ -125,7 +125,7 @@ import {
   broadcastXlmTransaction,
   waitForXlmConfirmation,
 } from "../lib/chains/xlmTx";
-import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult } from "./sendTypes";
+import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult, SpeedUpData } from "./sendTypes";
 import {
   FEE_LABELS,
   EVM_FEE_MULTIPLIER,
@@ -148,6 +148,7 @@ export function SendDialog({
   onClose,
   onTxSubmitted,
   onTxConfirmed,
+  speedUpData,
 }: {
   keyId: string;
   asset: Asset;
@@ -157,6 +158,7 @@ export function SendDialog({
   onClose: () => void;
   onTxSubmitted?: (txHash: string, toAddr: string, amount: string) => void;
   onTxConfirmed?: (txHash: string) => void;
+  speedUpData?: SpeedUpData;
 }) {
   const { hidden: balancesHidden } = useHideBalances();
   const expert = useExpertMode();
@@ -180,8 +182,8 @@ export function SendDialog({
   const [estimatedGas, setEstimatedGas] = useState<bigint | null>(null);
   const [gasEstimateError, setGasEstimateError] = useState<string | null>(null);
   const [currentNonce, setCurrentNonce] = useState<number | null>(null);
-  const [to, setTo] = useState("");
-  const [amount, setAmount] = useState("");
+  const [to, setTo] = useState(speedUpData?.to ?? "");
+  const [amount, setAmount] = useState(speedUpData ? (Number(speedUpData.amountSats) / 10 ** asset.decimals).toString() : "");
   const [toTouched, setToTouched] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
   const [showAddrScanner, setShowAddrScanner] = useState(false);
@@ -262,6 +264,20 @@ export function SendDialog({
     pendingSignRef.current?.();
     pendingSignRef.current = null;
   }
+
+  // Pre-fill form for RBF speed-up
+  useEffect(() => {
+    if (!speedUpData) return;
+    const utxos: UTXO[] = speedUpData.utxos.map(u => ({
+      txid: u.txid, vout: u.vout, value: u.value,
+      status: { confirmed: true },
+    }));
+    setAvailableUtxos(utxos);
+    setSelectedUtxoKeys(new Set(utxos.map(u => `${u.txid}:${u.vout}`)));
+    setBtcFeeRateOverride(String(speedUpData.minFeeRate));
+    setRbfEnabled(true);
+    setFeeLevel("high");
+  }, []);
 
   // Check for browser-stored key share on mount (or load recovery key)
   useEffect(() => {
@@ -1361,7 +1377,7 @@ message = buildSplTransferMessage({
             </h3>
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
-              📤 Send {asset.symbol}
+              {speedUpData ? `⚡ Speed Up ${asset.symbol}` : `📤 Send ${asset.symbol}`}
             </h3>
           )}
           {step === "preview" && (
@@ -1518,6 +1534,14 @@ message = buildSplTransferMessage({
                 </div>
               </div>
 
+              {/* Speed-up banner */}
+              {speedUpData && (
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
+                  <p className="text-xs text-yellow-400 font-medium">RBF Replacement</p>
+                  <p className="text-[11px] text-yellow-400/70 mt-0.5">Re-signing with higher fee to replace stuck tx. Same inputs, same recipient.</p>
+                </div>
+              )}
+
               {/* To */}
               <div>
                 <label className="block text-xs text-text-muted mb-1.5">To</label>
@@ -1531,9 +1555,10 @@ message = buildSplTransferMessage({
                   <input
                     type="text"
                     value={to}
-                    onChange={(e) => setTo(e.target.value.trim())}
+                    onChange={(e) => { if (!speedUpData) setTo(e.target.value.trim()); }}
                     onBlur={() => setToTouched(true)}
                     placeholder={placeholder}
+                    readOnly={!!speedUpData}
                     className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none font-mono"
                   />
                   {/* Paste button — mobile only */}
@@ -1649,9 +1674,10 @@ message = buildSplTransferMessage({
                   <input
                     type="text"
                     value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
+                    onChange={(e) => { if (!speedUpData) setAmount(e.target.value); }}
                     onBlur={() => setAmountTouched(true)}
                     placeholder="0.00"
+                    readOnly={!!speedUpData}
                     className={`w-full bg-surface-primary border rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none tabular-nums pr-16 ${
                       amountError
                         ? "border-red-500/50 focus:border-red-500"

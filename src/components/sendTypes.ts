@@ -19,6 +19,14 @@ export const GAS_LIMIT_NATIVE = 21_000n;
 export const GAS_LIMIT_ERC20 = 65_000n;
 
 
+export interface SpeedUpData {
+  originalTxid: string;
+  to: string;
+  amountSats: bigint;
+  utxos: { txid: string; vout: number; value: number }[];
+  minFeeRate: number; // must be higher than original
+}
+
 export type SendStep = "input" | "preview" | "signing" | "result";
 
 export type SigningPhase =

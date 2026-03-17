@@ -13,6 +13,8 @@ import { TxRow } from "./TxRow";
 import { SendDialog } from "./SendDialog";
 import { XlmTrustlineDialog } from "./XlmTrustlineDialog";
 import { truncateBalance } from "./sendTypes";
+import type { SpeedUpData } from "./sendTypes";
+import { mempoolApiUrl, fetchFeeRates } from "../lib/chains/btcTx";
 
 export interface PendingTxFromNavigation {
   hash: string;
@@ -117,6 +119,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [showSend, setShowSend] = useState(false);
+  const [speedUpData, setSpeedUpData] = useState<SpeedUpData | undefined>();
   const [showXlmTrustline, setShowXlmTrustline] = useState(false);
   const [prices, setPrices] = useState<Record<string, number>>({});
 
@@ -210,6 +213,40 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
+  }
+
+  async function handleSpeedUp(txHash: string) {
+    const apiBase = mempoolApiUrl(chain.explorerUrl);
+    try {
+      const [txRes, feeRates] = await Promise.all([
+        fetch(`${apiBase}/tx/${txHash}`).then(r => r.json()),
+        fetchFeeRates(apiBase),
+      ]);
+      // Extract original inputs as UTXOs
+      const utxos = (txRes.vin as any[]).map((inp: any) => ({
+        txid: inp.txid as string,
+        vout: inp.vout as number,
+        value: inp.prevout?.value as number,
+      }));
+      // Find recipient output (first output that isn't the sender's address)
+      const vout = txRes.vout as any[];
+      const recipientOut = vout.find((o: any) => o.scriptpubkey_address !== address) ?? vout[0];
+      const recipientAddr = recipientOut.scriptpubkey_address as string;
+      const amountSats = BigInt(recipientOut.value);
+      // Calculate original fee rate and require higher
+      const txWeight = txRes.weight as number;
+      const txFee = txRes.fee as number;
+      const originalFeeRate = txFee / (txWeight / 4);
+      const minFeeRate = Math.max(
+        Math.ceil(originalFeeRate) + 1,
+        feeRates.halfHourFee,
+        1,
+      );
+      setSpeedUpData({ originalTxid: txHash, to: recipientAddr, amountSats, utxos, minFeeRate });
+      setShowSend(true);
+    } catch (err) {
+      console.error("[speed-up] Failed to fetch tx:", err);
+    }
   }
 
   function copyAddress() {
@@ -403,7 +440,19 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           {transactions.filter((t) => !t.confirmed).length > 0 && (
             <div className="divide-y divide-border-secondary">
               {transactions.filter((t) => !t.confirmed).map((tx, i) => (
-                <TxRow key={`pending-${tx.hash}-${i}`} tx={tx} explorerUrl={chain.explorerUrl} />
+                <div key={`pending-${tx.hash}-${i}`}>
+                  <TxRow tx={tx} explorerUrl={chain.explorerUrl} />
+                  {(chain.type === "btc" || chain.type === "ltc") && !frozen && (
+                    <div className="px-4 pb-2 -mt-1">
+                      <button
+                        onClick={(e) => { e.preventDefault(); handleSpeedUp(tx.hash); }}
+                        className="text-[11px] text-yellow-400 hover:text-yellow-300 transition-colors font-medium"
+                      >
+                        Speed Up (RBF)
+                      </button>
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           )}
@@ -492,7 +541,8 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
           chain={chain}
           address={address}
           balance={balance}
-          onClose={() => setShowSend(false)}
+          speedUpData={speedUpData}
+          onClose={() => { setShowSend(false); setSpeedUpData(undefined); }}
           onTxSubmitted={(txHash, toAddr, txAmount) => {
             // Add pending tx to the list
             const pendingTx: Transaction = {
