@@ -13,6 +13,7 @@ export interface UserOverrides {
     show_testnet?: boolean;
     expert_mode?: boolean;
     evm_gas_buffer_pct?: number;
+    confirm_before_broadcast?: boolean;
     [key: string]: unknown;
   };
 }

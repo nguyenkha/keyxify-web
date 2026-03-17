@@ -113,6 +113,7 @@ import {
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 import { authenticatePasskey } from "../lib/passkey";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
+import { getUserOverrides } from "../lib/userOverrides";
 
 const MAX_UTXO_INPUTS = 10;
 import {
@@ -175,7 +176,10 @@ export function SendDialog({
   const [priorityFeeOverride, setPriorityFeeOverride] = useState("");
   const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
   const [rbfEnabled, setRbfEnabled] = useState(true);
+  const confirmBeforeBroadcast = getUserOverrides()?.preferences?.confirm_before_broadcast ?? false;
   const [signOnlyMode, setSignOnlyMode] = useState(!!signOnly);
+  // Effective sign-only: explicit toggle OR confirm-before-broadcast preference (not in sign-only prop mode)
+  const effectiveSignOnly = signOnlyMode || (confirmBeforeBroadcast && !signOnly);
 
   // UTXO manual selection (expert mode)
   const [showUtxoPicker, setShowUtxoPicker] = useState(false);
@@ -239,6 +243,7 @@ export function SendDialog({
   const [txResult, setTxResult] = useState<TxResult | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
+  const [manualBroadcasting, setManualBroadcasting] = useState(false);
   const [signingInputCount, setSigningInputCount] = useState(0);
 
   // Passkey guard (triggered on confirm, not on dialog open)
@@ -657,7 +662,7 @@ export function SendDialog({
       const recoveryBit = recoverV(sighash, r, s, pubKeyRaw);
       const signedTx = assembleSignedTx(unsignedTx, r, s, recoveryBit);
 
-      if (signOnlyMode) {
+      if (effectiveSignOnly) {
         setSignedRawTx(signedTx.rawTransaction);
         setTxResult({ status: "success", txHash: "sign-only" });
         setKeyFile(null); setPendingEncrypted(null);
@@ -794,7 +799,7 @@ export function SendDialog({
         txid = computeTxid(btcTx);
       }
 
-      if (signOnlyMode) {
+      if (effectiveSignOnly) {
         setSignedRawTx(rawHex);
         setTxResult({ status: "success", txHash: "sign-only" });
         setKeyFile(null); setPendingEncrypted(null);
@@ -903,7 +908,7 @@ export function SendDialog({
       const rawHex = bytesToHex(serializeBchTx(bchTx, scriptSigs));
       const txid = computeBchTxid(bchTx, scriptSigs);
 
-      if (signOnlyMode) {
+      if (effectiveSignOnly) {
         setSignedRawTx(rawHex);
         setTxResult({ status: "success", txHash: "sign-only" });
         setKeyFile(null); setPendingEncrypted(null);
@@ -1028,7 +1033,7 @@ export function SendDialog({
         txid = computeTxid(ltcTx);
       }
 
-      if (signOnlyMode) {
+      if (effectiveSignOnly) {
         setSignedRawTx(rawHex);
         setTxResult({ status: "success", txHash: "sign-only" });
         setKeyFile(null); setPendingEncrypted(null);
@@ -1117,7 +1122,7 @@ message = buildSplTransferMessage({
       // 3. Assemble signed transaction
       const signedTxBase58 = assembleSolanaTransaction(message, sigRaw);
 
-      if (signOnlyMode) {
+      if (effectiveSignOnly) {
         setSignedRawTx(signedTxBase58);
         setTxResult({ status: "success", txHash: "sign-only" });
         setKeyFile(null); setPendingEncrypted(null);
@@ -1236,7 +1241,7 @@ message = buildSplTransferMessage({
       sigDer[4 + rDer.length] = 0x02; sigDer[5 + rDer.length] = sDer.length; sigDer.set(sDer, 6 + rDer.length);
       const signedTxHex = xrpAssembleSignedTx(params, sigDer);
 
-      if (signOnlyMode) {
+      if (effectiveSignOnly) {
         setSignedRawTx(signedTxHex);
         setTxResult({ status: "success", txHash: "sign-only" });
         setKeyFile(null); setPendingEncrypted(null);
@@ -1352,7 +1357,7 @@ message = buildSplTransferMessage({
       // 4. Assemble signed envelope
       const txBase64 = assembleXlmSignedTx(txXdr, fromPubKey, sigRaw);
 
-      if (signOnlyMode) {
+      if (effectiveSignOnly) {
         setSignedRawTx(txBase64);
         setTxResult({ status: "success", txHash: "sign-only" });
         setKeyFile(null); setPendingEncrypted(null);
@@ -1456,6 +1461,7 @@ message = buildSplTransferMessage({
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
               {signOnlyMode ? `🔏 Sign ${asset.symbol}` : speedUpData ? `⚡ Speed Up ${asset.symbol}` : `📤 Send ${asset.symbol}`}
+
             </h3>
           )}
           {step === "preview" && (
@@ -2297,12 +2303,18 @@ message = buildSplTransferMessage({
 
                 {/* Progress steps */}
                 <div className="space-y-2 max-w-[260px] mx-auto">
-                  {([
-                    { idx: 0, label: "Build transaction" },
-                    { idx: 1, label: signLabel },
-                    { idx: 2, label: "Broadcast" },
-                    { idx: 3, label: "Confirming" },
-                  ]).map(({ idx, label }) => {
+                  {(effectiveSignOnly
+                    ? [
+                        { idx: 0, label: "Build transaction" },
+                        { idx: 1, label: signLabelWithCount },
+                      ]
+                    : [
+                        { idx: 0, label: "Build transaction" },
+                        { idx: 1, label: signLabelWithCount },
+                        { idx: 2, label: "Broadcast" },
+                        { idx: 3, label: "Confirming" },
+                      ]
+                  ).map(({ idx, label }) => {
                     const currentIdx = phaseIndex[signingPhase];
                     const isDone = currentIdx > idx;
                     const isCurrent = currentIdx === idx;
@@ -2354,7 +2366,7 @@ message = buildSplTransferMessage({
         {step === "result" && txResult && (
           <div className="p-5">
             <div className="text-center py-6">
-              {signOnlyMode && signedRawTx ? (
+              {effectiveSignOnly && signedRawTx ? (
                 <>
                   <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
                     <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2362,16 +2374,62 @@ message = buildSplTransferMessage({
                     </svg>
                   </div>
                   <p className="text-lg font-semibold text-text-primary mb-1">Transaction Signed</p>
-                  <p className="text-xs text-text-muted mb-3">Copy the signed transaction and broadcast it manually.</p>
-                  <div className="text-left bg-surface-primary border border-border-secondary rounded-lg p-3 max-h-32 overflow-auto">
+                  <p className="text-xs text-text-muted mb-3">
+                    {confirmBeforeBroadcast && !signOnly
+                      ? "Review the signed transaction before broadcasting."
+                      : "Copy the signed transaction and broadcast it manually."}
+                  </p>
+                  <div className="text-left bg-surface-secondary rounded-lg border border-border-primary p-3 max-h-32 overflow-auto">
                     <p className="text-[11px] font-mono text-text-secondary break-all select-all">{signedRawTx}</p>
                   </div>
-                  <button
-                    onClick={() => { navigator.clipboard.writeText(signedRawTx); }}
-                    className="mt-2 text-xs text-blue-400 hover:text-blue-300 transition-colors font-medium"
-                  >
-                    Copy to clipboard
-                  </button>
+                  <div className="flex items-center justify-center gap-3 mt-3">
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(signedRawTx); }}
+                      className="text-xs text-text-muted hover:text-text-secondary transition-colors font-medium"
+                    >
+                      Copy
+                    </button>
+                    {confirmBeforeBroadcast && !signOnly && (
+                      <button
+                        onClick={async () => {
+                          setManualBroadcasting(true);
+                          try {
+                            let txHash: string;
+                            if (chain.type === "btc") {
+                              txHash = await broadcastBtcTx(signedRawTx, mempoolApiUrl(chain.explorerUrl));
+                            } else if (chain.type === "ltc") {
+                              const { ltcApiUrl } = await import("../lib/chains/ltcTx");
+                              txHash = await (await import("../lib/chains/ltcTx")).broadcastLtcTx(signedRawTx, ltcApiUrl(chain.explorerUrl));
+                            } else if (chain.type === "bch") {
+                              const { bchApiUrl } = await import("../lib/chains/bchTx");
+                              txHash = await (await import("../lib/chains/bchTx")).broadcastBchTx(signedRawTx, bchApiUrl());
+                            } else if (chain.type === "evm") {
+                              txHash = await broadcastTransaction(chain.rpcUrl, signedRawTx);
+                            } else if (chain.type === "solana") {
+                              txHash = await broadcastSolanaTransaction(chain.rpcUrl, signedRawTx);
+                            } else if (chain.type === "xrp") {
+                              txHash = await broadcastXrpTransaction(chain.rpcUrl, signedRawTx);
+                            } else if (chain.type === "xlm") {
+                              txHash = await broadcastXlmTransaction(chain.rpcUrl, signedRawTx);
+                            } else {
+                              throw new Error(`Unsupported chain type: ${chain.type}`);
+                            }
+                            setSignedRawTx(null);
+                            setTxResult({ status: "pending", txHash });
+                            onTxSubmitted?.(txHash, to, amount);
+                          } catch (err: any) {
+                            setSigningError(err.message || String(err));
+                          } finally {
+                            setManualBroadcasting(false);
+                          }
+                        }}
+                        disabled={manualBroadcasting}
+                        className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 transition-colors"
+                      >
+                        {manualBroadcasting ? "Broadcasting..." : "📡 Broadcast"}
+                      </button>
+                    )}
+                  </div>
                 </>
               ) : txResult.status === "success" ? (
                 <>
@@ -2411,7 +2469,7 @@ message = buildSplTransferMessage({
               )}
 
               {/* Transaction details card */}
-              {!signOnlyMode && <div className="mt-5 mx-auto max-w-[280px] rounded-lg bg-surface-primary/60 border border-border-secondary overflow-hidden">
+              {!effectiveSignOnly && <div className="mt-5 mx-auto max-w-[280px] rounded-lg bg-surface-primary/60 border border-border-secondary overflow-hidden">
                 <a
                   href={explorerLink(chain.explorerUrl, `/tx/${txResult.txHash}`)}
                   target="_blank"

@@ -190,13 +190,34 @@ export function pubKeyHash(compressedPubKey: Uint8Array): Uint8Array {
 
 // ── Transaction size estimation ──────────────────────────────────
 
+/** Output size in bytes based on scriptPubKey type:
+ * P2WPKH: 8(value) + 1(varint) + 22(script) = 31
+ * P2PKH:  8(value) + 1(varint) + 25(script) = 34
+ * P2SH:   8(value) + 1(varint) + 23(script) = 32
+ * P2TR:   8(value) + 1(varint) + 34(script) = 43
+ */
+function outputSize(address?: string): number {
+  if (!address) return 34; // conservative default
+  if (address.startsWith("bc1p") || address.startsWith("tb1p")) return 43; // P2TR
+  if (address.startsWith("bc1q") || address.startsWith("tb1q") ||
+      address.startsWith("ltc1q") || address.startsWith("tltc1q")) return 31; // P2WPKH
+  if (address.startsWith("3") || address.startsWith("2") ||
+      address.startsWith("M")) return 32; // P2SH
+  return 34; // P2PKH (1, m, n, L)
+}
+
 /** Estimate vbytes for P2WPKH (segwit) transaction */
 export function estimateVBytes(
   numInputs: number,
-  numOutputs: number
+  numOutputs: number,
+  destAddress?: string,
+  changeAddress?: string,
 ): number {
-  // Non-witness: version(4) + vinCount(1) + inputs(41*n) + voutCount(1) + outputs(31*n) + locktime(4)
-  const nonWitness = 10 + 41 * numInputs + 31 * numOutputs;
+  // Non-witness: version(4) + vinCount(1) + inputs(41*n) + voutCount(1) + outputs + locktime(4)
+  const destOut = outputSize(destAddress);
+  const changeOut = numOutputs > 1 ? outputSize(changeAddress) : 0;
+  const totalOutputBytes = destOut + changeOut;
+  const nonWitness = 10 + 41 * numInputs + totalOutputBytes;
   // Witness: marker+flag(2) + per-input witness(1+1+72+1+33 = 108)
   const witness = 2 + 108 * numInputs;
   return Math.ceil(nonWitness + witness / 4);
@@ -205,22 +226,29 @@ export function estimateVBytes(
 /** Estimate bytes for P2PKH (legacy) transaction */
 export function estimateLegacyBytes(
   numInputs: number,
-  numOutputs: number
+  numOutputs: number,
+  destAddress?: string,
+  changeAddress?: string,
 ): number {
-  // version(4) + vinCount(1) + inputs(148*n) + voutCount(1) + outputs(34*n) + locktime(4)
   // 148 per input = prevhash(32) + vout(4) + scriptSigLen(1) + scriptSig(~107) + sequence(4)
-  return 10 + 148 * numInputs + 34 * numOutputs;
+  const destOut = outputSize(destAddress);
+  const changeOut = numOutputs > 1 ? outputSize(changeAddress) : 0;
+  const totalOutputBytes = destOut + changeOut;
+  return 10 + 148 * numInputs + totalOutputBytes;
 }
 
 export function estimateFee(
   numInputs: number,
   feeRateSatPerVB: number,
   hasChange: boolean,
-  addrType: BtcAddressType = "p2wpkh"
+  addrType: BtcAddressType = "p2wpkh",
+  destAddress?: string,
+  changeAddress?: string,
 ): bigint {
+  const numOutputs = hasChange ? 2 : 1;
   const size = addrType === "p2pkh"
-    ? estimateLegacyBytes(numInputs, hasChange ? 2 : 1)
-    : estimateVBytes(numInputs, hasChange ? 2 : 1);
+    ? estimateLegacyBytes(numInputs, numOutputs, destAddress, changeAddress)
+    : estimateVBytes(numInputs, numOutputs, destAddress, changeAddress);
   return BigInt(Math.ceil(size * feeRateSatPerVB));
 }
 
@@ -234,19 +262,24 @@ export function selectUtxos(
   feeRateSatPerVB: number,
   addrType: BtcAddressType = "p2wpkh",
   useAll: boolean = false,
+  destAddress?: string,
+  changeAddress?: string,
 ): { selected: UTXO[]; fee: bigint; change: bigint } {
-  const estimateSize = addrType === "p2pkh" ? estimateLegacyBytes : estimateVBytes;
+  const estSize = (nIn: number, nOut: number) =>
+    addrType === "p2pkh"
+      ? estimateLegacyBytes(nIn, nOut, destAddress, changeAddress)
+      : estimateVBytes(nIn, nOut, destAddress, changeAddress);
 
   if (useAll) {
     // Manual UTXO selection: use all provided UTXOs as-is
     const selected = utxos.filter((u) => u.status.confirmed);
     const totalIn = selected.reduce((sum, u) => sum + BigInt(u.value), 0n);
-    const size2 = estimateSize(selected.length, 2);
+    const size2 = estSize(selected.length, 2);
     const fee2 = BigInt(Math.ceil(size2 * feeRateSatPerVB));
 
     if (totalIn < targetSats + fee2) {
       // Try with 1 output (no change)
-      const size1 = estimateSize(selected.length, 1);
+      const size1 = estSize(selected.length, 1);
       const fee1 = BigInt(Math.ceil(size1 * feeRateSatPerVB));
       if (totalIn < targetSats + fee1) {
         throw new Error("Insufficient funds (selected UTXOs too small)");
@@ -259,7 +292,7 @@ export function selectUtxos(
       return { selected, fee: fee2 + change, change: 0n };
     }
     if (change === 0n) {
-      const fee1 = BigInt(Math.ceil(estimateSize(selected.length, 1) * feeRateSatPerVB));
+      const fee1 = BigInt(Math.ceil(estSize(selected.length, 1) * feeRateSatPerVB));
       return { selected, fee: fee1, change: 0n };
     }
     return { selected, fee: fee2, change };
@@ -278,7 +311,7 @@ export function selectUtxos(
     totalIn += BigInt(utxo.value);
 
     // Estimate fee with 2 outputs (recipient + change)
-    const size = estimateSize(selected.length, 2);
+    const size = estSize(selected.length, 2);
     const fee = BigInt(Math.ceil(size * feeRateSatPerVB));
 
     if (totalIn >= targetSats + fee) {
@@ -292,7 +325,7 @@ export function selectUtxos(
       // If no change, recalculate fee with 1 output
       if (change === 0n) {
         const fee1 = BigInt(
-          Math.ceil(estimateSize(selected.length, 1) * feeRateSatPerVB)
+          Math.ceil(estSize(selected.length, 1) * feeRateSatPerVB)
         );
         return { selected, fee: fee1, change: 0n };
       }
@@ -316,7 +349,7 @@ export function buildBtcTransaction(
   rbf: boolean = true,
   useAllUtxos: boolean = false,
 ): BtcUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos, toAddress, changeAddress);
 
   const inputs: BtcInput[] = selected.map((u) => ({
     txid: u.txid,

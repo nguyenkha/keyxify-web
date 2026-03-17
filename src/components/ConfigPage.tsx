@@ -213,6 +213,20 @@ export function ConfigPage() {
     setExpertContext(value);
   }
 
+  function getConfirmBeforeBroadcast(): boolean {
+    return overrides.preferences?.confirm_before_broadcast ?? false;
+  }
+
+  function setConfirmBeforeBroadcast(value: boolean) {
+    const prefs = { ...overrides.preferences };
+    if (!value) {
+      delete prefs.confirm_before_broadcast;
+    } else {
+      prefs.confirm_before_broadcast = true;
+    }
+    save({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined });
+  }
+
   const isTestnet = (name: string) => /testnet|sepolia|devnet/i.test(name);
   const visibleChains = getShowTestnet() ? chains : chains.filter((c) => !isTestnet(c.name));
 
@@ -397,6 +411,26 @@ export function ConfigPage() {
               >
                 <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
                   getExpertMode() ? "left-[16px]" : "left-[2px]"
+                }`} />
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm before broadcast */}
+          <div className="px-3 md:px-5 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-text-primary">Confirm before broadcast</p>
+                <p className="text-xs text-text-muted mt-0.5">Review signed transaction before sending to the network</p>
+              </div>
+              <button
+                onClick={() => setConfirmBeforeBroadcast(!getConfirmBeforeBroadcast())}
+                className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+                  getConfirmBeforeBroadcast() ? "bg-blue-500" : "bg-surface-tertiary"
+                }`}
+              >
+                <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+                  getConfirmBeforeBroadcast() ? "left-[16px]" : "left-[2px]"
                 }`} />
               </button>
             </div>

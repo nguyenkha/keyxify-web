@@ -143,7 +143,7 @@ export function buildLtcTransaction(
   rbf: boolean = true,
   useAllUtxos: boolean = false,
 ): BtcUnsignedTx {
-  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos);
+  const { selected, change } = selectUtxos(utxos, amountSats, feeRateSatPerVB, addrType, useAllUtxos, toAddress, changeAddress);
 
   const inputs: BtcInput[] = selected.map((u) => ({
     txid: u.txid,
