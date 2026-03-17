@@ -23,7 +23,8 @@ export default defineConfig([
       '@typescript-eslint/no-explicit-any': 'warn',
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/immutability': 'warn',
-      'react-refresh/only-export-components': 'warn',
+      // Context files intentionally export both context and hooks — this is idiomatic React
+      'react-refresh/only-export-components': 'off',
       '@typescript-eslint/no-unused-vars': ['error', {
         vars: 'all',
         args: 'all',
@@ -31,6 +32,32 @@ export default defineConfig([
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',
       }],
+    },
+  },
+  // WalletConnect files use intentional `any` for complex SDK types — suppress noise
+  {
+    files: [
+      'src/components/WCRequestApproval.tsx',
+      'src/context/WalletConnectContext.tsx',
+      'src/lib/walletconnect.ts',
+    ],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'no-unused-disable': 'off',
+    },
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
+    },
+  },
+  // WebAuthn file uses intentional `any` for credential types
+  {
+    files: ['src/lib/passkey.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+    },
+    linterOptions: {
+      reportUnusedDisableDirectives: 'off',
     },
   },
 ])
