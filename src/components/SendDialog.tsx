@@ -113,6 +113,8 @@ import {
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 import { authenticatePasskey } from "../lib/passkey";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
+
+const MAX_UTXO_INPUTS = 10;
 import {
   strKeyToPublicKey,
   eddsaPubKeyToXlmAddress,
@@ -237,6 +239,7 @@ export function SendDialog({
   const [txResult, setTxResult] = useState<TxResult | null>(null);
   const [pendingTxHash, setPendingTxHash] = useState<string | null>(null);
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
+  const [signingInputCount, setSigningInputCount] = useState(0);
 
   // Passkey guard (triggered on confirm, not on dialog open)
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
@@ -728,7 +731,11 @@ export function SendDialog({
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectAddressType(address);
       const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
+      if (!isRecoveryMode() && btcTx.inputs.length > MAX_UTXO_INPUTS) {
+        throw new Error(`Too many inputs (${btcTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
+      }
       // 2. Get compressed public key and hash
+      setSigningInputCount(btcTx.inputs.length);
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
       const compressedPubKey = getCompressedPublicKey(
@@ -847,8 +854,12 @@ export function SendDialog({
       const utxos = manualUtxos ?? await fetchBchUtxos(address, api);
       const amountSats = parseUnits(amount, asset.decimals);
       const bchTx = buildBchTransaction(to, amountSats, utxos, bchFeeRate, address, manualUtxos != null);
+      if (!isRecoveryMode() && bchTx.inputs.length > MAX_UTXO_INPUTS) {
+        throw new Error(`Too many inputs (${bchTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
+      }
 
       // 2. Get compressed public key and hash
+      setSigningInputCount(bchTx.inputs.length);
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
       const compressedPubKey = getBchCompressedPublicKey(
@@ -953,8 +964,12 @@ export function SendDialog({
       const amountSats = parseUnits(amount, asset.decimals);
       const addrType = detectLtcAddressType(address);
       const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
+      if (!isRecoveryMode() && ltcTx.inputs.length > MAX_UTXO_INPUTS) {
+        throw new Error(`Too many inputs (${ltcTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
+      }
 
       // 2. Get compressed public key and hash
+      setSigningInputCount(ltcTx.inputs.length);
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
       const compressedPubKey = getCompressedPublicKey(
@@ -1381,10 +1396,13 @@ message = buildSplTransferMessage({
 
   const recovery = isRecoveryMode();
   const signLabel = recovery ? "Local signing" : "MPC signing";
+  const signLabelWithCount = signingInputCount > 1
+    ? `${signLabel} (${signingInputCount} inputs)`
+    : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
     "loading-keyshare": "Build transaction",
     "building-tx": "Build transaction",
-    "mpc-signing": signLabel,
+    "mpc-signing": signLabelWithCount,
     "broadcasting": "Broadcast",
     "polling": "Confirming",
   };

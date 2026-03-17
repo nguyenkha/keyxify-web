@@ -356,110 +356,6 @@ export function ConfigPage() {
         </button>
       </div>
 
-      {/* ── Networks ── */}
-      <div>
-        <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
-          Networks
-        </p>
-        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
-          {visibleChains.map((chain) => {
-            const expanded = expandedChain === chain.name;
-            const hasFieldOverrides = !!getChainField(chain.name, "rpcUrl") || !!getChainField(chain.name, "explorerUrl");
-
-            return (
-              <div key={chain.id}>
-                <button
-                  className="w-full flex items-center px-3 md:px-5 py-3 gap-3 text-left hover:bg-surface-tertiary/40 transition-colors"
-                  onClick={() => setExpandedChain(expanded ? null : chain.name)}
-                >
-                  {chain.iconUrl ? (
-                    <img src={chain.iconUrl} alt={chain.displayName} className="w-8 h-8 rounded-full bg-surface-tertiary shrink-0" />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-surface-tertiary shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
-                      {chain.displayName}
-                      {/devnet/i.test(chain.name) ? (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
-                      ) : /testnet|sepolia/i.test(chain.name) ? (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
-                      ) : null}
-                      {hasFieldOverrides && (
-                        <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                        rpcStatus[chain.name] === "ok" ? "bg-green-500 animate-heartbeat" :
-                        rpcStatus[chain.name] === "error" ? "bg-red-400" :
-                        rpcStatus[chain.name] === "checking" ? "bg-yellow-400 animate-pulse" :
-                        "bg-surface-tertiary"
-                      }`} />
-                      <p className="text-[11px] text-text-muted font-mono truncate">
-                        {getChainField(chain.name, "rpcUrl") || chain.rpcUrl || "—"}
-                      </p>
-                    </div>
-                  </div>
-                  <svg className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-
-                {expanded && (
-                  <div className="px-3 md:px-5 pb-4 pt-1 space-y-3">
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">RPC URL</label>
-                      <div className="relative">
-                        <input
-                          value={getChainField(chain.name, "rpcUrl")}
-                          onChange={(e) => setChainField(chain.name, "rpcUrl", e.target.value)}
-                          placeholder={chain.rpcUrl || "No default RPC"}
-                          className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                        />
-                        {getChainField(chain.name, "rpcUrl") && (
-                          <button
-                            onClick={() => setChainField(chain.name, "rpcUrl", "")}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
-                            title="Clear"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1.5">Explorer URL</label>
-                      <div className="relative">
-                        <input
-                          value={getChainField(chain.name, "explorerUrl")}
-                          onChange={(e) => setChainField(chain.name, "explorerUrl", e.target.value)}
-                          placeholder={chain.explorerUrl}
-                          className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                        />
-                        {getChainField(chain.name, "explorerUrl") && (
-                          <button
-                            onClick={() => setChainField(chain.name, "explorerUrl", "")}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
-                            title="Clear"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
       {/* ── Preferences ── */}
       <div>
         <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
@@ -587,6 +483,110 @@ export function ConfigPage() {
               })}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Networks ── */}
+      <div>
+        <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold mb-2 px-1">
+          Networks
+        </p>
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
+          {visibleChains.map((chain) => {
+            const expanded = expandedChain === chain.name;
+            const hasFieldOverrides = !!getChainField(chain.name, "rpcUrl") || !!getChainField(chain.name, "explorerUrl");
+
+            return (
+              <div key={chain.id}>
+                <button
+                  className="w-full flex items-center px-3 md:px-5 py-3 gap-3 text-left hover:bg-surface-tertiary/40 transition-colors"
+                  onClick={() => setExpandedChain(expanded ? null : chain.name)}
+                >
+                  {chain.iconUrl ? (
+                    <img src={chain.iconUrl} alt={chain.displayName} className="w-8 h-8 rounded-full bg-surface-tertiary shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-surface-tertiary shrink-0" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-text-primary leading-tight flex items-center gap-1.5">
+                      {chain.displayName}
+                      {/devnet/i.test(chain.name) ? (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">devnet</span>
+                      ) : /testnet|sepolia/i.test(chain.name) ? (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-yellow-500/10 text-yellow-500 uppercase font-semibold">testnet</span>
+                      ) : null}
+                      {hasFieldOverrides && (
+                        <span className="text-[10px] px-1 py-0.5 rounded bg-blue-500/10 text-blue-400 font-medium">custom</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                        rpcStatus[chain.name] === "ok" ? "bg-green-500 animate-heartbeat" :
+                        rpcStatus[chain.name] === "error" ? "bg-red-400" :
+                        rpcStatus[chain.name] === "checking" ? "bg-yellow-400 animate-pulse" :
+                        "bg-surface-tertiary"
+                      }`} />
+                      <p className="text-[11px] text-text-muted font-mono truncate">
+                        {getChainField(chain.name, "rpcUrl") || chain.rpcUrl || "—"}
+                      </p>
+                    </div>
+                  </div>
+                  <svg className={`w-4 h-4 text-text-muted shrink-0 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {expanded && (
+                  <div className="px-3 md:px-5 pb-4 pt-1 space-y-3">
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1.5">RPC URL</label>
+                      <div className="relative">
+                        <input
+                          value={getChainField(chain.name, "rpcUrl")}
+                          onChange={(e) => setChainField(chain.name, "rpcUrl", e.target.value)}
+                          placeholder={chain.rpcUrl || "No default RPC"}
+                          className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        {getChainField(chain.name, "rpcUrl") && (
+                          <button
+                            onClick={() => setChainField(chain.name, "rpcUrl", "")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
+                            title="Clear"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1.5">Explorer URL</label>
+                      <div className="relative">
+                        <input
+                          value={getChainField(chain.name, "explorerUrl")}
+                          onChange={(e) => setChainField(chain.name, "explorerUrl", e.target.value)}
+                          placeholder={chain.explorerUrl}
+                          className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
+                        />
+                        {getChainField(chain.name, "explorerUrl") && (
+                          <button
+                            onClick={() => setChainField(chain.name, "explorerUrl", "")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
+                            title="Clear"
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
 
