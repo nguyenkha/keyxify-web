@@ -3,7 +3,7 @@ import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/userOverrides";
-import { setCacheTtl } from "../lib/dataCache";
+import { setCacheTtl, clearAllTokenBalanceCaches } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
@@ -463,7 +463,8 @@ export function Wallet() {
                 handleDisplayChange(group.keyId, prefKey, visible)
               }
               onTokenAdded={() => {
-                // Reload assets and bump refresh key to force AccountRowView re-mount (clears stale cache)
+                // Clear stale token balance caches, reload assets, and re-mount AccountRowViews
+                clearAllTokenBalanceCaches();
                 fetchAssets().then(a => { setAssetsData(a); setRefreshKey(k => k + 1); });
               }}
             />

@@ -81,4 +81,17 @@ export function tokenBalancesCacheKey(address: string, chainId: string): string 
   return `tokbal:${address}:${chainId}`;
 }
 
+/** Clear all token balance caches (e.g. after adding a custom token). */
+export function clearAllTokenBalanceCaches() {
+  try {
+    const prefix = STORAGE_PREFIX + "tokbal:";
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(prefix)) keysToRemove.push(k);
+    }
+    for (const k of keysToRemove) localStorage.removeItem(k);
+  } catch { /* ignore */ }
+}
+
 export const PRICES_CACHE_KEY = "prices";
