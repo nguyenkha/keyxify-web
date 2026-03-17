@@ -1409,13 +1409,14 @@ message = buildSplTransferMessage({
   // Estimate total steps: ECDSA ~4 rounds, EdDSA ~3 rounds
   const estimatedTotalSteps = (chain.type === "solana" || chain.type === "xlm") ? 3 : 4;
   const signingPct = signingStep > 0 ? Math.min(99, Math.round((signingStep / estimatedTotalSteps) * 100)) : 0;
-  const signLabelWithCount = signingStep > 0
+  // Show percentage only while signing is active (not after completion)
+  const signLabelActive = signingStep > 0 && signingPhase === "mpc-signing"
     ? `${signLabel} ${signingPct}%`
     : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
     "loading-keyshare": "Build transaction",
     "building-tx": "Build transaction",
-    "mpc-signing": signLabelWithCount,
+    "mpc-signing": signLabelActive,
     "broadcasting": "Broadcast",
     "polling": "Confirming",
   };
@@ -2315,11 +2316,11 @@ message = buildSplTransferMessage({
                   {(confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
                     ? [
                         { idx: 0, label: "Build transaction" },
-                        { idx: 1, label: signLabelWithCount },
+                        { idx: 1, label: signLabelActive },
                       ]
                     : [
                         { idx: 0, label: "Build transaction" },
-                        { idx: 1, label: signLabelWithCount },
+                        { idx: 1, label: signLabelActive },
                         { idx: 2, label: "Broadcast" },
                         { idx: 3, label: "Confirming" },
                       ]

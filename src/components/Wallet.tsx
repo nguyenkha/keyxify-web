@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
 import { getMe } from "../lib/auth";
-import { getUserOverrides } from "../lib/userOverrides";
+import { getUserOverrides, applyChainOverrides } from "../lib/userOverrides";
 import { setCacheTtl } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
@@ -68,17 +68,11 @@ export function Wallet() {
 
         // Apply user config overrides (RPC, explorer, preferences)
         const overrides = getUserOverrides(me?.id);
-        const isExpert = overrides.preferences?.expert_mode ?? false;
         const showTestnet = overrides.preferences?.show_testnet ?? false;
-        const mergedChains = c
-          .filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name))
-          .map((ch: Chain) => {
-            // Only apply chain overrides (custom RPC/explorer) in expert mode
-            if (!isExpert) return ch;
-            const o = overrides.chains?.[ch.name];
-            if (!o) return ch;
-            return { ...ch, ...o };
-          });
+        const mergedChains = applyChainOverrides(
+          c.filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet/i.test(ch.name)),
+          me?.id,
+        );
         setChainsData(mergedChains);
         setAssetsData(a);
 

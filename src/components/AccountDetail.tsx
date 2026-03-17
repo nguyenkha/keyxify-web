@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { authHeaders } from "../lib/auth";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
+import { applyChainOverrides } from "../lib/userOverrides";
 import { isRecoveryMode, getRecoveryKeys } from "../lib/recovery";
 import { getChainAdapter } from "../lib/chains/adapter";
 import { publicKeyToBtcLegacyAddress } from "../lib/chains/btcAdapter.js";
@@ -49,7 +50,8 @@ export function AccountDetail() {
       fetchAssets(),
       fetchSettings(),
     ])
-      .then(([keys, chains, assets, settings]) => {
+      .then(([keys, rawChains, assets, settings]) => {
+        const chains = applyChainOverrides(rawChains);
         if (settings.refresh_interval && typeof settings.refresh_interval === "number" && settings.refresh_interval > 0) {
           const ms = settings.refresh_interval * 1000;
           setPollInterval(ms);

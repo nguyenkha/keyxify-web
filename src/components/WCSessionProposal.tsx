@@ -4,6 +4,7 @@ import type { KeyShare, Chain } from "../shared/types";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchChains } from "../lib/api";
+import { applyChainOverrides } from "../lib/userOverrides";
 import { getChainAdapter } from "../lib/chains/adapter";
 
 import { fetchPasskeys } from "../lib/passkey";
@@ -74,7 +75,8 @@ export function WCSessionProposal({ proposal, onApprove, onReject }: Props) {
       : fetch(apiUrl("/api/keys"), { headers: authHeaders() })
           .then((r) => r.json())
           .then((d) => (d.keys || []) as KeyShare[]);
-    Promise.all([keysPromise, fetchChains()]).then(([keys, allChains]) => {
+    Promise.all([keysPromise, fetchChains()]).then(([keys, rawChains]) => {
+      const allChains = applyChainOverrides(rawChains);
       setChains(allChains);
 
       const allAccounts: WCAccount[] = [];

@@ -5,7 +5,7 @@ import type { KeyShare, Chain, Asset } from "../shared/types";
 import { authHeaders, getMe } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchChains, fetchAssets } from "../lib/api";
-import { getUserOverrides } from "../lib/userOverrides";
+import { applyChainOverrides } from "../lib/userOverrides";
 import { getChainAdapter } from "../lib/chains/adapter";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { PassphraseInput } from "./PassphraseInput";
@@ -224,13 +224,8 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           .then((d) => (d.keys || []) as KeyShare[]);
 
     Promise.all([keysPromise, fetchChains(), getMe()]).then(async ([keys, allChains, me]) => {
-      // Apply user config overrides (e.g. custom RPC URLs for simulation)
-      const ov = getUserOverrides(me?.id);
-      const mergedChains = allChains.map((ch: Chain) => {
-        const o = ov.chains?.[ch.name];
-        if (!o) return ch;
-        return { ...ch, ...o };
-      });
+      // Apply user config overrides (expert-only: custom RPC URLs)
+      const mergedChains = applyChainOverrides(allChains, me?.id);
       setChains(mergedChains);
 
       for (const key of keys) {

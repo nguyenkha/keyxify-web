@@ -51,6 +51,28 @@ export function clearUserOverrides(userId?: string): void {
   localStorage.removeItem(storageKey(userId));
 }
 
+/** Apply chain overrides (RPC/explorer URL) — only in expert mode */
+export function applyChainOverrides<T extends { name: string; rpcUrl: string; explorerUrl: string }>(
+  chains: T[],
+  userId?: string,
+): T[] {
+  const overrides = userId ? getUserOverrides(userId) : (() => {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith("kexify:config:")) {
+        try { return JSON.parse(localStorage.getItem(k)!) as UserOverrides; } catch { /* skip */ }
+      }
+    }
+    return {} as UserOverrides;
+  })();
+  if (!overrides.preferences?.expert_mode) return chains;
+  return chains.map(ch => {
+    const o = overrides.chains?.[ch.name];
+    if (!o) return ch;
+    return { ...ch, ...(o.rpcUrl ? { rpcUrl: o.rpcUrl } : {}), ...(o.explorerUrl ? { explorerUrl: o.explorerUrl } : {}) };
+  });
+}
+
 /** Get all custom tokens from any user override entry */
 export function getCustomTokens(): CustomToken[] {
   for (let i = 0; i < localStorage.length; i++) {
