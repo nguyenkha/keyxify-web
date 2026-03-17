@@ -3,6 +3,10 @@ import { authHeaders } from "./auth";
 import { apiUrl } from "./apiBase";
 
 const PASSKEY_TOKEN_KEY = "secretkey_passkey_token";
+const PASSKEY_VERIFIED_AT_KEY = "secretkey_passkey_verified_at";
+
+/** Grace period (ms) during which re-verification is skipped. Default: 5 minutes. */
+export const PASSKEY_GRACE_PERIOD_MS = 5 * 60 * 1000;
 
 // ── Token management (sessionStorage — per-tab, short-lived) ────
 
@@ -12,6 +16,17 @@ export function getPasskeyToken(): string | null {
 
 export function setPasskeyToken(token: string) {
   sessionStorage.setItem(PASSKEY_TOKEN_KEY, token);
+}
+
+/** Returns true if passkey was verified within the grace period */
+export function isWithinPasskeyGrace(): boolean {
+  const ts = sessionStorage.getItem(PASSKEY_VERIFIED_AT_KEY);
+  if (!ts) return false;
+  return Date.now() - parseInt(ts, 10) < PASSKEY_GRACE_PERIOD_MS;
+}
+
+function markPasskeyVerified() {
+  sessionStorage.setItem(PASSKEY_VERIFIED_AT_KEY, String(Date.now()));
 }
 
 export function clearPasskeyToken() {
@@ -155,8 +170,9 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean }): Promise
   const data = await authRes.json();
   if (data.error) throw new Error(data.error);
 
-  // 4. Store token
+  // 4. Store token and mark verification time for grace period
   setPasskeyToken(data.passkeyToken);
+  markPasskeyVerified();
 
   // 5. Derive AES-256-GCM key from PRF output if available
   let prfKey: CryptoKey | undefined;

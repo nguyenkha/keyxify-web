@@ -16,9 +16,25 @@ export interface CustomToken {
   addedAt: number;      // timestamp
 }
 
+export interface AddressBookEntry {
+  address: string;
+  label: string;
+  chain?: string;
+  addedAt: number;
+}
+
+export interface RecentRecipientEntry {
+  address: string;
+  chain: string;
+  asset: string;
+  timestamp: number;
+}
+
 export interface UserOverrides {
   chains?: Record<string, ChainOverride>;
   customTokens?: CustomToken[];
+  addressBook?: AddressBookEntry[];
+  recentRecipients?: RecentRecipientEntry[];
   preferences?: {
     refresh_interval?: number;
     default_chains?: string[];

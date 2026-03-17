@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
-import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
+import { sensitiveHeaders, authenticatePasskey, fetchPasskeys } from "../lib/passkey";
 import { encryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
+import { PasskeyGate } from "./PasskeyGate";
 import {
   saveKeyShareWithPrf,
   saveKeyShareWithPassphrase,
@@ -14,7 +15,7 @@ import { useExpertMode, useSetExpertMode } from "../context/ExpertModeContext";
 import { getMe } from "../lib/auth";
 import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
 
-type CreateStep = "welcome" | "name" | "creating" | "passphrase" | "backup";
+type CreateStep = "welcome" | "passkey" | "name" | "creating" | "passphrase" | "backup" | "done";
 
 const TIPS = [
   "You are responsible for your own key share. Keep your downloaded file safe.",
@@ -79,9 +80,9 @@ export function CreateAccountDialog({
     raw_message: false,
   });
 
-  const canClose = step === "welcome" || step === "name" || step === "passphrase" || (step === "backup" && downloaded);
+  const canClose = step === "welcome" || step === "passkey" || step === "name" || step === "passphrase" || step === "done" || (step === "backup" && downloaded);
 
-  function chooseMode(isExpert: boolean) {
+  async function chooseMode(isExpert: boolean) {
     // Save preference
     getMe().then((me) => {
       const overrides = getUserOverrides(me?.id);
@@ -89,6 +90,15 @@ export function CreateAccountDialog({
       setUserOverrides({ ...overrides, preferences: Object.keys(prefs).length ? prefs : undefined }, me?.id);
     });
     setExpertContext(isExpert);
+
+    // Check if user has passkeys — if not, show inline passkey setup as next step
+    try {
+      const passkeys = await fetchPasskeys();
+      if (passkeys.length === 0) {
+        setStep("passkey");
+        return;
+      }
+    } catch { /* proceed anyway */ }
     setStep("name");
   }
 
@@ -181,15 +191,50 @@ export function CreateAccountDialog({
       const ecdsaSerialized = mpc.serializeEcdsa2p(ecdsaKey);
       const eddsaSerialized = mpc.serializeEcKey2p(eddsaKey);
 
-      setRawKeyData({
+      const newRawKeyData: KeyFileData = {
         id: keyId,
         peer: 0,
         share: ecdsaSerialized.map((buf: Uint8Array) => toBase64(buf)).join(","),
         publicKey: toHex(ecdsaInfo.publicKey),
         eddsaShare: eddsaSerialized.map((buf: Uint8Array) => toBase64(buf)).join(","),
         eddsaPublicKey: toHex(eddsaInfo.publicKey),
-      });
-      setStep("passphrase");
+      };
+      setRawKeyData(newRawKeyData);
+
+      if (!expert) {
+        // Non-expert: auto-save to browser + server escrow, skip passphrase/download
+        setProgress("Saving securely...");
+        try {
+          // Try browser save with passkey PRF
+          const authResult = await authenticatePasskey({ withPrf: true });
+          if (authResult.prfKey && authResult.credentialId) {
+            await saveKeyShareWithPrf(keyId, newRawKeyData, authResult.prfKey, authResult.credentialId);
+            setStoragePreference("browser");
+            setBrowserSaveState("saved");
+          }
+        } catch { /* browser save failed — user still has escrow */ }
+
+        try {
+          // Auto-upload server escrow backup (passphrase-free encrypted copy)
+          const encrypted = await encryptKeyFile(newRawKeyData, keyId); // use keyId as deterministic passphrase for escrow
+          const encryptedJson = JSON.stringify(encrypted, null, 2);
+          const headers = sensitiveHeaders();
+          await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
+            method: "POST",
+            headers: { ...headers, "Content-Type": "application/json" },
+            body: JSON.stringify({
+              encryptedData: encryptedJson,
+              publicKey: newRawKeyData.publicKey,
+              eddsaPublicKey: newRawKeyData.eddsaPublicKey,
+            }),
+          });
+          setEscrowStatus("done");
+        } catch { setEscrowStatus("error"); }
+
+        setStep("done");
+      } else {
+        setStep("passphrase");
+      }
     } catch (err) {
       console.error("[generate] Error:", err);
       setError(err instanceof Error ? err.message : String(err));
@@ -216,11 +261,11 @@ export function CreateAccountDialog({
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
           <h3 className="text-sm font-semibold text-text-primary">
-            {step === "welcome" ? "👋 Welcome" : step === "backup" ? "🔐 Backup Key" : "✨ New Account"}
+            {step === "welcome" ? "Welcome" : step === "passkey" ? "Security Setup" : step === "backup" ? "Backup Key" : step === "done" ? "You're all set" : "New Account"}
           </h3>
           {canClose && (
             <button
-              onClick={step === "backup" && downloaded ? () => { onCreated(); onClose(); } : onClose}
+              onClick={step === "done" ? () => { onCreated(); onClose(); } : step === "backup" && downloaded ? () => { onCreated(); onClose(); } : onClose}
               className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -288,6 +333,15 @@ export function CreateAccountDialog({
                 Both modes include fraud protection and policy rules by default.
               </p>
             </div>
+          )}
+
+          {/* Step: Passkey (integrated into creation flow for first-time users) */}
+          {step === "passkey" && (
+            <PasskeyGate
+              inline
+              onRegistered={() => setStep("name")}
+              onCancel={() => setStep("name")}
+            />
           )}
 
           {/* Step: Name */}
@@ -654,6 +708,75 @@ export function CreateAccountDialog({
                 }`}
               >
                 Done
+              </button>
+            </div>
+          )}
+          {/* Step: Done — "What's next?" for non-expert users */}
+          {step === "done" && (
+            <div className="space-y-5">
+              <div className="text-center">
+                <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                  <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                </div>
+                <p className="text-sm font-medium text-text-primary mb-1">Your wallet is ready</p>
+                <p className="text-xs text-text-muted leading-relaxed">
+                  Your key is saved securely in this browser{escrowStatus === "done" ? " and backed up to the server" : ""}.
+                </p>
+              </div>
+
+              {/* What's next */}
+              <div className="space-y-2.5">
+                <p className="text-[11px] text-text-tertiary font-medium uppercase tracking-wider">What's next</p>
+
+                <div className="bg-surface-primary border border-border-primary rounded-lg px-3.5 py-3 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-text-primary">Fund your wallet</p>
+                    <p className="text-[11px] text-text-muted leading-relaxed mt-0.5">
+                      Send crypto from an exchange or another wallet to your new address. Tap any chain on the next screen to see your receive address.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-surface-primary border border-border-primary rounded-lg px-3.5 py-3 flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m9.86-2.556a4.5 4.5 0 00-1.242-7.244l4.5-4.5a4.5 4.5 0 016.364 6.364L16.243 8.65" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-text-primary">Connect to dApps</p>
+                    <p className="text-[11px] text-text-muted leading-relaxed mt-0.5">
+                      Use WalletConnect to interact with DeFi apps, NFT marketplaces, and more.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Backup reminder for non-expert */}
+              <div className="bg-yellow-500/5 border border-yellow-500/15 rounded-lg px-3.5 py-2.5 flex items-start gap-2.5">
+                <svg className="w-4 h-4 text-yellow-500/70 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                </svg>
+                <div>
+                  <p className="text-[11px] text-yellow-500/80 font-medium">Download a backup when you get a chance</p>
+                  <p className="text-[11px] text-yellow-500/60 leading-relaxed mt-0.5">
+                    Go to Backup & Recovery to download your key file. If you lose access to this browser, you'll need it to recover your wallet.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => { onCreated(); onClose(); }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+              >
+                Go to My Wallet
               </button>
             </div>
           )}

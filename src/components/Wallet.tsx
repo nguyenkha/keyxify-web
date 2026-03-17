@@ -6,7 +6,7 @@ import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/use
 import { setCacheTtl } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
-import { fetchPasskeys } from "../lib/passkey";
+import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import { PolicyRules } from "./PolicyRules";
@@ -142,7 +142,17 @@ export function Wallet() {
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
 
-  async function guardedAction(action: () => void) {
+  async function guardedAction(action: () => void, skipPasskeyGate?: boolean) {
+    // If the action handles its own passkey flow (e.g. CreateAccountDialog), skip the gate
+    if (skipPasskeyGate) {
+      action();
+      return;
+    }
+    // Skip re-challenge if passkey was verified recently (grace period)
+    if (isWithinPasskeyGrace()) {
+      action();
+      return;
+    }
     try {
       const list = await fetchPasskeys();
       if (list.length === 0) {
@@ -246,10 +256,11 @@ export function Wallet() {
 
   if (keys.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-24 text-center">
-        <div className="w-14 h-14 rounded-full bg-surface-tertiary flex items-center justify-center mb-5">
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        {/* Wallet icon */}
+        <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center mb-5">
           <svg
-            className="w-7 h-7 text-text-muted"
+            className="w-8 h-8 text-blue-400"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -262,17 +273,40 @@ export function Wallet() {
             />
           </svg>
         </div>
-        <p className="text-sm font-medium text-text-secondary mb-1">No accounts yet</p>
-        <p className="text-xs text-text-muted mb-4">
-          Create your first account to start managing crypto assets.
+        <p className="text-base font-medium text-text-primary mb-1.5">Welcome to kexify</p>
+        <p className="text-sm text-text-muted mb-6 max-w-xs leading-relaxed">
+          Create your first wallet to send, receive, and manage crypto across multiple chains.
         </p>
         <button
-          onClick={() => guardedAction(() => setShowCreateDialog(true))}
+          onClick={() => guardedAction(() => setShowCreateDialog(true), true)}
           disabled={frozen}
-          className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed"
+          className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-6 py-2.5 rounded-lg font-medium transition-colors disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed mb-8"
         >
-          ✨ Add Your First Account
+          Create Your Wallet
         </button>
+
+        {/* How it works — quick overview for new users */}
+        <div className="w-full max-w-sm space-y-3 text-left">
+          <p className="text-[10px] text-text-tertiary font-semibold uppercase tracking-wider px-1">How it works</p>
+          {[
+            { icon: "M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z", label: "Secure key generation", desc: "Your key is split between this device and our server — neither side can sign alone" },
+            { icon: "M7.864 4.243A7.5 7.5 0 0119.5 10.5c0 2.92-.556 5.709-1.568 8.268M5.742 6.364A7.465 7.465 0 004 10.5a7.464 7.464 0 01-1.15 3.993m1.989 3.559A11.209 11.209 0 008.25 10.5a3.75 3.75 0 117.5 0c0 .527-.021 1.049-.064 1.565M12 10.5a14.94 14.94 0 01-3.6 9.75m6.633-4.596a18.666 18.666 0 01-2.485 5.33", label: "Passkey protection", desc: "Use your fingerprint, face, or PIN to authorize transactions — no passwords needed" },
+            { icon: "M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z", label: "Built-in fraud protection", desc: "Risky addresses are automatically flagged before you send" },
+          ].map(({ icon, label, desc }) => (
+            <div key={label} className="flex items-start gap-3 bg-surface-secondary border border-border-primary rounded-lg px-3.5 py-3">
+              <div className="w-8 h-8 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0 mt-0.5">
+                <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+                </svg>
+              </div>
+              <div>
+                <p className="text-xs font-medium text-text-secondary">{label}</p>
+                <p className="text-[11px] text-text-muted leading-relaxed mt-0.5">{desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
         {showCreateDialog && (
           <CreateAccountDialog
             keyCount={0}
@@ -468,7 +502,7 @@ export function Wallet() {
 
       {!isRecovery && (
         <button
-          onClick={() => guardedAction(() => setShowCreateDialog(true))}
+          onClick={() => guardedAction(() => setShowCreateDialog(true), true)}
           disabled={frozen}
           className="w-full border border-dashed border-border-primary rounded-lg py-3 text-sm text-text-muted hover:text-text-secondary hover:border-border-secondary transition-colors flex items-center justify-center gap-1.5 disabled:text-text-muted disabled:cursor-not-allowed disabled:hover:border-border-primary"
         >

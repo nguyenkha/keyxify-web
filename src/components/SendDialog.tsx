@@ -8,7 +8,7 @@ import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
-import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
+import { fetchPasskeys, sensitiveHeaders, isWithinPasskeyGrace } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import {
@@ -114,6 +114,8 @@ import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 import { authenticatePasskey } from "../lib/passkey";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { getPreference } from "../lib/userOverrides";
+import { getAddressSuggestions, addRecentRecipient, saveAddressEntry, type AddressEntry } from "../lib/addressBook";
+import { resolveName, isResolvableName } from "../lib/nameResolution";
 
 const MAX_UTXO_INPUTS = 10;
 import {
@@ -191,6 +193,11 @@ export function SendDialog({
   const [toTouched, setToTouched] = useState(false);
   const [amountTouched, setAmountTouched] = useState(false);
   const [showAddrScanner, setShowAddrScanner] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [savingToBook, setSavingToBook] = useState(false);
+  const [bookmarkLabel, setBookmarkLabel] = useState("");
+  const [resolvedName, setResolvedName] = useState<{ input: string; address: string; source: string } | null>(null);
+  const [resolving, setResolving] = useState(false);
   const [baseGasPrice, setBaseGasPrice] = useState<bigint | null>(null);
   const [prices, setPrices] = useState<Record<string, number>>({});
   const [feeLevel, setFeeLevel] = useState<FeeLevel>("medium");
@@ -273,6 +280,11 @@ export function SendDialog({
       action();
       return;
     }
+    // Skip re-challenge if passkey was verified recently (grace period)
+    if (isWithinPasskeyGrace()) {
+      action();
+      return;
+    }
     try {
       const list = await fetchPasskeys();
       if (list.length === 0) {
@@ -293,6 +305,37 @@ export function SendDialog({
     pendingSignRef.current?.();
     pendingSignRef.current = null;
   }
+
+  // Name resolution (ENS, Unstoppable Domains) with debounce
+  useEffect(() => {
+    if (!to || !isResolvableName(to)) {
+      if (resolvedName && resolvedName.input !== to) setResolvedName(null);
+      setResolving(false);
+      return;
+    }
+    if (resolvedName?.input === to) return; // already resolved
+    setResolving(true);
+    const timer = setTimeout(async () => {
+      const result = await resolveName(to, chain.type, chain.rpcUrl);
+      if (result) {
+        setResolvedName({ input: to, address: result.address, source: result.source });
+      } else {
+        setResolvedName(null);
+      }
+      setResolving(false);
+    }, 500);
+    return () => { clearTimeout(timer); setResolving(false); };
+  }, [to, chain.type, chain.rpcUrl]);
+
+  // The actual address to send to (resolved name address or raw input)
+  const effectiveTo = resolvedName?.input === to ? resolvedName.address : to;
+
+  // Track successful sends as recent recipients
+  useEffect(() => {
+    if (txResult && (txResult.status === "success" || txResult.status === "pending") && to) {
+      addRecentRecipient(to, chain.type, asset.symbol);
+    }
+  }, [txResult?.status]);
 
   // Pre-fill form for RBF speed-up
   useEffect(() => {
@@ -554,11 +597,13 @@ export function SendDialog({
     };
   })();
 
-  // Validation
+  // Validation — use resolved address if name was resolved, otherwise raw input
   const adapter = getChainAdapter(chain.type);
-  const toValid = to.length > 0 && adapter.isValidAddress(to);
-  const toError = toTouched && to.length > 0 && !toValid ? "Invalid address" : null;
-  const toSelf = toValid && (chain.type === "solana" ? to === address : to.toLowerCase() === address.toLowerCase());
+  const toAddr = effectiveTo; // resolved name address or raw input
+  const toValid = toAddr.length > 0 && adapter.isValidAddress(toAddr);
+  const isNameInput = isResolvableName(to);
+  const toError = toTouched && to.length > 0 && !toValid && !resolving && !isNameInput ? "Invalid address" : null;
+  const toSelf = toValid && (chain.type === "solana" ? toAddr === address : toAddr.toLowerCase() === address.toLowerCase());
   const amountCheck = isValidAmount(amount, balance);
   const amountError = amountTouched && amount.length > 0 && !amountCheck.valid ? amountCheck.error : null;
   const amountUsd = amount ? getUsdValue(amount, asset.symbol, prices) : null;
@@ -1657,7 +1702,53 @@ message = buildSplTransferMessage({
 
               {/* To */}
               <div>
-                <label className="block text-xs text-text-muted mb-1.5">To</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs text-text-muted">To</label>
+                  {toValid && !savingToBook && (
+                    <button
+                      type="button"
+                      onClick={() => setSavingToBook(true)}
+                      className="text-[10px] text-text-muted hover:text-blue-400 transition-colors"
+                    >
+                      Save to address book
+                    </button>
+                  )}
+                </div>
+                {savingToBook && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <input
+                      type="text"
+                      value={bookmarkLabel}
+                      onChange={(e) => setBookmarkLabel(e.target.value)}
+                      placeholder="Label (e.g. My Coinbase)"
+                      className="flex-1 bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:border-blue-500"
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && bookmarkLabel.trim()) {
+                          saveAddressEntry({ address: to, label: bookmarkLabel.trim(), chain: chain.type });
+                          setSavingToBook(false);
+                          setBookmarkLabel("");
+                        } else if (e.key === "Escape") {
+                          setSavingToBook(false);
+                          setBookmarkLabel("");
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (bookmarkLabel.trim()) {
+                          saveAddressEntry({ address: to, label: bookmarkLabel.trim(), chain: chain.type });
+                        }
+                        setSavingToBook(false);
+                        setBookmarkLabel("");
+                      }}
+                      className="text-xs text-blue-400 hover:text-blue-300 shrink-0"
+                    >
+                      {bookmarkLabel.trim() ? "Save" : "Cancel"}
+                    </button>
+                  </div>
+                )}
                 <div className={`relative flex items-center bg-surface-primary border rounded-lg ${
                   toError
                     ? "border-red-500/50 focus-within:border-red-500"
@@ -1669,11 +1760,25 @@ message = buildSplTransferMessage({
                     type="text"
                     value={to}
                     onChange={(e) => { if (!speedUpData) setTo(e.target.value.trim()); }}
-                    onBlur={() => setToTouched(true)}
+                    onFocus={() => { if (!to && !speedUpData) setShowSuggestions(true); }}
+                    onBlur={() => { setToTouched(true); setTimeout(() => setShowSuggestions(false), 200); }}
                     placeholder={placeholder}
                     readOnly={!!speedUpData}
                     className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none font-mono"
                   />
+                  {/* Address book button */}
+                  {!speedUpData && (
+                    <button
+                      type="button"
+                      className="p-1.5 mr-0.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors shrink-0"
+                      onClick={() => setShowSuggestions((v) => !v)}
+                      title="Address book"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                      </svg>
+                    </button>
+                  )}
                   {/* Paste button — mobile only */}
                   <button
                     type="button"
@@ -1706,6 +1811,43 @@ message = buildSplTransferMessage({
                     </svg>
                   </button>
                 </div>
+                {/* Address suggestions dropdown */}
+                {showSuggestions && !speedUpData && (() => {
+                  const suggestions = getAddressSuggestions(chain.type);
+                  if (suggestions.length === 0) return null;
+                  return (
+                    <div className="mt-1 bg-surface-primary border border-border-primary rounded-lg overflow-hidden max-h-[160px] overflow-y-auto">
+                      {suggestions.map((s, i) => {
+                        const isBookmark = "label" in s;
+                        const addr = s.address;
+                        return (
+                          <button
+                            key={`${addr}-${i}`}
+                            type="button"
+                            className="w-full px-3 py-2 text-left hover:bg-surface-tertiary transition-colors flex items-center gap-2.5 border-b border-border-secondary last:border-b-0"
+                            onMouseDown={(e) => { e.preventDefault(); setTo(addr); setShowSuggestions(false); }}
+                          >
+                            <div className="w-6 h-6 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0">
+                              {isBookmark ? (
+                                <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
+                                </svg>
+                              ) : (
+                                <svg className="w-3 h-3 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              {isBookmark && <p className="text-xs text-text-secondary truncate">{(s as AddressEntry).label}</p>}
+                              <p className="text-[11px] font-mono text-text-muted truncate">{addr}</p>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
                 {showAddrScanner && (
                   <div className="mt-2 rounded-lg overflow-hidden border border-border-primary">
                     <Scanner
@@ -1728,6 +1870,27 @@ message = buildSplTransferMessage({
                       styles={{ container: { width: "100%" } }}
                     />
                   </div>
+                )}
+                {/* Name resolution indicator */}
+                {resolving && isResolvableName(to) && (
+                  <div className="flex items-center gap-1.5 mt-1.5 px-0.5">
+                    <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                    <p className="text-[11px] text-text-muted">Resolving {to}...</p>
+                  </div>
+                )}
+                {resolvedName?.input === to && (
+                  <div className="flex items-center gap-1.5 mt-1.5 px-0.5">
+                    <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                    <p className="text-[11px] text-text-secondary">
+                      <span className="text-text-muted">{resolvedName.source}:</span>{" "}
+                      <span className="font-mono">{resolvedName.address.slice(0, 10)}...{resolvedName.address.slice(-6)}</span>
+                    </p>
+                  </div>
+                )}
+                {!resolving && isResolvableName(to) && !resolvedName && to.length > 0 && (
+                  <p className="text-[11px] text-yellow-500/70 mt-1.5 px-0.5">Could not resolve this name</p>
                 )}
                 {toError && (
                   <p className="text-[10px] text-red-400 mt-1">{toError}</p>
@@ -2062,11 +2225,12 @@ message = buildSplTransferMessage({
                         method: "POST",
                         headers: { ...authHeaders(), "Content-Type": "application/json" },
                         body: JSON.stringify({
-                          to,
+                          to: resolvedName?.input === to ? resolvedName.address : to,
                           amount: baseUnits,
                           nativeSymbol: asset.isNative ? asset.symbol : undefined,
                           contractAddress: asset.contractAddress || undefined,
                           chainId: chain.evmChainId ?? undefined,
+                          ...(resolvedName?.input === to ? { resolvedFrom: to, resolvedVia: resolvedName.source } : {}),
                         }),
                       });
                       if (res.ok) {
@@ -2091,11 +2255,15 @@ message = buildSplTransferMessage({
                       if (r) setSimResult(r);
                     });
                   }
+                  // If a name was resolved, use the resolved address for the transaction
+                  if (resolvedName?.input === to && resolvedName.address) {
+                    setTo(resolvedName.address);
+                  }
                   setStep("preview");
                 }}
                 className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
               >
-                {policyChecking ? "Checking..." : "👀 Review Transaction"}
+                {policyChecking ? "Checking..." : "Review Transaction"}
               </button>
             </div>
           </>
