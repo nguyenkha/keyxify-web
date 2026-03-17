@@ -54,11 +54,22 @@ export function formatEthFee(wei: bigint): string {
   return eth.toFixed(6).replace(/0+$/, "").replace(/\.$/, "");
 }
 
+/** Parse a decimal string (e.g. "1,234.56") into a scaled BigInt with `scale` decimal places. */
+function parseDecimal(s: string, scale: number): bigint | null {
+  const clean = s.replace(/,/g, "");
+  if (!/^\d+(\.\d+)?$/.test(clean)) return null;
+  const [intPart, fracPart = ""] = clean.split(".");
+  const padded = (fracPart + "0".repeat(scale)).slice(0, scale);
+  return BigInt(intPart + padded);
+}
+
 export function isValidAmount(val: string, balance: string): { valid: boolean; error?: string } {
   if (!val) return { valid: false };
-  const num = parseFloat(val);
-  if (isNaN(num) || num <= 0) return { valid: false, error: "Enter a valid amount" };
-  if (num > parseFloat(balance)) return { valid: false, error: "Insufficient balance" };
+  const scale = Math.max(val.split(".")[1]?.length ?? 0, balance.replace(/,/g, "").split(".")[1]?.length ?? 0, 18);
+  const amt = parseDecimal(val, scale);
+  if (amt == null || amt <= 0n) return { valid: false, error: "Enter a valid amount" };
+  const bal = parseDecimal(balance, scale);
+  if (bal == null || amt > bal) return { valid: false, error: "Insufficient balance" };
   return { valid: true };
 }
 
