@@ -1190,21 +1190,19 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
                   {/* From → To */}
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    <div className="px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">From</span>
-                      <span className="text-xs font-mono text-text-secondary">{account ? shortAddr(account.address) : "—"}</span>
-                    </div>
+                    {expert && (
+                      <div className="px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">From</span>
+                        <span className="text-xs font-mono text-text-secondary">{account ? shortAddr(account.address) : "—"}</span>
+                      </div>
+                    )}
                     {request.params[0]?.to && (
-                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                      <div className={`${expert ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
                         <div className="flex items-center gap-2">
                           <span className="text-xs text-text-muted">To</span>
-                          {isContractCall ? (
+                          {expert && isContractCall && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">
                               Contract
-                            </span>
-                          ) : (
-                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 font-medium">
-                              Transfer
                             </span>
                           )}
                         </div>
@@ -1224,49 +1222,47 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           </span>
                         </div>
                       </>
-                    ) : request.params[0]?.data && request.params[0].data !== "0x" ? (
+                    ) : expert && request.params[0]?.data && request.params[0].data !== "0x" ? (
                       <div className="border-t border-border-secondary px-3 py-2.5">
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-text-muted">Data</span>
-                          {!expert && (
-                            <span className="text-xs font-mono text-text-muted truncate max-w-[200px]">
-                              {request.params[0].data.slice(0, 10)}...
-                            </span>
-                          )}
                         </div>
-                        {expert && (
-                          <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-24 overflow-auto">
-                            {request.params[0].data}
-                          </pre>
-                        )}
+                        <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-24 overflow-auto">
+                          {request.params[0].data}
+                        </pre>
                       </div>
                     ) : null}
                   </div>
 
                   {/* Details */}
                   <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                    {chain && (
+                    {expert && chain && (
                       <div className="px-3 py-2.5 flex items-center justify-between">
                         <span className="text-xs text-text-muted">Network</span>
                         <span className="text-xs text-text-secondary">{chain.displayName}</span>
                       </div>
                     )}
-                    <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Estimated fee</span>
+                    <div className={`${expert && chain ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
+                      <span className="text-xs text-text-muted">Network fee</span>
                       <span className="text-xs tabular-nums text-text-secondary font-medium">
-                        {feeEth ?? "—"} ETH
+                        {(() => {
+                          const feeUsd = feeEth ? getUsdValue(feeEth, "ETH", prices) : null;
+                          return feeUsd != null && feeUsd > 0 ? formatUsd(feeUsd) : `${feeEth ?? "—"} ETH`;
+                        })()}
                       </span>
                     </div>
-                    {gasPrice != null && (
+                    {expert && gasPrice != null && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                         <span className="text-xs text-text-muted">Gas price</span>
                         <span className="text-xs tabular-nums text-text-muted">{formatGwei(gasPrice)} Gwei</span>
                       </div>
                     )}
-                    <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                      <span className="text-xs text-text-muted">Gas limit</span>
-                      <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
-                    </div>
+                    {expert && (
+                      <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                        <span className="text-xs text-text-muted">Gas limit</span>
+                        <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
+                      </div>
+                    )}
                     {(() => {
                       const txValueWei = txParams?.value ? BigInt(txParams.value) : 0n;
                       const totalWei = txValueWei + (estimatedFeeWei ?? 0n);

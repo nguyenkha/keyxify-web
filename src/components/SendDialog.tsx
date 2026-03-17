@@ -245,7 +245,6 @@ export function SendDialog({
   const [signedRawTx, setSignedRawTx] = useState<string | null>(null);
   const [manualBroadcasting, setManualBroadcasting] = useState(false);
   const [signingStep, setSigningStep] = useState(0);
-  const [signingInputCount, setSigningInputCount] = useState(0);
 
   // Passkey guard (triggered on confirm, not on dialog open)
   const [passkeyGuard, setPasskeyGuard] = useState<"idle" | "gate" | "challenge">("idle");
@@ -743,7 +742,6 @@ export function SendDialog({
         throw new Error(`Too many inputs (${btcTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
       }
       // 2. Get compressed public key and hash
-      setSigningInputCount(btcTx.inputs.length);
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
       const compressedPubKey = getCompressedPublicKey(
@@ -869,7 +867,6 @@ export function SendDialog({
       }
 
       // 2. Get compressed public key and hash
-      setSigningInputCount(bchTx.inputs.length);
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
       const compressedPubKey = getBchCompressedPublicKey(
@@ -981,7 +978,6 @@ export function SendDialog({
       }
 
       // 2. Get compressed public key and hash
-      setSigningInputCount(ltcTx.inputs.length);
       setSigningPhase("mpc-signing");
       const pubKeyRaw = hexToBytes(keyFile.publicKey);
       const compressedPubKey = getCompressedPublicKey(
@@ -1416,11 +1412,12 @@ message = buildSplTransferMessage({
 
   const recovery = isRecoveryMode();
   const signLabel = recovery ? "Local signing" : "MPC signing";
-  const signLabelWithCount = signingInputCount > 1
-    ? `${signLabel} (${signingInputCount} inputs${signingStep > 0 ? `, step ${signingStep}` : ""})`
-    : signingStep > 0
-      ? `${signLabel} (step ${signingStep})`
-      : signLabel;
+  // Estimate total steps: ECDSA ~4 rounds, EdDSA ~3 rounds
+  const estimatedTotalSteps = (chain.type === "solana" || chain.type === "xlm") ? 3 : 4;
+  const signingPct = signingStep > 0 ? Math.min(99, Math.round((signingStep / estimatedTotalSteps) * 100)) : 0;
+  const signLabelWithCount = signingStep > 0
+    ? `${signLabel} ${signingPct}%`
+    : signLabel;
   const phaseLabels: Record<SigningPhase, string> = {
     "loading-keyshare": "Build transaction",
     "building-tx": "Build transaction",
@@ -2125,45 +2122,39 @@ message = buildSplTransferMessage({
 
               {/* From → To */}
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                <div className="px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">From</span>
-                  <span className={`${expert ? "text-[9px]" : "text-xs"} font-mono text-text-secondary`}>{expert ? address : shortAddrPreview(address)}</span>
-                </div>
-                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
+                {expert && (
+                  <div className="px-3 py-2.5 flex items-center justify-between">
+                    <span className="text-xs text-text-muted">From</span>
+                    <span className="text-[9px] font-mono text-text-secondary">{address}</span>
+                  </div>
+                )}
+                <div className={`${expert ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
                   <div className="flex items-center gap-2 shrink-0">
                     <span className="text-xs text-text-muted">To</span>
-                    {!asset.isNative && asset.contractAddress && (
+                    {expert && !asset.isNative && asset.contractAddress && (
                       <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">Contract</span>
                     )}
                   </div>
                   <span className={`${expert ? "text-[9px]" : "text-xs"} font-mono text-text-secondary`}>
-                    {!asset.isNative && asset.contractAddress
-                      ? (expert ? asset.contractAddress : shortAddrPreview(asset.contractAddress))
+                    {expert && !asset.isNative && asset.contractAddress
+                      ? asset.contractAddress
                       : (expert ? to : shortAddrPreview(to))}
                   </span>
                 </div>
-                {!asset.isNative && asset.contractAddress && expert && (
+                {expert && !asset.isNative && asset.contractAddress && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">Recipient</span>
                     <span className="text-[9px] font-mono text-text-secondary">{to}</span>
                   </div>
                 )}
-                {!asset.isNative && asset.contractAddress && (
+                {expert && !asset.isNative && asset.contractAddress && (
                   <div className="border-t border-border-secondary px-3 py-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-xs text-text-muted">Data</span>
-                      <span className={`text-xs font-mono text-text-muted ${expert ? "" : "truncate max-w-[200px]"}`}>
-                        {expert
-                          ? null
-                          : (() => { const d = "0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array); return d.length > 20 ? d.slice(0, 20) + "..." : d; })()
-                        }
-                      </span>
                     </div>
-                    {expert && (
-                      <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-20 overflow-auto">
-                        {"0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)}
-                      </pre>
-                    )}
+                    <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-20 overflow-auto">
+                      {"0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)}
+                    </pre>
                   </div>
                 )}
                 {destinationTag && (
@@ -2185,29 +2176,33 @@ message = buildSplTransferMessage({
 
               {/* Details */}
               <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                <div className="px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Network</span>
-                  <span className="text-xs text-text-secondary">{chain.displayName}</span>
-                </div>
-                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Estimated fee</span>
+                {expert && (
+                  <div className="px-3 py-2.5 flex items-center justify-between">
+                    <span className="text-xs text-text-muted">Network</span>
+                    <span className="text-xs text-text-secondary">{chain.displayName}</span>
+                  </div>
+                )}
+                <div className={`${expert ? "border-t border-border-secondary " : ""}px-3 py-2.5 flex items-center justify-between`}>
+                  <span className="text-xs text-text-muted">Network fee</span>
                   <span className="text-xs tabular-nums text-text-secondary font-medium">
-                    {(feeDisplay.formatted ?? "—") + " " + feeDisplay.symbol}
+                    {feeDisplay.usd != null && feeDisplay.usd > 0
+                      ? formatUsd(feeDisplay.usd)
+                      : (feeDisplay.formatted ?? "—") + " " + feeDisplay.symbol}
                   </span>
                 </div>
-                {feeDisplay.rateLabel != null && (
+                {expert && feeDisplay.rateLabel != null && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">{chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" ? "Fee rate" : chain.type === "xlm" ? "Base fee" : "Gas price"}</span>
                     <span className="text-xs tabular-nums text-text-muted">{feeDisplay.rateLabel}</span>
                   </div>
                 )}
-                {chain.type === "evm" && (
+                {expert && chain.type === "evm" && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">Gas limit</span>
                     <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
                   </div>
                 )}
-                {manualUtxos && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
+                {expert && manualUtxos && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">UTXOs</span>
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-blue-500/10 text-blue-400">
@@ -2215,7 +2210,7 @@ message = buildSplTransferMessage({
                     </span>
                   </div>
                 )}
-                {(chain.type === "btc" || chain.type === "ltc") && (
+                {expert && (chain.type === "btc" || chain.type === "ltc") && (
                   <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
                     <span className="text-xs text-text-muted">RBF</span>
                     <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${rbfEnabled ? "bg-blue-500/10 text-blue-400" : "bg-surface-tertiary text-text-muted"}`}>
@@ -2224,9 +2219,9 @@ message = buildSplTransferMessage({
                   </div>
                 )}
                 <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted font-medium">Total cost</span>
+                  <span className="text-xs text-text-muted font-medium">Total</span>
                   <span className="text-xs tabular-nums text-text-primary font-semibold">
-                    {totalUsd > 0 ? formatUsd(totalUsd) : "—"}
+                    {totalUsd > 0 ? formatUsd(totalUsd) : `${amount} ${asset.symbol}`}
                   </span>
                 </div>
               </div>
