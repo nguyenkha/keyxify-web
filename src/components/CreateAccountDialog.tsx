@@ -263,12 +263,33 @@ export function CreateAccountDialog({
         } catch { /* passkey auth failed — will skip browser save, try escrow with existing token */ }
 
         // Browser save with passkey PRF
+        let prfSaved = false;
         if (freshAuth?.prfKey && freshAuth?.credentialId) {
           try {
             await saveKeyShareWithPrf(keyId, newRawKeyData, freshAuth.prfKey, freshAuth.credentialId);
             setStoragePreference("browser");
             setBrowserSaveState("saved");
+            prfSaved = true;
           } catch { /* browser save failed */ }
+        }
+
+        // Auto-escrow: upload PRF-encrypted share to server (non-blocking)
+        // Only when PRF succeeded — unencrypted shares must NOT be escrowed
+        if (prfSaved) {
+          try {
+            const stored = localStorage.getItem(`keyshare:${keyId}`);
+            if (stored) {
+              await fetch(apiUrl(`/api/keys/${keyId}/backup`), {
+                method: "POST",
+                headers: { ...sensitiveHeaders(), "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  encryptedData: stored,
+                  publicKey: newRawKeyData.publicKey,
+                  eddsaPublicKey: newRawKeyData.eddsaPublicKey,
+                }),
+              });
+            }
+          } catch { /* escrow failed silently — banner will prompt manual backup */ }
         }
 
         setCreatingDone(true);

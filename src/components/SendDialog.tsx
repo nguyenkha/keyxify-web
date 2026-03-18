@@ -241,6 +241,20 @@ export function SendDialog({
   const [browserShareError, setBrowserShareError] = useState("");
   const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
 
+  // Backup status — gate large sends (>$100) on backup completion
+  const [hasBackup, setHasBackup] = useState<boolean | null>(null);
+  const [backupGateError, setBackupGateError] = useState<string | null>(null);
+  useEffect(() => {
+    fetch(apiUrl("/api/keys"), { headers: authHeaders() })
+      .then((r) => r.json())
+      .then(({ keys }) => {
+        const key = (keys || []).find((k: { id: string }) => k.id === keyId);
+        setHasBackup(key?.hasClientBackup ?? false);
+      })
+      .catch(() => setHasBackup(null)); // fail-open
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keyId]);
+
   // Signing state
   // XRP destination tag
   const [destinationTag, setDestinationTag] = useState("");
@@ -2324,9 +2338,18 @@ message = buildSplTransferMessage({
 
             {/* Footer — Input step */}
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
+              {backupGateError && (
+                <p className="text-[11px] text-yellow-400 mb-2">{backupGateError}</p>
+              )}
               <button
                 disabled={!canReview || policyChecking}
                 onClick={async () => {
+                  // Gate large sends on backup completion
+                  if (hasBackup === false && (amountUsd ?? 0) > 100) {
+                    setBackupGateError("Back up your wallet before sending more than $100");
+                    return;
+                  }
+                  setBackupGateError(null);
                   if (chain.type === "xlm" && chain.rpcUrl) {
                     setXlmDestExists(null);
                     const exists = await checkXlmAccountExists(chain.rpcUrl, to);
