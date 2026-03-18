@@ -820,9 +820,9 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
     || (phase === "signing" && signingStepIdx >= 2);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={canClose ? (phase === "done" ? (onDismiss ?? onReject) : onReject) : undefined} />
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-surface-secondary md:bg-transparent md:flex md:items-center md:justify-center md:p-4">
+      <div className="hidden md:block absolute inset-0 bg-black/50" onClick={canClose ? (phase === "done" ? (onDismiss ?? onReject) : onReject) : undefined} />
+      <div className="relative bg-surface-secondary w-full h-full overflow-y-auto md:h-auto md:max-h-[85vh] md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
           {phase === "preview" ? (
@@ -864,7 +864,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
         </div>
 
         {/* Body */}
-        <div className="px-5 py-5 space-y-4 overflow-y-auto flex-1 min-h-0">
+        <div className="px-5 py-5 space-y-4 overflow-y-auto">
           {/* ── Review phase ────────────────────────────────────── */}
           {phase === "review" && (
             <>

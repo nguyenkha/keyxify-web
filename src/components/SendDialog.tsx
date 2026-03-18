@@ -1639,12 +1639,12 @@ message = buildSplTransferMessage({
   }, [canClose, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/50" onClick={canClose ? onClose : undefined} />
+    <div className="fixed inset-0 z-50 bg-surface-secondary md:bg-transparent md:flex md:items-center md:justify-center md:p-4">
+      {/* Backdrop — desktop only */}
+      <div className="hidden md:block absolute inset-0 bg-black/50" onClick={canClose ? onClose : undefined} />
 
-      {/* Dialog */}
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl max-h-[85vh] flex flex-col">
+      {/* Dialog — full-screen on mobile, centered card on desktop */}
+      <div className="relative bg-surface-secondary w-full h-full overflow-y-auto md:h-auto md:max-h-[85vh] md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
           {step === "preview" ? (
@@ -1689,7 +1689,7 @@ message = buildSplTransferMessage({
         {step === "input" && (
           <>
             {/* Body — Input step */}
-            <div className="p-5 space-y-4 overflow-y-auto flex-1 min-h-0">
+            <div className="p-5 space-y-4 overflow-y-auto">
               {/* Key share file */}
               <div>
                 <label className="block text-xs text-text-muted mb-1.5">Key Share</label>
@@ -2412,7 +2412,7 @@ message = buildSplTransferMessage({
         {step === "preview" && (
           <>
             {/* Body — Preview step */}
-            <div className="p-5 space-y-5 overflow-y-auto flex-1 min-h-0">
+            <div className="p-5 space-y-5 overflow-y-auto">
               <PolicyWarning policyCheck={policyCheck} />
 
               {chain.type === "evm" && gasEstimateError && (

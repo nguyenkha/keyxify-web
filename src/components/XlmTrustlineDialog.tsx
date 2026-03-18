@@ -194,9 +194,9 @@ export function XlmTrustlineDialog({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={step === "signing" ? undefined : onClose} />
-      <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl overflow-hidden max-h-[85vh] flex flex-col">
+    <div className="fixed inset-0 z-50 bg-surface-secondary md:bg-transparent md:flex md:items-center md:justify-center md:p-4">
+      <div className="hidden md:block absolute inset-0 bg-black/50" onClick={step === "signing" ? undefined : onClose} />
+      <div className="relative bg-surface-secondary w-full h-full overflow-y-auto md:h-auto md:max-h-[85vh] md:max-w-md md:rounded-2xl md:border md:border-border-primary md:shadow-xl">
 
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary shrink-0">
