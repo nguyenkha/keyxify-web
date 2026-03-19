@@ -273,8 +273,9 @@ export function CreateAccountDialog({
           } catch { /* browser save failed */ }
         }
 
-        // Auto-escrow: upload PRF-encrypted share to server (non-blocking)
-        // Only when PRF succeeded — unencrypted shares must NOT be escrowed
+        // Auto-escrow: upload PRF-encrypted StoredShare to server (non-blocking)
+        // This is the same encrypted blob from localStorage — never upload raw keys.
+        // The restore flow detects StoredShare format and re-authenticates passkey PRF to decrypt.
         if (prfSaved) {
           try {
             const stored = localStorage.getItem(`keyshare:${keyId}`);

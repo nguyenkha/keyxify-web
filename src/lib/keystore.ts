@@ -199,6 +199,18 @@ export interface KeyShareInfo {
   credentialId?: string;
 }
 
+/** Decrypt a StoredShare blob (from server escrow) using a PRF key */
+export async function getKeyShareFromStoredShare(
+  stored: { mode: string; iv: string; ciphertext: string },
+  prfKey: CryptoKey,
+): Promise<KeyFileData | null> {
+  try {
+    return deserialize(await aesDecrypt(prfKey, stored.iv, stored.ciphertext));
+  } catch {
+    return null;
+  }
+}
+
 export function listKeyShares(): KeyShareInfo[] {
   return lsGetAll().map((e) => ({
     keyId: e.keyId,

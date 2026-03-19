@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, type KeyShareInfo } from "../lib/keystore";
+import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPassphrase, hasKeyShare, getKeyShareFromStoredShare, type KeyShareInfo } from "../lib/keystore";
 import { authenticatePasskey, sensitiveHeaders } from "../lib/passkey";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
@@ -206,12 +206,31 @@ export function KeyShareManager() {
         return;
       }
       const { encryptedData } = await res.json();
-      const parsed = JSON.parse(encryptedData) as KeyFileData;
-      if (parsed.encrypted) {
-        setRestoreData(parsed);
+      const parsed = JSON.parse(encryptedData);
+
+      // Detect StoredShare format (PRF-encrypted browser backup from auto-escrow)
+      if (parsed.mode === "prf" && parsed.ciphertext) {
+        const prfAuth = await authenticatePasskey({ withPrf: true });
+        if (!prfAuth.prfKey) {
+          setError("Passkey PRF not supported — cannot decrypt this backup");
+          setRestoreStep("idle");
+          setRestoreId(null);
+          return;
+        }
+        const decrypted = await getKeyShareFromStoredShare(parsed, prfAuth.prfKey);
+        if (!decrypted) {
+          setError("Failed to decrypt backup — passkey may not match");
+          setRestoreStep("idle");
+          setRestoreId(null);
+          return;
+        }
+        setRestoreData(decrypted);
+        setRestoreStep("encrypt");
+      } else if ((parsed as KeyFileData).encrypted) {
+        setRestoreData(parsed as KeyFileData);
         setRestoreStep("decrypt");
       } else {
-        setRestoreData(parsed);
+        setRestoreData(parsed as KeyFileData);
         setRestoreStep("encrypt");
       }
     } catch (err) {
