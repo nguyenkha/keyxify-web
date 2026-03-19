@@ -45,9 +45,15 @@ import { Broadcast as BroadcastPage } from "./components/Broadcast";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
 
+const WalletConnectIcon = () => (
+  <svg className="w-4 h-4 inline-block align-[-2px] mr-1" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M6.09 9.6c3.26-3.2 8.56-3.2 11.82 0l.39.39c.16.16.16.42 0 .58l-1.34 1.31c-.08.08-.21.08-.3 0l-.54-.53c-2.28-2.23-5.97-2.23-8.24 0l-.58.56c-.08.08-.21.08-.3 0L5.67 10.6c-.16-.16-.16-.42 0-.58l.42-.42Zm14.6 2.72 1.19 1.17c.16.16.16.42 0 .58l-5.38 5.27c-.16.16-.43.16-.59 0l-3.82-3.74c-.04-.04-.1-.04-.15 0l-3.82 3.74c-.16.16-.43.16-.59 0L2.15 14.07c-.16-.16-.16-.42 0-.58l1.19-1.17c.16-.16.43-.16.59 0l3.82 3.74c.04.04.1.04.15 0l3.82-3.74c.16-.16.43-.16.59 0l3.82 3.74c.04.04.1.04.15 0l3.82-3.74c.16-.16.43-.16.59 0Z" />
+  </svg>
+);
+
 const mainNavItems = [
   { path: "/accounts", label: "💼 Accounts" },
-  { path: "/walletconnect", label: "🔗 WalletConnect" },
+  { path: "/walletconnect", label: "WalletConnect", icon: WalletConnectIcon },
 ];
 
 const advancedNavItems: { path: string; label: string; expertOnly?: boolean }[] = [
@@ -262,7 +268,7 @@ function DashboardLayout() {
                       : "text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary"
                   }`}
                 >
-                  {item.label}
+                  {item.icon ? <><item.icon />{item.label}</> : item.label}
                 </button>
               );
             })}

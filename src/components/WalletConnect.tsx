@@ -100,46 +100,70 @@ export function WalletConnect() {
 
       {/* Connect — inline row on desktop, stacked on mobile */}
       <div className="mt-5 flex flex-col sm:flex-row gap-2">
-        <input
-          type="text"
-          value={uri}
-          onChange={(e) => setUri(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handlePair()}
-          placeholder="Paste wc: URI"
-          className="flex-1 bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500/50 font-mono"
-          disabled={pairing}
-        />
-        <div className="flex gap-2 shrink-0">
-          <button
-            onClick={handlePair}
-            disabled={pairing || !uri.trim() || frozen}
-            className="flex-1 sm:flex-none px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-40"
-          >
-            {pairing ? "Connecting..." : "🔗 Connect"}
-          </button>
-          {!scanning ? (
+        <div className="flex-1 relative flex items-center">
+          <input
+            type="text"
+            value={uri}
+            onChange={(e) => setUri(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handlePair()}
+            placeholder="Paste wc: URI"
+            className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 pr-[4.5rem] text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500/50 font-mono"
+            disabled={pairing}
+          />
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
             <button
-              onClick={startScanning}
-              disabled={pairing || frozen}
-              className="px-3 py-2.5 rounded-lg text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary border border-border-primary transition-colors disabled:opacity-40"
-              title="Scan QR code"
+              type="button"
+              className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
+              onClick={async () => {
+                try {
+                  const text = await navigator.clipboard.readText();
+                  if (text) setUri(text.trim());
+                } catch { /* clipboard denied */ }
+              }}
+              title="Paste"
+              disabled={pairing}
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 9V5a2 2 0 012-2h4M15 3h4a2 2 0 012 2v4M21 15v4a2 2 0 01-2 2h-4M9 21H5a2 2 0 01-2-2v-4" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
               </svg>
             </button>
-          ) : (
-            <button
-              onClick={stopScanning}
-              className="px-3 py-2.5 rounded-lg text-red-400 hover:bg-red-500/10 border border-border-primary transition-colors"
-              title="Stop scanning"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
+            {!scanning ? (
+              <button
+                type="button"
+                onClick={startScanning}
+                disabled={pairing || frozen}
+                className="p-1.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors disabled:opacity-40"
+                title="Scan QR code"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M3 17v2a2 2 0 002 2h2" />
+                  <rect x="7" y="7" width="4" height="4" rx="0.5" />
+                  <rect x="13" y="7" width="4" height="4" rx="0.5" />
+                  <rect x="7" y="13" width="4" height="4" rx="0.5" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 13h4v4h-4" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={stopScanning}
+                className="p-1.5 rounded-md text-red-400 hover:bg-red-500/10 transition-colors"
+                title="Stop scanning"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
+        <button
+          onClick={handlePair}
+          disabled={pairing || !uri.trim() || frozen}
+          className="sm:w-auto px-4 py-2.5 rounded-lg text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white transition-colors disabled:opacity-40"
+        >
+          {pairing ? "Connecting..." : "Connect"}
+        </button>
       </div>
 
       {/* QR scanner */}

@@ -95,7 +95,8 @@ export function ManageDisplayPanel({
           return (
             <div
               key={key}
-              className="flex items-center justify-between px-4 py-2 hover:bg-surface-tertiary/30 transition-colors"
+              onClick={() => onToggle(key, !isOn)}
+              className="flex items-center justify-between px-4 py-2 hover:bg-surface-tertiary/30 transition-colors cursor-pointer select-none"
             >
               <div className="flex items-center gap-2.5">
                 {chain.iconUrl ? (
@@ -126,7 +127,8 @@ export function ManageDisplayPanel({
               return (
                 <div
                   key={asset.id}
-                  className="flex items-center justify-between px-4 py-2 hover:bg-surface-tertiary/30 transition-colors"
+                  onClick={() => onToggle(asset.id, !isOn)}
+                  className="flex items-center justify-between px-4 py-2 hover:bg-surface-tertiary/30 transition-colors cursor-pointer select-none"
                 >
                   <div className="flex items-center gap-2.5">
                     {asset.iconUrl ? (
