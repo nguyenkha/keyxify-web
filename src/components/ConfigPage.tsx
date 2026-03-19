@@ -13,6 +13,7 @@ function highlightCode(code: string): string {
 }
 
 import { checkBtcHealth, checkBchHealth, checkXlmHealth } from "../lib/providerDetect";
+import { AddressBookPanel } from "./AddressBookPanel";
 import { useSetExpertMode } from "../context/ExpertModeContext";
 
 type RpcStatus = "checking" | "ok" | "error";
@@ -627,6 +628,9 @@ export function ConfigPage() {
           })}
         </div>
       </div>}
+
+      {/* ── Address Book ── */}
+      <AddressBookPanel />
 
       {/* ── Backup & Restore (expert only) ── */}
       {expert && <div>

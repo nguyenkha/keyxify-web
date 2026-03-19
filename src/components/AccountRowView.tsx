@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import type { AccountRow } from "../lib/accountRows";
+import type { Transaction } from "../shared/types";
 import { usePolledBalance } from "../lib/use-polled-balance";
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { isTokenVisible, findNewTokens } from "../lib/displayPrefs";
 import { explorerLink } from "../shared/utils";
 import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
+import { fetchTransactions } from "../lib/transactions";
+import { getCache, setCache, txCacheKey } from "../lib/dataCache";
+import { CompactTxPreview } from "./CompactTxPreview";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
 
@@ -22,17 +26,37 @@ export function AccountRowView({
   pollInterval = DEFAULT_POLL_INTERVAL,
   prices,
   onTokenDecision,
+  onBalanceUpdate,
 }: {
   row: AccountRow;
   displayPrefs: Record<string, boolean> | null;
   pollInterval?: number;
   prices: Record<string, number>;
   onTokenDecision?: (assetId: string, visible: boolean) => void;
+  onBalanceUpdate?: (rowKey: string, usdTotal: number) => void;
 }) {
   const navigate = useNavigate();
   const { hidden } = useHideBalances();
   const [copied, setCopied] = useState(false);
   const [dismissedTokens, setDismissedTokens] = useState<Set<string>>(new Set());
+
+  // Recent transactions preview (fetch once, cached)
+  const [recentTxs, setRecentTxs] = useState<Transaction[]>([]);
+  const nativeAssetForTx = row.assets.find((a) => a.isNative);
+  useEffect(() => {
+    if (!nativeAssetForTx) return;
+    const cacheK = txCacheKey(row.address, row.chain.id);
+    const cached = getCache<Transaction[]>(cacheK);
+    if (cached) { setRecentTxs(cached.slice(0, 3)); return; }
+    fetchTransactions(row.address, row.chain, nativeAssetForTx, 1)
+      .then(({ transactions }) => {
+        const top3 = transactions.slice(0, 3);
+        setCache(cacheK, transactions);
+        setRecentTxs(top3);
+      })
+      .catch(() => {}); // silently hide on error
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [row.address, row.chain.id]);
 
   const {
     nativeBalance,
@@ -80,6 +104,17 @@ export function AccountRowView({
   const nativeUsd = nativeBalance
     ? getUsdValue(nativeBalance.formatted, nativeSymbol, prices)
     : null;
+
+  // Report aggregated USD value to parent for portfolio total
+  useEffect(() => {
+    if (!onBalanceUpdate) return;
+    const tokenUsdSum = tokenBalances
+      .filter((b) => isTokenVisible(b.asset.id, displayPrefs, b.formatted))
+      .reduce((sum, b) => sum + (getUsdValue(b.formatted, b.asset.symbol, prices) ?? 0), 0);
+    const total = (nativeUsd ?? 0) + tokenUsdSum;
+    onBalanceUpdate(`${row.keyId}:${row.chain.id}:${row.address}`, total);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nativeUsd, tokenBalances, prices]);
 
   return (
     <div>
@@ -232,6 +267,15 @@ export function AccountRowView({
             );
           })
       }
+
+      {/* Recent transactions preview */}
+      {recentTxs.length > 0 && (
+        <div className="border-t border-border-secondary/50">
+          {recentTxs.map((tx, i) => (
+            <CompactTxPreview key={`${tx.hash}-${i}`} tx={tx} explorerUrl={row.chain.explorerUrl} />
+          ))}
+        </div>
+      )}
 
       {/* Token discovery prompts */}
       {tokenState === "loaded" && onTokenDecision && (() => {

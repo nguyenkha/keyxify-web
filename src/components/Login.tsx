@@ -25,7 +25,7 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-dvh bg-surface-primary text-text-primary flex items-center justify-center">
+    <div className="min-h-dvh bg-surface-primary text-text-primary flex items-start justify-center pt-[30vh]">
       <div className="max-w-sm w-full px-4">
         {/* Logo + branding */}
         <div className="mb-8 text-center">

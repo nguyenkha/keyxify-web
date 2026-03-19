@@ -8,6 +8,7 @@ import { SigningError, SigningStepper } from "./tx";
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
+import { useToast } from "../context/ToastContext";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, sensitiveHeaders } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
@@ -39,6 +40,7 @@ export function XlmTrustlineDialog({
 }: {
   keyId: string; address: string; balance: string; chain: Chain; chainAssets: Asset[]; prices: Record<string, number>; onClose: () => void;
 }) {
+  const { addToast } = useToast();
   const [step, setStep] = useState<"select" | "input" | "preview" | "signing" | "result">("select");
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [keyFile, setKeyFile] = useState<KeyFile | null>(null);
@@ -198,6 +200,7 @@ export function XlmTrustlineDialog({
       setSigningPhase("polling");
       const result = await waitForXlmConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
       setTxResult({ status: result.confirmed ? "success" : "pending", txHash, blockNumber: result.ledger });
+      if (result.confirmed) addToast("Token enabled successfully", "success");
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
     } catch (err: unknown) {

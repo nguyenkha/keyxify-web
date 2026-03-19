@@ -94,6 +94,46 @@ export function clearAllTokenBalanceCaches() {
   } catch { /* ignore */ }
 }
 
+export function txCacheKey(address: string, chainId: string): string {
+  return `tx:${address}:${chainId}`;
+}
+
+/** Clear all transaction caches. */
+export function clearAllTxCaches() {
+  try {
+    const prefix = STORAGE_PREFIX + "tx:";
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(prefix)) keysToRemove.push(k);
+    }
+    for (const k of keysToRemove) localStorage.removeItem(k);
+  } catch { /* ignore */ }
+}
+
+/** Evict oldest tx cache entries when count exceeds limit. */
+export function evictTxCaches(maxEntries = 50) {
+  try {
+    const prefix = STORAGE_PREFIX + "tx:";
+    const entries: { key: string; ts: number }[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k?.startsWith(prefix)) continue;
+      try {
+        const raw = localStorage.getItem(k);
+        if (raw) {
+          const { ts } = JSON.parse(raw) as CacheEntry<unknown>;
+          entries.push({ key: k, ts });
+        }
+      } catch { /* skip malformed */ }
+    }
+    if (entries.length <= maxEntries) return;
+    entries.sort((a, b) => a.ts - b.ts);
+    const toRemove = entries.slice(0, entries.length - maxEntries);
+    for (const { key } of toRemove) localStorage.removeItem(key);
+  } catch { /* ignore */ }
+}
+
 export const PRICES_CACHE_KEY = "prices";
 
 /** Notify listeners that balance caches were cleared and should re-fetch. */

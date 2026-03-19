@@ -26,6 +26,8 @@ import { AccountRowView } from "./AccountRowView";
 import { CreateAccountDialog } from "./CreateAccountDialog";
 import { BackupReminder } from "./backup-reminder";
 import { usePrices } from "../lib/use-prices";
+import { WalletActivity } from "./WalletActivity";
+import { PortfolioHeader } from "./PortfolioHeader";
 
 /** Default polling interval for balance/price refresh (ms) — overridden by server setting */
 const DEFAULT_POLL_INTERVAL = 60_000;
@@ -131,6 +133,30 @@ export function Wallet() {
   const incompleteKeys = useMemo(
     () => keys.filter((k) => k.enabled && !k.publicKey),
     [keys]
+  );
+
+  const [activeTab, setActiveTab] = useState<"accounts" | "activity">(
+    () => window.location.hash === "#activity" ? "activity" : "accounts"
+  );
+
+  // Sync tab state with URL hash
+  function switchTab(tab: "accounts" | "activity") {
+    setActiveTab(tab);
+    history.replaceState(null, "", tab === "activity" ? "#activity" : window.location.pathname + window.location.search);
+  }
+  // Portfolio total aggregation
+  const [balanceMap, setBalanceMap] = useState<Map<string, number>>(new Map());
+  const handleBalanceUpdate = (rowKey: string, usdTotal: number) => {
+    setBalanceMap((prev) => {
+      if (prev.get(rowKey) === usdTotal) return prev;
+      const next = new Map(prev);
+      next.set(rowKey, usdTotal);
+      return next;
+    });
+  };
+  const portfolioTotal = useMemo(
+    () => [...balanceMap.values()].reduce((a, b) => a + b, 0),
+    [balanceMap]
   );
 
   const [policyKeyId, setPolicyKeyId] = useState<string | null>(null);
@@ -383,7 +409,37 @@ export function Wallet() {
 
   return (
     <div className="space-y-6">
-      {keyGroups.map((group) => (
+      {/* Portfolio total */}
+      {keyGroups.length > 0 && (
+        <PortfolioHeader totalUsd={portfolioTotal} loading={loading} />
+      )}
+
+      {/* Accounts / Activity tab bar */}
+      {keyGroups.length > 0 && (
+        <div className="flex gap-1 bg-surface-secondary rounded-lg border border-border-primary p-1">
+          {(["accounts", "activity"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => switchTab(tab)}
+              className={`flex-1 text-xs font-medium py-2 rounded-md transition-colors ${
+                activeTab === tab
+                  ? "bg-surface-tertiary text-text-primary shadow-sm"
+                  : "text-text-muted hover:text-text-secondary"
+              }`}
+            >
+              {tab === "accounts" ? "Accounts" : "Activity"}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Activity tab */}
+      {activeTab === "activity" && keyGroups.length > 0 && (
+        <WalletActivity accountRows={accountRows} pollInterval={pollInterval} />
+      )}
+
+      {/* Accounts tab */}
+      {activeTab === "accounts" && keyGroups.map((group) => (
         <div key={group.keyId}>
           <div className="flex items-center justify-between mb-2 px-1">
             <KeyNameLabel
@@ -514,12 +570,16 @@ export function Wallet() {
                 pollInterval={pollInterval}
                 prices={prices}
                 onTokenDecision={(assetId, visible) => handleDisplayChange(group.keyId, assetId, visible)}
+                onBalanceUpdate={handleBalanceUpdate}
               />
             ))}
           </div>
         </div>
       ))}
 
+      {/* Elements below only shown on Accounts tab */}
+      {activeTab === "accounts" && (
+        <>
       {/* Backup reminder for keys without backup */}
       {keyGroups.some(g => !g.backedUp && !g.selfCustody) && !isRecovery && (
         <BackupReminder onBackup={() => navigate("/backup-recovery")} />
@@ -592,6 +652,9 @@ export function Wallet() {
             ))}
           </div>
         </div>
+      )}
+
+        </>
       )}
 
       {showCreateDialog && (

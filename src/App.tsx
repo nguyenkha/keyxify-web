@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import * as Sentry from "@sentry/react";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Wallet } from "./components/Wallet";
@@ -38,6 +38,9 @@ import { ActivityLogPage } from "./components/AuditLog";
 import { ConfigPage } from "./components/ConfigPage";
 import { WalletConnect as WalletConnectPage } from "./components/WalletConnect";
 import { WalletConnectProvider } from "./context/WalletConnectContext";
+import { usePullToRefresh } from "./lib/use-pull-to-refresh";
+import { notifyBalanceRefresh, clearAllTokenBalanceCaches, clearAllTxCaches } from "./lib/dataCache";
+import { ToastProvider } from "./context/ToastContext";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
@@ -167,6 +170,14 @@ function DashboardLayout() {
   const recovery = isRecoveryMode();
   const [user, setUser] = useState<MeUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
+  const { pulling, pullDistance, refreshing } = usePullToRefresh(async () => {
+    clearAllTokenBalanceCaches();
+    clearAllTxCaches();
+    notifyBalanceRefresh();
+    // Small delay so the spinner shows
+    await new Promise((r) => setTimeout(r, 800));
+  }, mainRef);
   const [serverVersion, setServerVersion] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -380,7 +391,23 @@ function DashboardLayout() {
         </header>
 
         {/* Content area — tighter padding on mobile */}
-        <main className="flex-1 p-4 md:p-8 overflow-auto">
+        <main ref={mainRef} className="flex-1 p-4 md:p-8 overflow-auto">
+          {/* Pull-to-refresh indicator */}
+          {(pulling || refreshing) && (
+            <div
+              className="flex justify-center transition-all duration-150 overflow-hidden"
+              style={{ height: pullDistance, opacity: Math.min(pullDistance / 60, 1) }}
+            >
+              <svg
+                className={`w-5 h-5 text-text-muted ${refreshing ? "animate-spin" : ""}`}
+                style={{ transform: refreshing ? undefined : `rotate(${Math.min(pullDistance / 80 * 360, 360)}deg)` }}
+                viewBox="0 0 24 24" fill="none"
+              >
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2.5" opacity="0.2" />
+                <path d="M12 2a10 10 0 019.95 9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+            </div>
+          )}
           {recovery && <RecoveryBanner />}
           {user?.frozenAt && <FrozenBanner user={user} onUpdate={refreshUser} />}
           <Outlet />
@@ -416,9 +443,11 @@ function App() {
             <RequireAuth>
               <ExpertModeProvider>
               <HideBalancesProvider>
+              <ToastProvider>
               <WalletConnectProvider>
                 <DashboardLayout />
               </WalletConnectProvider>
+              </ToastProvider>
               </HideBalancesProvider>
               </ExpertModeProvider>
             </RequireAuth>

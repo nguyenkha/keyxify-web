@@ -2,12 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-<title>kexify</title>
+    <link rel="icon" type="image/svg+xml" href="/icon.svg" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#030712" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>kexify</title>
   </head>
-  <body>
-    <div id="root"></div>
+  <body style="margin:0;background:#030712">
+    <div id="root">
+      <!-- Splash screen shown while JS bundle loads — replaced by React on mount -->
+      <div id="splash" style="display:flex;align-items:start;justify-content:center;padding-top:30vh;min-height:100dvh;background:#030712;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <div style="text-align:center">
+          <div style="font-size:28px;font-weight:700;letter-spacing:-0.5px">kexify</div>
+          <div style="font-size:13px;color:#4b5563;margin-top:4px">keys simplified</div>
+          <div style="margin-top:32px">
+            <svg width="24" height="24" viewBox="0 0 24 24" style="animation:spin 1s linear infinite;color:#3b82f6"><style>@keyframes spin{to{transform:rotate(360deg)}}</style><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5" fill="none" opacity="0.2"/><path d="M12 2a10 10 0 019.95 9" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

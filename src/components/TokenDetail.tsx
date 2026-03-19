@@ -17,6 +17,7 @@ import { truncateBalance } from "./sendTypes";
 import type { SpeedUpData } from "./sendTypes";
 import { mempoolApiUrl, fetchFeeRates } from "../lib/chains/btcTx";
 import { useExpertMode } from "../context/ExpertModeContext";
+import { useToast } from "../context/ToastContext";
 
 export interface PendingTxFromNavigation {
   hash: string;
@@ -54,6 +55,7 @@ function formatLastUpdated(date: Date): string {
 export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval: pollIntervalProp, pendingTx, chainAssets }: TokenDetailProps) {
   const frozen = useFrozen();
   const expert = useExpertMode();
+  const { addToast } = useToast();
   const pollInterval = pollIntervalProp ?? DEFAULT_POLL_INTERVAL;
   const [balance, setBalance] = useState<string>(() => {
     // Show cached balance instantly
@@ -169,6 +171,13 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
       fetchTransactions(address, chain, asset, 1)
         .then(({ transactions: txs, hasMore: more }) => {
           setTransactions((prev) => {
+            const prevHashes = new Set(prev.map((t) => t.hash));
+            // Detect new incoming transactions
+            for (const tx of txs) {
+              if (!prevHashes.has(tx.hash) && tx.direction === "in" && tx.confirmed) {
+                addToast(`Received ${tx.formatted} ${tx.symbol}`, "success");
+              }
+            }
             const fetchedHashes = new Set(txs.map((t) => t.hash));
             const staleThreshold = Date.now() / 1000 - 1800;
             const pending = prev.filter(
@@ -606,6 +615,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             setTransactions((prev) => [pendingTx, ...prev]);
           }}
           onTxConfirmed={(txHash) => {
+            addToast(`Transaction confirmed`, "success");
             setTransactions((prev) =>
               prev.map((t) => t.hash === txHash ? { ...t, confirmed: true } : t)
             );

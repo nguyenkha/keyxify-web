@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useToast } from "../context/ToastContext";
 import { useNavigate } from "react-router-dom";
 import type { PendingRequest } from "../context/WalletConnectContext";
 import type { KeyShare, Chain, Asset } from "../shared/types";
@@ -118,10 +119,19 @@ function formatEthFee(wei: bigint): string {
 export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: Props) {
   const navigate = useNavigate();
   const expert = useExpertMode();
+  const { addToast } = useToast();
   // Phases: review → preview → passkey (#2) → signing → done
   // Browser share decrypt uses inline authenticatePasskey (passkey #1)
   // Confirm & Sign triggers PasskeyChallenge overlay (passkey #2)
   const [phase, setPhase] = useState<"review" | "preview" | "passkey" | "signing" | "done" | "error">("review");
+  // Toast on completion
+  useEffect(() => {
+    if (phase === "done" && txResult) {
+      addToast(txResult.status === "success" ? "WalletConnect transaction confirmed" : "Transaction submitted", txResult.status === "success" ? "success" : "info");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase]);
+
   const [error, setError] = useState("");
   const [txResult, setTxResult] = useState<{ txHash: string; status: "success" | "pending" | "failed"; blockNumber?: string } | null>(null);
   const [account, setAccount] = useState<ResolvedAccount | null>(null);
