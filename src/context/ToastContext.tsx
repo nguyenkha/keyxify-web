@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { haptic } from "../lib/haptics";
 
 export type ToastType = "success" | "error" | "info";
 
@@ -26,6 +27,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const addToast = useCallback((message: string, type: ToastType = "info") => {
     const id = ++nextId;
     setToasts((prev) => [...prev, { id, message, type }]);
+    haptic(type === "success" ? "success" : type === "error" ? "error" : "light");
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }, []);
 
