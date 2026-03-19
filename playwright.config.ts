@@ -14,10 +14,18 @@ export default defineConfig({
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
-  webServer: {
-    command: "bun run dev",
-    url: "http://localhost:5173",
-    reuseExistingServer: !process.env.CI,
-    timeout: 30_000,
-  },
+  webServer: [
+    {
+      command: "bun run dev",
+      url: "http://localhost:5173",
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+    {
+      command: "cd ../backend && bun --watch src/index.ts",
+      url: "http://localhost:3000/chains",
+      reuseExistingServer: !process.env.CI,
+      timeout: 15_000,
+    },
+  ],
 });
