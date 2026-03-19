@@ -27,16 +27,18 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
     ? "text-red-400"
     : isPending
       ? "text-yellow-400"
-      : tx.direction === "in"
-        ? "text-green-500"
-        : tx.direction === "out"
-          ? (tx.isApprove ? "text-blue-400" : tx.isContractCall ? "text-orange-400" : "text-red-400")
-          : "text-text-muted";
+      : tx.isDeployment
+        ? "text-purple-400"
+        : tx.direction === "in"
+          ? "text-green-500"
+          : tx.direction === "out"
+            ? (tx.isApprove ? "text-blue-400" : tx.isContractCall ? "text-orange-400" : "text-red-400")
+            : "text-text-muted";
   const dirLabel = isFailed
     ? "Failed"
     : isPending
       ? "Pending"
-      : tx.label ?? (tx.direction === "in" ? "Received" : tx.direction === "out" ? (tx.isApprove ? "Approved" : tx.isContractCall ? "Executed Contract" : "Sent") : "Self");
+      : tx.label ?? (tx.isDeployment ? "Deployed Contract" : tx.direction === "in" ? "Received" : tx.direction === "out" ? (tx.isApprove ? "Approved" : tx.isContractCall ? "Executed Contract" : "Sent") : "Self");
   const dirSign = tx.direction === "in" ? "+" : tx.direction === "out" ? "-" : "";
 
   return (
@@ -52,11 +54,13 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
           ? "bg-red-400/10"
           : isPending
             ? "bg-yellow-400/10"
-            : tx.direction === "in"
-              ? "bg-green-500/10"
-              : tx.direction === "out"
-                ? (tx.isApprove ? "bg-blue-400/10" : tx.isContractCall ? "bg-orange-400/10" : "bg-red-400/10")
-                : "bg-surface-tertiary"
+            : tx.isDeployment
+              ? "bg-purple-400/10"
+              : tx.direction === "in"
+                ? "bg-green-500/10"
+                : tx.direction === "out"
+                  ? (tx.isApprove ? "bg-blue-400/10" : tx.isContractCall ? "bg-orange-400/10" : "bg-red-400/10")
+                  : "bg-surface-tertiary"
       }`}>
         {isFailed ? (
           <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -66,6 +70,10 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
           <svg className="w-4 h-4 text-yellow-400 animate-spin" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+        ) : tx.isDeployment ? (
+          <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
         ) : tx.direction === "in" ? (
           <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -97,7 +105,9 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
           <span className="text-[11px] text-text-muted">{isPending ? "just now" : formatTxTime(tx.timestamp)}</span>
         </div>
         <div className="text-[11px] text-text-muted font-mono truncate">
-          {tx.direction === "in" ? `From ${shortAddr(tx.from)}` : `To ${shortAddr(tx.to)}`}
+          {tx.isDeployment && tx.createdContract
+            ? <span>Contract <span className="text-purple-400/70">{shortAddr(tx.createdContract)}</span></span>
+            : tx.direction === "in" ? `From ${shortAddr(tx.from)}` : `To ${shortAddr(tx.to)}`}
           <span className="text-text-muted/50 ml-1.5 hidden sm:inline">{shortAddr(tx.hash)}</span>
         </div>
       </div>

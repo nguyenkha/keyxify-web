@@ -49,6 +49,8 @@ export interface Transaction {
   failed?: boolean;
   isContractCall?: boolean;
   isApprove?: boolean;
+  isDeployment?: boolean;
+  createdContract?: string; // address of deployed contract
   label?: string;  // override direction label (e.g. "Enabled USDC")
 }
 

@@ -212,20 +212,21 @@ function parseNativeTx(
   const timestamp = tsStr ? Math.floor(new Date(tsStr).getTime() / 1000) : Math.floor(Date.now() / 1000);
   const confirmations = (tx.confirmations as number) || 0;
 
-  // Detect contract calls: has input data beyond "0x" or tx_types includes "contract_call"
+  // Detect tx type from Blockscout tx_types array and raw input
   const txTypes = tx.tx_types as string[] | undefined;
   const rawInput = tx.raw_input as string | undefined;
-  const isContractCall =
+  const isDeployment = txTypes?.includes("contract_creation") || (!to && rawInput && rawInput.length > 2);
+  const createdContract = ((tx.created_contract as Record<string, unknown>)?.hash as string) || undefined;
+  const isContractCall = !isDeployment && (
     (txTypes && txTypes.includes("contract_call")) ||
-    (rawInput != null && rawInput !== "0x" && rawInput.length > 2);
-
-  // Detect ERC-20 approve calls (selector 0x095ea7b3)
+    (rawInput != null && rawInput !== "0x" && rawInput.length > 2)
+  );
   const isApprove = rawInput != null && rawInput.toLowerCase().startsWith("0x095ea7b3");
 
   return {
     hash: tx.hash as string,
     from,
-    to,
+    to: createdContract || to,
     value,
     formatted: formatTxValue(value, asset.decimals),
     symbol: asset.symbol,
@@ -233,6 +234,8 @@ function parseNativeTx(
     direction,
     confirmed: confirmations > 0,
     failed: (tx.status as string) === "error" || (tx.result as string) === "error",
+    ...(isDeployment ? { isDeployment: true } : {}),
+    ...(createdContract ? { createdContract } : {}),
     ...(isContractCall ? { isContractCall: true } : {}),
     ...(isApprove ? { isApprove: true } : {}),
   };
