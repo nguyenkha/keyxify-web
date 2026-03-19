@@ -1688,7 +1688,7 @@ message = buildSplTransferMessage({
         {step === "input" && (
           <>
             {/* Body — Input step */}
-            <div className="p-5 space-y-4 overflow-y-auto">
+            <div className="px-5 pt-3 pb-5 space-y-4 overflow-y-auto">
               {/* Key share file */}
               <div>
                 <label className="block text-xs text-text-muted mb-1.5">Key Share</label>
