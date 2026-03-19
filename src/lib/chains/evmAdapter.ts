@@ -1,4 +1,4 @@
-import type { Asset, ChainAdapter, BalanceResult, Transaction, NftItem } from "../../shared/types";
+import type { Asset, ChainAdapter, BalanceResult, Transaction } from "../../shared/types";
 import { ethers } from "ethers";
 import { hexToBytes, bytesToHex } from "../../shared/utils";
 
@@ -292,51 +292,6 @@ function parseAnyTokenTransfer(
     direction,
     confirmed: true,
   };
-}
-
-/** Fetch NFTs (ERC-721 + ERC-1155) for an address via Blockscout */
-export async function fetchNFTs(
-  address: string,
-  explorerUrl: string,
-  nextPageParams?: Record<string, string | number>,
-): Promise<{ items: NftItem[]; hasMore: boolean; nextPageParams?: Record<string, string | number> }> {
-  const apiBase = blockscoutApiUrl(explorerUrl);
-  if (!apiBase) return { items: [], hasMore: false };
-  try {
-    let url = `${apiBase}/api/v2/addresses/${address}/nft?type=ERC-721,ERC-1155`;
-    if (nextPageParams) {
-      const params = new URLSearchParams();
-      for (const [k, v] of Object.entries(nextPageParams)) params.set(k, String(v));
-      url += `&${params.toString()}`;
-    }
-    const res = await fetch(url);
-    if (!res.ok) return { items: [], hasMore: false };
-    const data = await res.json();
-    const rawItems: Record<string, unknown>[] = data.items || [];
-    const items: NftItem[] = rawItems.map((item) => {
-      const token = item.token as Record<string, unknown> | null;
-      const contractAddress = (token?.address as string) || "";
-      const tokenId = String(item.id ?? item.token_id ?? "0");
-      return {
-        id: `${contractAddress}:${tokenId}`,
-        tokenId,
-        name: (item.name as string) || (token?.name ? `${token.name} #${tokenId}` : null),
-        imageUrl: (item.image_url as string) || (item.animation_url as string) || null,
-        contractAddress,
-        tokenType: ((token?.type as string) || "ERC-721") as "ERC-721" | "ERC-1155",
-        collection: {
-          name: (token?.name as string) || "Unknown",
-          symbol: (token?.symbol as string) || null,
-          contractAddress,
-        },
-        metadata: (item.metadata as Record<string, unknown>) || null,
-      };
-    });
-    const hasMore = !!data.next_page_params;
-    return { items, hasMore, ...(hasMore ? { nextPageParams: data.next_page_params } : {}) };
-  } catch {
-    return { items: [], hasMore: false };
-  }
 }
 
 function parseTokenTransfer(

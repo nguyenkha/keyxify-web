@@ -18,7 +18,6 @@ import type { SpeedUpData } from "./sendTypes";
 import { mempoolApiUrl, fetchFeeRates } from "../lib/chains/btcTx";
 import { useExpertMode } from "../context/ExpertModeContext";
 import { useToast } from "../context/ToastContext";
-import { NftGallery } from "./NftGallery";
 
 export interface PendingTxFromNavigation {
   hash: string;
@@ -127,8 +126,6 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
   const [showSend, setShowSend] = useState(false);
   const [speedUpData, setSpeedUpData] = useState<SpeedUpData | undefined>();
   const [showXlmTrustline, setShowXlmTrustline] = useState(false);
-  const [activeTab, setActiveTab] = useState<"activity" | "nfts">("activity");
-  const isEvm = chain.type === "evm";
   const [prices, setPrices] = useState<Record<string, number>>({});
 
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -441,39 +438,20 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         />
       )}
 
-      {/* Tab toggle + content */}
+      {/* Transactions */}
       <div>
         <div className="flex items-center justify-between mb-2 px-1">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setActiveTab("activity")}
-              className={`text-xs uppercase tracking-wider font-semibold transition-colors ${activeTab === "activity" ? "text-text-secondary" : "text-text-muted hover:text-text-tertiary"}`}
-            >
-              Activity
-            </button>
-            {isEvm && (
-              <button
-                onClick={() => setActiveTab("nfts")}
-                className={`text-xs uppercase tracking-wider font-semibold transition-colors ${activeTab === "nfts" ? "text-text-secondary" : "text-text-muted hover:text-text-tertiary"}`}
-              >
-                NFTs
-              </button>
-            )}
-          </div>
-          {activeTab === "activity" && transactions.length > 0 && !loading && (
+          <h4 className="text-xs text-text-muted uppercase tracking-wider font-semibold">
+            Activity
+          </h4>
+          {transactions.length > 0 && !loading && (
             <span className="text-[10px] text-text-muted tabular-nums">
               {transactions.length} transaction{transactions.length !== 1 ? "s" : ""}
             </span>
           )}
         </div>
 
-        {/* NFT gallery */}
-        {activeTab === "nfts" && isEvm && (
-          <NftGallery address={address} chain={chain} keyId={keyId} />
-        )}
-
-        {/* Transaction list */}
-        {activeTab === "activity" && <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden">
+        <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden">
           {/* Pending transactions — always shown at top */}
           {transactions.filter((t) => !t.confirmed).length > 0 && (
             <div className="divide-y divide-border-secondary">
@@ -608,7 +586,7 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
               </button>
             </div>
           )}
-        </div>}
+        </div>
       </div>
 
       {/* Send dialog */}

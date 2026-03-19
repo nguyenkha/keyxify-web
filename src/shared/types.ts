@@ -52,17 +52,6 @@ export interface Transaction {
   label?: string;  // override direction label (e.g. "Enabled USDC")
 }
 
-export interface NftItem {
-  id: string;                  // contractAddress:tokenId
-  tokenId: string;
-  name: string | null;
-  imageUrl: string | null;
-  contractAddress: string;
-  tokenType: "ERC-721" | "ERC-1155";
-  collection: { name: string; symbol: string | null; contractAddress: string };
-  metadata: Record<string, unknown> | null;
-}
-
 export interface ChainAdapter {
   /** Which chain type this adapter handles */
   type: ChainType;
