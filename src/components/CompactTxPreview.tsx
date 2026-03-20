@@ -70,7 +70,7 @@ export function CompactTxPreview({ tx, explorerUrl }: { tx: Transaction; explore
 
       {/* Amount + time */}
       {showAmount && (
-        <span className={`text-[11px] tabular-nums font-medium shrink-0 ${color}`}>
+        <span className={`text-[11px] tabular-nums font-medium truncate max-w-[45%] text-right ${color}`}>
           {sign}{tx.formatted} {tx.symbol}
         </span>
       )}

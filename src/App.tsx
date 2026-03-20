@@ -430,7 +430,7 @@ function DashboardLayout() {
           {user?.frozenAt && <FrozenBanner user={user} onUpdate={refreshUser} />}
           <Outlet />
         </main>
-        <div className="shrink-0 px-4 md:px-8 py-1.5 flex items-center justify-between">
+        <div className="shrink-0 px-4 md:px-8 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] flex items-center justify-between">
           <div id="footer-left" />
           <span className="text-[10px] text-text-muted tabular-nums ml-auto">&copy; {new Date().getFullYear()} Kha Do</span>
         </div>
