@@ -84,16 +84,18 @@ function SendIcon({ className }: { className?: string }) {
 
 // ── Entry description ───────────────────────────────────────
 
+type TFn = (key: string, opts?: Record<string, unknown>) => string;
+
 interface EntryDesc {
   title: string;
-  subtitle: string;    // shown collapsed — chain/amount/address at a glance
-  detail: string;      // shown expanded — full explanation
+  subtitle: string;
+  detail: string;
   icon: (props: { className?: string }) => React.ReactNode;
   iconBg: string;
   iconColor: string;
 }
 
-function describeEntry(entry: AuditEntry): EntryDesc {
+function describeEntry(entry: AuditEntry, t: TFn): EntryDesc {
   const meta = entry.meta ?? {};
   const reason = meta.reason as string | undefined;
   const chainType = meta.chainType as string | undefined;
@@ -102,56 +104,56 @@ function describeEntry(entry: AuditEntry): EntryDesc {
   switch (entry.action) {
     case "sign.init":
       return {
-        title: "Transaction signed",
-        subtitle: buildSubtitle(chainType, transfer, meta),
-        detail: describeTransaction(meta),
+        title: t("activity.txSigned"),
+        subtitle: buildSubtitle(chainType, transfer, meta, t),
+        detail: describeTransaction(meta, t),
         icon: SendIcon,
         iconBg: "bg-green-500/10",
         iconColor: "text-green-500",
       };
     case "sign.reject":
-      return describeRejection(reason, meta);
+      return describeRejection(reason, meta, t);
     case "generate.complete":
       return {
-        title: "Account created",
+        title: t("activity.accountCreated"),
         subtitle: "",
-        detail: "A new account was set up successfully.",
+        detail: t("activity.accountCreatedDetail"),
         icon: CheckIcon,
         iconBg: "bg-green-500/10",
         iconColor: "text-green-500",
       };
     case "backup.upload":
       return {
-        title: "Backup saved",
+        title: t("activity.backupSaved"),
         subtitle: "",
-        detail: "Your encrypted key backup was uploaded.",
+        detail: t("activity.backupSavedDetail"),
         icon: UploadIcon,
         iconBg: "bg-blue-500/10",
         iconColor: "text-blue-400",
       };
     case "backup.download":
       return {
-        title: "Backup downloaded",
+        title: t("activity.backupDownloaded"),
         subtitle: "",
-        detail: "Your encrypted key backup was downloaded.",
+        detail: t("activity.backupDownloadedDetail"),
         icon: DownloadIcon,
         iconBg: "bg-yellow-500/10",
         iconColor: "text-yellow-400",
       };
     case "server-share.hkdf-download":
       return {
-        title: "Server share downloaded",
+        title: t("activity.serverShareDownloaded"),
         subtitle: "",
-        detail: "The server's key share was exported with encryption.",
+        detail: t("activity.serverShareDownloadedDetail"),
         icon: DownloadIcon,
         iconBg: "bg-yellow-500/10",
         iconColor: "text-yellow-400",
       };
     case "server-share.export":
       return {
-        title: "Self-custody export",
+        title: t("activity.selfCustodyExport"),
         subtitle: "",
-        detail: "The server's key share was exported. You now have full self-custody.",
+        detail: t("activity.selfCustodyExportDetail"),
         icon: KeyIcon,
         iconBg: "bg-orange-500/10",
         iconColor: "text-orange-400",
@@ -168,7 +170,7 @@ function describeEntry(entry: AuditEntry): EntryDesc {
   }
 }
 
-function buildSubtitle(chainType?: string, transfer?: Record<string, string>, meta?: Record<string, unknown>): string {
+function buildSubtitle(chainType: string | undefined, transfer: Record<string, string> | undefined, meta: Record<string, unknown> | undefined, t: TFn): string {
   const parts: string[] = [];
   if (chainType) parts.push(chainType.toUpperCase());
   if (transfer) {
@@ -176,92 +178,59 @@ function buildSubtitle(chainType?: string, transfer?: Record<string, string>, me
     if (symbol) parts.push(symbol);
     if (transfer.to) parts.push(`to ${shortenAddress(transfer.to)}`);
   } else if (meta?.type === "raw_message") {
-    parts.push("message signing");
+    parts.push(t("activity.messageSigning"));
   }
   return parts.join(" \u00b7 ");
 }
 
-function describeTransaction(meta: Record<string, unknown>): string {
+function describeTransaction(meta: Record<string, unknown>, t: TFn): string {
   const chainType = meta.chainType as string | undefined;
   const transfer = meta.transfer as Record<string, string> | undefined;
   if (transfer) {
     const symbol = transfer.nativeSymbol || "tokens";
-    return `Sent ${symbol} to ${shortenAddress(transfer.to)} on ${chainType?.toUpperCase() || "unknown chain"}.`;
+    return t("activity.sentTo", { symbol, address: shortenAddress(transfer.to), chain: chainType?.toUpperCase() || "?" });
   }
-  if (meta.type === "raw_message") return "Signed a message.";
-  return "Transaction initiated.";
+  if (meta.type === "raw_message") return t("activity.signedMessage");
+  return t("activity.txInitiated");
 }
 
-function describeRejection(reason: string | undefined, meta: Record<string, unknown>): EntryDesc {
+function describeRejection(reason: string | undefined, meta: Record<string, unknown>, t: TFn): EntryDesc {
   const chainType = meta.chainType as string | undefined;
   const transfer = meta.transfer as Record<string, string> | undefined;
   const baseIcon = { icon: XIcon, iconBg: "bg-red-500/10", iconColor: "text-red-400" };
 
   switch (reason) {
     case "key_disabled":
-      return {
-        ...baseIcon,
-        title: "Blocked \u2014 account disabled",
-        subtitle: "",
-        detail: "This transaction was rejected because your account is disabled. You can re-enable it in account settings.",
-      };
+      return { ...baseIcon, title: t("activity.blockedDisabled"), subtitle: "", detail: t("activity.blockedDisabledDetail") };
     case "not_owner":
-      return {
-        ...baseIcon,
-        title: "Blocked \u2014 unauthorized",
-        subtitle: "",
-        detail: "Someone tried to sign with your key from a different account.",
-      };
+      return { ...baseIcon, title: t("activity.blockedUnauthorized"), subtitle: "", detail: t("activity.blockedUnauthorizedDetail") };
     case "sighash_mismatch":
-      return {
-        ...baseIcon,
-        title: "Blocked \u2014 invalid transaction",
-        subtitle: "",
-        detail: "The transaction data didn't match its hash. This could indicate tampering.",
-      };
+      return { ...baseIcon, title: t("activity.blockedInvalid"), subtitle: "", detail: t("activity.blockedInvalidDetail") };
     case "unsupported_asset":
-      return {
-        ...baseIcon,
-        title: "Blocked \u2014 unsupported token",
-        subtitle: "",
-        detail: "The token being transferred is not supported by this wallet.",
-      };
+      return { ...baseIcon, title: t("activity.blockedUnsupported"), subtitle: "", detail: t("activity.blockedUnsupportedDetail") };
     case "policy": {
       const fraudCheck = meta.fraudCheck as { flagged?: boolean; flags?: string[]; level?: string; address?: string } | undefined;
       if (fraudCheck?.flagged) {
         const flagLabels = (fraudCheck.flags || []).map(humanizeFlag).join(", ");
         return {
-          icon: ShieldIcon,
-          iconBg: "bg-red-500/10",
-          iconColor: "text-red-400",
-          title: "Blocked \u2014 risky address",
-          subtitle: buildSubtitle(chainType, transfer, meta),
-          detail: `The recipient address ${shortenAddress(fraudCheck.address || "")} was flagged for: ${flagLabels}. This is based on your fraud check setting (${levelLabel(fraudCheck.level)}).`,
+          icon: ShieldIcon, iconBg: "bg-red-500/10", iconColor: "text-red-400",
+          title: t("activity.blockedRisky"),
+          subtitle: buildSubtitle(chainType, transfer, meta, t),
+          detail: t("activity.blockedRiskyDetail", { address: shortenAddress(fraudCheck.address || ""), flags: flagLabels, level: levelLabel(fraudCheck.level) }),
         };
       }
-
       const priority = meta.rulePriority;
       if (priority === "default_deny") {
-        return {
-          ...baseIcon,
-          title: "Blocked \u2014 no matching rule",
-          subtitle: buildSubtitle(chainType, transfer, meta),
-          detail: "No policy rule matched this transaction. By default, unmatched transactions are blocked. You can add a rule in Policy Rules settings.",
-        };
+        return { ...baseIcon, title: t("activity.blockedNoRule"), subtitle: buildSubtitle(chainType, transfer, meta, t), detail: t("activity.blockedNoRuleDetail") };
       }
-      return {
-        ...baseIcon,
-        title: "Blocked \u2014 policy rule",
-        subtitle: buildSubtitle(chainType, transfer, meta),
-        detail: `Your policy rule #${priority} blocked this transaction. You can adjust your rules in Policy Rules settings.`,
-      };
+      return { ...baseIcon, title: t("activity.blockedPolicy"), subtitle: buildSubtitle(chainType, transfer, meta, t), detail: t("activity.blockedPolicyDetail", { priority: String(priority) }) };
     }
     default:
       return {
         ...baseIcon,
-        title: "Transaction rejected",
+        title: t("activity.txRejected"),
         subtitle: "",
-        detail: reason ? `Reason: ${reason}` : "This transaction was not approved.",
+        detail: reason ? t("activity.txRejectedReason", { reason }) : t("activity.txNotApproved"),
       };
   }
 }
@@ -297,7 +266,7 @@ function shortenAddress(addr: string): string {
 
 // ── Time formatting ─────────────────────────────────────────
 
-function formatTime(iso: string): string {
+function formatTime(iso: string, t: TFn): string {
   const d = new Date(iso);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -305,22 +274,22 @@ function formatTime(iso: string): string {
   const diffHr = Math.floor(diffMs / 3600000);
   const diffDay = Math.floor(diffMs / 86400000);
 
-  if (diffMin < 1) return "just now";
-  if (diffMin < 60) return `${diffMin}m ago`;
-  if (diffHr < 24) return `${diffHr}h ago`;
-  if (diffDay < 7) return `${diffDay}d ago`;
+  if (diffMin < 1) return t("activity.justNow");
+  if (diffMin < 60) return t("activity.minutesAgo", { count: diffMin });
+  if (diffHr < 24) return t("activity.hoursAgo", { count: diffHr });
+  if (diffDay < 7) return t("activity.daysAgo", { count: diffDay });
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-function formatDateHeader(iso: string): string {
+function formatDateHeader(iso: string, t: TFn): string {
   const d = new Date(iso);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const entryDate = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const diffDays = Math.floor((today.getTime() - entryDate.getTime()) / 86400000);
 
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
+  if (diffDays === 0) return t("activity.today");
+  if (diffDays === 1) return t("activity.yesterday");
   if (diffDays < 7) return d.toLocaleDateString(undefined, { weekday: "long" });
   return d.toLocaleDateString(undefined, { month: "long", day: "numeric", year: d.getFullYear() !== now.getFullYear() ? "numeric" : undefined });
 }
@@ -333,8 +302,9 @@ function getDateKey(iso: string): string {
 // ── Entry Row ───────────────────────────────────────────────
 
 function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccount?: boolean; expert?: boolean }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-  const desc = describeEntry(entry);
+  const desc = describeEntry(entry, t);
   const Icon = desc.icon;
 
   return (
@@ -355,7 +325,7 @@ function EntryRow({ entry, showAccount, expert }: { entry: AuditEntry; showAccou
             className="text-[10px] text-text-muted shrink-0"
             title={new Date(entry.createdAt).toLocaleString()}
           >
-            {formatTime(entry.createdAt)}
+            {formatTime(entry.createdAt, t)}
           </span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -431,7 +401,7 @@ export function ActivityLogPage() {
     if (last && last.dateKey === key) {
       last.entries.push(entry);
     } else {
-      groups.push({ dateKey: key, label: formatDateHeader(entry.createdAt), entries: [entry] });
+      groups.push({ dateKey: key, label: formatDateHeader(entry.createdAt, t), entries: [entry] });
     }
   }
 
