@@ -346,7 +346,6 @@ function DashboardLayout() {
           <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono space-y-0.5">
             <p>Client: {CLIENT_VERSION}</p>
             <p>Server: {serverVersion ?? "..."}</p>
-            <p className="pt-1">&copy; {new Date().getFullYear()} Kha Do</p>
           </div>
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">
@@ -431,6 +430,9 @@ function DashboardLayout() {
           {user?.frozenAt && <FrozenBanner user={user} onUpdate={refreshUser} />}
           <Outlet />
         </main>
+        <div className="shrink-0 px-4 md:px-8 py-1.5 text-right">
+          <span className="text-[10px] text-text-muted tabular-nums">&copy; {new Date().getFullYear()} Kha Do</span>
+        </div>
       </div>
 
       {/* WalletConnect request overlay — always mounted */}

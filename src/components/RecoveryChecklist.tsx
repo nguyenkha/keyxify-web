@@ -442,7 +442,7 @@ export function RecoveryChecklist() {
                             disabled={downloadingId === account.id}
                             className="px-3 py-2 rounded-lg text-xs font-medium bg-surface-tertiary hover:bg-border-primary text-text-secondary transition-colors disabled:opacity-50"
                           >
-                            {downloadingId === account.id ? t("recovery.exporting") : t("recovery.importKeyFile")}
+                            {downloadingId === account.id ? t("recovery.exporting") : t("recovery.downloadKeyFile")}
                           </button>
                         )}
                         {downloadError && downloadingId === null && !downloadPassphraseId && !pendingDownloadData && (

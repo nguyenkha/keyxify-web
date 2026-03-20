@@ -682,6 +682,7 @@
     "keyBackedUpOnServer": "Key đã sao lưu trên server",
     "serverKeyDownloaded": "Đã tải key từ server",
     "importKeyFile": "Nhập file key",
+    "downloadKeyFile": "Tải file key",
     "uploadKeyFileAsBackup": "Tải lên file key làm bản sao lưu",
     "downloadServerKeyBackup": "Tải bản sao lưu key từ server",
     "moreOptionsInExpertMode": "Thêm tùy chọn trong chế độ chuyên gia",

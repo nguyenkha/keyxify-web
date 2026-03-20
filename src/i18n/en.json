@@ -682,6 +682,7 @@
     "keyBackedUpOnServer": "Key backed up on server",
     "serverKeyDownloaded": "Server key downloaded",
     "importKeyFile": "Import key file",
+    "downloadKeyFile": "Download key file",
     "uploadKeyFileAsBackup": "Upload key file as backup",
     "downloadServerKeyBackup": "Download server key backup",
     "moreOptionsInExpertMode": "More options in Expert Mode",
