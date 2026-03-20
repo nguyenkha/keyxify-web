@@ -1,165 +1,80 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import type { Chain, Asset } from "../lib/api";
-import { explorerLink, hexToBytes, bytesToHex } from "../shared/utils";
+import { explorerLink, bytesToHex } from "../shared/utils";
 import { simulateEvmTransaction } from "../lib/txSimulation";
 import { useExpertMode } from "../context/ExpertModeContext";
-import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
-import { fetchPrices, formatUsd, getUsdValue } from "../lib/prices";
-import { toBase64, performMpcSign, performBatchMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
+import { SigningError, SigningStepper } from "./tx";
+import { fetchPrices, getUsdValue } from "../lib/prices";
+import { clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
-import { fetchPasskeys, sensitiveHeaders, isWithinPasskeyGrace } from "../lib/passkey";
+import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
 import { PasskeyChallenge } from "./PasskeyChallenge";
 import {
-  buildTransaction,
-  serializeForSigning,
-  hashForSigning,
-  parseDerSignature,
-  recoverV,
-  assembleSignedTx,
-  broadcastTransaction,
-  waitForReceipt,
   encodeErc20Transfer,
   parseUnits,
   estimateGas,
   getTransactionCount,
-  type UnsignedTx,
 } from "../lib/chains/evmTx";
 import { getChainAdapter } from "../lib/chains/adapter";
 import {
-  fetchUtxos,
   fetchFeeRates,
   mempoolApiUrl,
-  buildBtcTransaction,
   type UTXO,
-  bip143Sighash,
-  legacySighash,
   detectAddressType,
-  getCompressedPublicKey,
-  pubKeyHash,
-  makeP2WPKHWitness,
-  makeP2PKHScriptSig,
-  serializeWitnessTx,
-  serializeLegacyTx,
-  computeTxid,
-  computeLegacyTxid,
-  broadcastBtcTx,
-  waitForBtcConfirmation,
   estimateFee as estimateBtcFee,
-  formatBtcFee,
 } from "../lib/chains/btcTx";
 import {
-  buildSolanaTransferMessage,
-  buildSplTransferMessage,
-  assembleSolanaTransaction,
-  getLatestBlockhash,
-  broadcastSolanaTransaction,
-  waitForSolanaConfirmation,
-  checkAtaExists,
-  findAssociatedTokenAddress,
-  SOLANA_BASE_FEE,
-  formatLamports,
-} from "../lib/chains/solanaTx";
-import {
-  getAccountInfo as getXrpAccountInfo,
-  getCurrentLedgerIndex,
-  hashForSigning as xrpHashForSigning,
-  assembleSignedTx as xrpAssembleSignedTx,
-  broadcastXrpTransaction,
-  waitForXrpConfirmation,
-  XRP_BASE_FEE,
-  formatDrops,
-  type XrpPaymentParams,
-} from "../lib/chains/xrpTx";
-import {
-  fetchUtxos as fetchBchUtxos,
   fetchFeeRates as fetchBchFeeRates,
-  bchApiUrl,
-  buildBchTransaction,
-  bchSighash,
-  getCompressedPublicKey as getBchCompressedPublicKey,
-  pubKeyHash as bchPubKeyHash,
-  makeP2PKHScriptSig as makeBchP2PKHScriptSig,
-  serializeBchTx,
-  computeTxid as computeBchTxid,
-  broadcastBchTx,
-  waitForBchConfirmation,
   estimateFee as estimateBchFee,
-  formatBchFee,
 } from "../lib/chains/bchTx";
 import {
-  fetchUtxos as fetchLtcUtxos,
   fetchFeeRates as fetchLtcFeeRates,
   ltcApiUrl,
-  buildLtcTransaction,
   detectAddressType as detectLtcAddressType,
-  broadcastLtcTx,
-  waitForLtcConfirmation,
   estimateFee as estimateLtcFee,
-  formatLtcFee,
 } from "../lib/chains/ltcTx";
-import { base58 } from "@scure/base";
-import { isEncryptedKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
-import { BalancePreview, type BalanceChange } from "./BalancePreview";
-import { Scanner } from "@yudiel/react-qr-scanner";
-import { PassphraseInput } from "./PassphraseInput";
+import { isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import {
   hasKeyShare as hasStoredKeyShare,
   getKeyShareMode,
   getKeyShareWithPrf,
-  getKeyShareWithPassphrase,
 } from "../lib/keystore";
-import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
+import { useHideBalances } from "../context/HideBalancesContext";
 import { authenticatePasskey } from "../lib/passkey";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { getPreference } from "../lib/userOverrides";
-import { getAddressSuggestions, addRecentRecipient, saveAddressEntry, type AddressEntry } from "../lib/addressBook";
+import { addRecentRecipient } from "../lib/addressBook";
 import { resolveName, isResolvableName } from "../lib/nameResolution";
-
-const MAX_UTXO_INPUTS = 10;
-import {
-  strKeyToPublicKey,
-  eddsaPubKeyToXlmAddress,
-  buildXlmTransactionXdr,
-  buildXlmCreateAccountXdr,
-  checkXlmAccountExists,
-  xlmHashForSigning,
-  assembleXlmSignedTx,
-  getXlmAccountInfo,
-  broadcastXlmTransaction,
-  waitForXlmConfirmation,
-} from "../lib/chains/xlmTx";
-import {
-  buildTrxTransfer,
-  buildTrc20Transfer,
-  hashForSigning as tronHashForSigning,
-  assembleSignedTx as tronAssembleSignedTx,
-  broadcastTronTransaction,
-  waitForTronConfirmation,
-  formatSun,
-} from "../lib/chains/tronTx";
+import { checkXlmAccountExists } from "../lib/chains/xlmTx";
 import type { KeyFile, FeeLevel, SendStep, SigningPhase, TxResult, SpeedUpData } from "./sendTypes";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import {
-  FEE_LABELS,
   EVM_FEE_MULTIPLIER,
   GAS_LIMIT_NATIVE,
   GAS_LIMIT_ERC20,
-  formatGwei,
-  formatEthFee,
   isValidAmount,
   shortAddrPreview,
-  getChainId,
-  truncateBalance,
 } from "./sendTypes";
-
-function friendlyError(err: unknown, t?: (key: string) => string): string {
-  const msg = (err as { message?: string })?.message || String(err);
-  if (msg === "passkey_auth_required") return t ? t("send.passkeySessionExpired") : "Passkey session expired. Please try again.";
-  return msg;
-}
+import {
+  executeSigningFlow,
+  executeBtcSigningFlow,
+  executeBchSigningFlow,
+  executeLtcSigningFlow,
+  executeSolanaSigningFlow,
+  executeXrpSigningFlow,
+  executeXlmSigningFlow,
+  executeTronSigningFlow,
+  handleFetchUtxos,
+  type SigningContext,
+  type UtxoFetchContext,
+} from "./send/signing-flows";
+import { InputStep } from "./send/InputStep";
+import { PreviewStep } from "./send/PreviewStep";
+import { ResultStep } from "./send/ResultStep";
+import { computeFeeDisplay, computeMaxSendable } from "./send/fee-helpers";
 
 export function SendDialog({
   keyId,
@@ -534,93 +449,15 @@ export function SendDialog({
     : defaultGasLimit;
   const estimatedFeeWei = gasPrice != null ? gasPrice * gasLimit : null;
 
-  // Unified fee display: { formatted, symbol, usd, rateLabel? }
-  const feeDisplay = (() => {
-    if (chain.type === "solana") {
-      return {
-        formatted: formatLamports(SOLANA_BASE_FEE),
-        symbol: "SOL",
-        usd: getUsdValue(String(Number(SOLANA_BASE_FEE) / 1e9), "SOL", prices),
-        rateLabel: null as string | null,
-        hasLevelSelector: false,
-        isFixed: true,
-      };
-    }
-    if (chain.type === "xrp") {
-      return {
-        formatted: formatDrops(XRP_BASE_FEE),
-        symbol: "XRP",
-        usd: getUsdValue(String(Number(XRP_BASE_FEE) / 1e6), "XRP", prices),
-        rateLabel: null as string | null,
-        hasLevelSelector: false,
-        isFixed: true,
-      };
-    }
-    if (chain.type === "tron") {
-      // TRON: native transfers use bandwidth (often free), TRC-20 uses energy (~5-30 TRX)
-      const estFee = asset.isNative ? 0n : 15_000_000n; // ~15 TRX for TRC-20, 0 for native
-      return {
-        formatted: formatSun(estFee),
-        symbol: "TRX",
-        usd: getUsdValue(String(Number(estFee) / 1e6), "TRX", prices),
-        rateLabel: asset.isNative ? "Bandwidth (usually free)" : "~15 TRX energy fee",
-        hasLevelSelector: false,
-        isFixed: true,
-      };
-    }
-    if (chain.type === "xlm") {
-      const xlmFeeRate = xlmFeeRates?.[feeLevel] ?? null;
-      const feeXlm = xlmFeeRate != null ? (xlmFeeRate / 1e7).toFixed(7).replace(/\.?0+$/, "") : null;
-      return {
-        formatted: feeXlm,
-        symbol: "XLM",
-        usd: feeXlm != null ? getUsdValue(feeXlm, "XLM", prices) : null,
-        rateLabel: xlmFeeRate != null ? `${xlmFeeRate} stroops` : null,
-        hasLevelSelector: false,
-        isFixed: false,
-      };
-    }
-    if (chain.type === "ltc") {
-      return {
-        formatted: ltcEstimatedFee != null ? formatLtcFee(ltcEstimatedFee) : null,
-        symbol: "LTC",
-        usd: ltcEstimatedFee != null ? getUsdValue(String(Number(ltcEstimatedFee) / 1e8), "LTC", prices) : null,
-        rateLabel: ltcFeeRate != null ? `${ltcFeeRate} sat/vB` : null,
-        hasLevelSelector: true,
-        isFixed: false,
-      };
-    }
-    if (chain.type === "bch") {
-      return {
-        formatted: bchEstimatedFee != null ? formatBchFee(bchEstimatedFee) : null,
-        symbol: "BCH",
-        usd: bchEstimatedFee != null ? getUsdValue(String(Number(bchEstimatedFee) / 1e8), "BCH", prices) : null,
-        rateLabel: bchFeeRate != null ? `${bchFeeRate} sat/B` : null,
-        hasLevelSelector: false,
-        isFixed: true,
-      };
-    }
-    if (chain.type === "btc") {
-      return {
-        formatted: btcEstimatedFee != null ? formatBtcFee(btcEstimatedFee) : null,
-        symbol: "BTC",
-        usd: btcEstimatedFee != null ? getUsdValue(String(Number(btcEstimatedFee) / 1e8), "BTC", prices) : null,
-        rateLabel: btcFeeRate != null ? `${btcFeeRate} sat/vB` : null,
-        hasLevelSelector: true,
-        isFixed: false,
-      };
-    }
-    // evm
-    const feeEth = estimatedFeeWei != null ? formatEthFee(estimatedFeeWei) : null;
-    return {
-      formatted: feeEth,
-      symbol: "ETH",
-      usd: estimatedFeeWei != null ? getUsdValue(String(Number(estimatedFeeWei) / 1e18), "ETH", prices) : null,
-      rateLabel: gasPrice != null ? `${formatGwei(gasPrice)} Gwei` : null,
-      hasLevelSelector: true,
-      isFixed: false,
-    };
-  })();
+  // Unified fee display
+  const feeDisplay = computeFeeDisplay({
+    chain, asset, feeLevel, prices,
+    estimatedFeeWei, gasPrice,
+    btcEstimatedFee, btcFeeRate,
+    ltcEstimatedFee, ltcFeeRate,
+    bchEstimatedFee, bchFeeRate,
+    xlmFeeRates,
+  });
 
   // Validation — use resolved address if name was resolved, otherwise raw input
   const adapter = getChainAdapter(chain.type);
@@ -636,38 +473,14 @@ export function SendDialog({
   const destTagValid = chain.type !== "xrp" || destinationTag === "" || (/^\d+$/.test(destinationTag) && Number(destinationTag) <= 4294967295);
   const canReview = toValid && !toSelf && amountCheck.valid && keyFile != null && destTagValid;
 
-  // Max sendable: for native tokens, subtract estimated fee from balance (using BigInt for precision)
-  const maxSendable = (() => {
-    if (!asset.isNative) return balance;
-    let feeBaseUnits: bigint | null = null;
-    if (chain.type === "evm" && estimatedFeeWei != null) {
-      feeBaseUnits = estimatedFeeWei;
-    } else if (chain.type === "solana") {
-      feeBaseUnits = SOLANA_BASE_FEE;
-    } else if (chain.type === "xrp") {
-      feeBaseUnits = XRP_BASE_FEE;
-    } else if (chain.type === "tron") {
-      feeBaseUnits = 0n; // native TRX transfers usually free (bandwidth)
-    } else if (chain.type === "btc" && btcEstimatedFee != null) {
-      feeBaseUnits = BigInt(btcEstimatedFee);
-    } else if (chain.type === "ltc" && ltcEstimatedFee != null) {
-      feeBaseUnits = BigInt(ltcEstimatedFee);
-    } else if (chain.type === "xlm" && xlmFeeRates != null) {
-      feeBaseUnits = BigInt(xlmFeeRates[feeLevel]);
-    }
-    if (feeBaseUnits == null) return balance;
-    // Convert human balance to base units via BigInt (strip thousands separators first)
-    const [intPart, fracPart = ""] = balance.replace(/,/g, "").split(".");
-    const padded = fracPart.padEnd(asset.decimals, "0").slice(0, asset.decimals);
-    const balanceBase = BigInt(intPart + padded);
-    const net = balanceBase - feeBaseUnits;
-    if (net <= 0n) return "0";
-    // Convert back to human-readable
-    const netStr = net.toString().padStart(asset.decimals + 1, "0");
-    const netInt = netStr.slice(0, netStr.length - asset.decimals) || "0";
-    const netFrac = netStr.slice(netStr.length - asset.decimals).replace(/0+$/, "");
-    return netFrac ? `${netInt}.${netFrac}` : netInt;
-  })();
+  // Max sendable: for native tokens, subtract estimated fee from balance
+  const maxSendable = computeMaxSendable({
+    chain, asset, balance, feeLevel,
+    estimatedFeeWei,
+    btcEstimatedFee,
+    ltcEstimatedFee,
+    xlmFeeRates,
+  });
 
   const ADDR_PLACEHOLDER: Record<string, string> = { btc: "bc1q...", ltc: "ltc1q...", bch: "bitcoincash:q...", solana: "So1ana...", evm: "0x" + "0".repeat(40), xrp: "r...", tron: "T..." };
   const placeholder = ADDR_PLACEHOLDER[chain.type] ?? "Address";
@@ -699,900 +512,44 @@ export function SendDialog({
     reader.readAsText(file);
   }
 
-  // ── Full signing flow (EVM) ───────────────────────────────────
-  async function executeSigningFlow() {
-    if (!keyFile || !chain.rpcUrl) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    try {
-      // Restore key handles if not in memory
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Build unsigned transaction
-      const chainId = await getChainId(chain.rpcUrl);
-      const amountWei = parseUnits(amount, asset.decimals);
-
-      let unsignedTx: UnsignedTx;
-      if (asset.isNative) {
-        unsignedTx = await buildTransaction({
-          rpcUrl: chain.rpcUrl, from: address, to, value: amountWei,
-          gasLimit: gasLimit, chainId, gasPrice: gasPrice ?? undefined,
-        });
-      } else {
-        const calldata = encodeErc20Transfer(to, amountWei);
-        unsignedTx = await buildTransaction({
-          rpcUrl: chain.rpcUrl, from: address, to: asset.contractAddress!,
-          value: 0n, data: calldata, gasLimit: gasLimit, chainId,
-          gasPrice: gasPrice ?? undefined,
-        });
-      }
-
-      // 2. MPC signing
-      setSigningPhase("mpc-signing");
-      const sighash = hashForSigning(unsignedTx);
-      const serializedTx = serializeForSigning(unsignedTx);
-
-
-      const { signature: sigRaw, sessionId } = await performMpcSign({
-        algorithm: "ecdsa",
-        keyId: keyFile.id,
-        hash: sighash,
-        initPayload: { id: keyFile.id, unsignedTx: toBase64(serializedTx), from: address },
-        headers: sensitiveHeaders(),
-      });
-
-      // 3. Parse DER signature, determine recovery param, assemble signed tx
-      const { r, s } = parseDerSignature(sigRaw);
-      const pubKeyRaw = hexToBytes(keyFile.publicKey);
-      const recoveryBit = recoverV(sighash, r, s, pubKeyRaw);
-      const signedTx = assembleSignedTx(unsignedTx, r, s, recoveryBit);
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(signedTx.rawTransaction);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 4. Broadcast
-      setSigningPhase("broadcasting");
-      const txHash = await broadcastTransaction(chain.rpcUrl, signedTx.rawTransaction);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, sessionId, txHash, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(txHash, to, amount);
-
-      // 5. Poll for receipt
-      setPendingTxHash(txHash);
-      setSigningPhase("polling");
-      const receipt = await waitForReceipt(chain.rpcUrl, txHash, () => {}, 60, 3000);
-
-      setTxResult({ status: receipt.status, txHash, blockNumber: receipt.blockNumber });
-      if (receipt.status === "success") onTxConfirmed?.(txHash);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
+  // Build signing context for delegating to signing-flows module
+  function buildSigningCtx(): SigningContext {
+    return {
+      keyFile: keyFile!,
+      chain,
+      asset,
+      address,
+      to: effectiveTo,
+      amount,
+      onTxSubmitted,
+      onTxConfirmed,
+      gasPrice,
+      gasLimit,
+      confirmBeforeBroadcast,
+      rbfEnabled,
+      btcFeeRate,
+      bchFeeRate,
+      ltcFeeRate,
+      manualUtxos,
+      destinationTag,
+      xlmMemo,
+      xlmFeeRates,
+      feeLevel,
+      setStep,
+      setSigningPhase,
+      setSignatureCount,
+      setSigningError,
+      setSignedRawTx,
+      setTxResult,
+      setPendingTxHash,
+      setKeyFile,
+      setPendingEncrypted,
+      t,
+    };
   }
 
-  // ── UTXO fetch for manual selection ─────────────────────────────
-  async function handleFetchUtxos() {
-    setUtxoLoading(true);
-    try {
-      let utxos: UTXO[];
-      if (chain.type === "btc") utxos = await fetchUtxos(address, mempoolApiUrl(chain.explorerUrl));
-      else if (chain.type === "bch") utxos = await fetchBchUtxos(address, bchApiUrl());
-      else utxos = await fetchLtcUtxos(address, ltcApiUrl(chain.explorerUrl));
-      setAvailableUtxos(utxos);
-    } catch {
-      setAvailableUtxos([]);
-    } finally {
-      setUtxoLoading(false);
-    }
-  }
-
-  // ── BTC signing flow ──────────────────────────────────────────
-  async function executeBtcSigningFlow() {
-    if (!keyFile || !btcFeeRate) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    const btcApi = mempoolApiUrl(chain.explorerUrl);
-    try {
-      // Restore key handles if not in memory
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Fetch UTXOs and build transaction
-      const utxos = manualUtxos ?? await fetchUtxos(address, btcApi);
-      const amountSats = parseUnits(amount, asset.decimals);
-      const addrType = detectAddressType(address);
-      const btcTx = buildBtcTransaction(to, amountSats, utxos, btcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
-      if (!isRecoveryMode() && btcTx.inputs.length > MAX_UTXO_INPUTS) {
-        throw new Error(`Too many inputs (${btcTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
-      }
-      // 2. Get compressed public key and hash
-      setSigningPhase("mpc-signing");
-      const pubKeyRaw = hexToBytes(keyFile.publicKey);
-      const compressedPubKey = getCompressedPublicKey(
-        Array.from(pubKeyRaw).map((b) => b.toString(16).padStart(2, "0")).join("")
-      );
-      const pkHash = pubKeyHash(compressedPubKey);
-      const isLegacy = addrType === "p2pkh";
-
-      // BTC tx payload for server-side verification
-      const btcTxPayload = {
-        version: btcTx.version,
-        inputs: btcTx.inputs.map((inp) => ({
-          txid: inp.txid, vout: inp.vout, value: inp.value.toString(), sequence: inp.sequence,
-        })),
-        outputs: btcTx.outputs.map((out) => ({
-          value: out.value.toString(), scriptPubKey: bytesToHex(out.scriptPubKey),
-        })),
-        locktime: btcTx.locktime,
-      };
-
-      // 3. Compute all sighashes and batch-sign via single MPC session
-      const witnesses: Uint8Array[][] = [];
-      const scriptSigs: Uint8Array[] = [];
-
-      const sighashes = btcTx.inputs.map((_, i) =>
-        isLegacy ? legacySighash(btcTx, i, pkHash) : bip143Sighash(btcTx, i, pkHash)
-      );
-      setSignatureCount(sighashes.length);
-
-      const { signatures: allSigs } = await performBatchMpcSign({
-        keyId: keyFile.id,
-        hashes: sighashes,
-        initPayload: {
-          id: keyFile.id, chainType: "btc", btcTx: btcTxPayload,
-          pubKeyHash: toBase64(pkHash), from: address,
-        },
-        headers: sensitiveHeaders(),
-      });
-
-      for (let i = 0; i < allSigs.length; i++) {
-        const { r: sigR, s: sigS } = parseDerSignature(allSigs[i]);
-        if (isLegacy) {
-          scriptSigs.push(makeP2PKHScriptSig(sigR, sigS, compressedPubKey));
-        } else {
-          witnesses.push(makeP2WPKHWitness(sigR, sigS, compressedPubKey));
-        }
-      }
-
-      // 4. Assemble and serialize
-      let rawHex: string;
-      let txid: string;
-      if (isLegacy) {
-        rawHex = bytesToHex(serializeLegacyTx(btcTx, scriptSigs));
-        txid = computeLegacyTxid(btcTx, scriptSigs);
-      } else {
-        rawHex = bytesToHex(serializeWitnessTx(btcTx, witnesses));
-        txid = computeTxid(btcTx);
-      }
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(rawHex);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 5. Broadcast
-      setSigningPhase("broadcasting");
-      const broadcastTxid = await broadcastBtcTx(rawHex, btcApi);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, txHash: broadcastTxid || txid, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(broadcastTxid || txid, to, amount);
-
-      // 6. Wait for confirmation
-      setPendingTxHash(broadcastTxid || txid);
-      setSigningPhase("polling");
-      const result = await waitForBtcConfirmation(broadcastTxid || txid, () => {}, 60, 5000, btcApi);
-
-      setTxResult({
-        status: result.confirmed ? "success" : "pending",
-        txHash: broadcastTxid || txid,
-        blockNumber: result.blockHeight,
-      });
-      if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] BTC Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
-  }
-
-  // ── BCH signing flow ──────────────────────────────────────
-  async function executeBchSigningFlow() {
-    if (!keyFile || !bchFeeRate) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    const api = bchApiUrl();
-    try {
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Fetch UTXOs and build transaction
-      const utxos = manualUtxos ?? await fetchBchUtxos(address, api);
-      const amountSats = parseUnits(amount, asset.decimals);
-      const bchTx = buildBchTransaction(to, amountSats, utxos, bchFeeRate, address, manualUtxos != null);
-      if (!isRecoveryMode() && bchTx.inputs.length > MAX_UTXO_INPUTS) {
-        throw new Error(`Too many inputs (${bchTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
-      }
-
-      // 2. Get compressed public key and hash
-      setSigningPhase("mpc-signing");
-      const pubKeyRaw = hexToBytes(keyFile.publicKey);
-      const compressedPubKey = getBchCompressedPublicKey(
-        Array.from(pubKeyRaw).map((b) => b.toString(16).padStart(2, "0")).join("")
-      );
-      const pkHash = bchPubKeyHash(compressedPubKey);
-
-      // BCH tx payload for server-side verification
-      const bchTxPayload = {
-        version: bchTx.version,
-        inputs: bchTx.inputs.map((inp) => ({
-          txid: inp.txid, vout: inp.vout, value: inp.value.toString(), sequence: inp.sequence,
-        })),
-        outputs: bchTx.outputs.map((out) => ({
-          value: out.value.toString(), scriptPubKey: bytesToHex(out.scriptPubKey),
-        })),
-        locktime: bchTx.locktime,
-      };
-
-      // 3. Compute all sighashes and batch-sign via single MPC session (BCH uses SIGHASH_FORKID)
-      const scriptSigs: Uint8Array[] = [];
-
-      const sighashes = bchTx.inputs.map((_, i) => bchSighash(bchTx, i, pkHash));
-      setSignatureCount(sighashes.length);
-
-      const { signatures: allSigs } = await performBatchMpcSign({
-        keyId: keyFile.id,
-        hashes: sighashes,
-        initPayload: {
-          id: keyFile.id, chainType: "bch", bchTx: bchTxPayload,
-          pubKeyHash: toBase64(pkHash), from: address,
-        },
-        headers: sensitiveHeaders(),
-      });
-
-      for (let i = 0; i < allSigs.length; i++) {
-        const { r: sigR, s: sigS } = parseDerSignature(allSigs[i]);
-        scriptSigs.push(makeBchP2PKHScriptSig(sigR, sigS, compressedPubKey));
-      }
-
-      // 4. Assemble and serialize
-      const rawHex = bytesToHex(serializeBchTx(bchTx, scriptSigs));
-      const txid = computeBchTxid(bchTx, scriptSigs);
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(rawHex);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 5. Broadcast
-      setSigningPhase("broadcasting");
-      const broadcastTxid = await broadcastBchTx(rawHex, api);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, txHash: broadcastTxid || txid, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(broadcastTxid || txid, to, amount);
-
-      // 6. Wait for confirmation
-      setPendingTxHash(broadcastTxid || txid);
-      setSigningPhase("polling");
-      const result = await waitForBchConfirmation(broadcastTxid || txid, () => {}, 60, 5000, api);
-
-      setTxResult({
-        status: result.confirmed ? "success" : "pending",
-        txHash: broadcastTxid || txid,
-        blockNumber: result.blockHeight,
-      });
-      if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] BCH Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
-  }
-
-  // ── LTC signing flow ──────────────────────────────────────────
-  async function executeLtcSigningFlow() {
-    if (!keyFile || !ltcFeeRate) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    const ltcApi = ltcApiUrl(chain.explorerUrl);
-    try {
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Fetch UTXOs and build transaction
-      const utxos = manualUtxos ?? await fetchLtcUtxos(address, ltcApi);
-      const amountSats = parseUnits(amount, asset.decimals);
-      const addrType = detectLtcAddressType(address);
-      const ltcTx = buildLtcTransaction(to, amountSats, utxos, ltcFeeRate, address, addrType, rbfEnabled, manualUtxos != null);
-      if (!isRecoveryMode() && ltcTx.inputs.length > MAX_UTXO_INPUTS) {
-        throw new Error(`Too many inputs (${ltcTx.inputs.length}). Maximum ${MAX_UTXO_INPUTS} UTXOs per transaction.`);
-      }
-
-      // 2. Get compressed public key and hash
-      setSigningPhase("mpc-signing");
-      const pubKeyRaw = hexToBytes(keyFile.publicKey);
-      const compressedPubKey = getCompressedPublicKey(
-        Array.from(pubKeyRaw).map((b) => b.toString(16).padStart(2, "0")).join("")
-      );
-      const pkHash = pubKeyHash(compressedPubKey);
-      const isLegacy = addrType === "p2pkh";
-
-      // LTC tx payload for server-side verification
-      const ltcTxPayload = {
-        version: ltcTx.version,
-        inputs: ltcTx.inputs.map((inp) => ({
-          txid: inp.txid, vout: inp.vout, value: inp.value.toString(), sequence: inp.sequence,
-        })),
-        outputs: ltcTx.outputs.map((out) => ({
-          value: out.value.toString(), scriptPubKey: bytesToHex(out.scriptPubKey),
-        })),
-        locktime: ltcTx.locktime,
-      };
-
-      // 3. Compute all sighashes and batch-sign via single MPC session
-      const witnesses: Uint8Array[][] = [];
-      const scriptSigs: Uint8Array[] = [];
-
-      const sighashes = ltcTx.inputs.map((_, i) =>
-        isLegacy ? legacySighash(ltcTx, i, pkHash) : bip143Sighash(ltcTx, i, pkHash)
-      );
-      setSignatureCount(sighashes.length);
-
-      const { signatures: allSigs } = await performBatchMpcSign({
-        keyId: keyFile.id,
-        hashes: sighashes,
-        initPayload: {
-          id: keyFile.id, chainType: "ltc", ltcTx: ltcTxPayload,
-          pubKeyHash: toBase64(pkHash), from: address,
-        },
-        headers: sensitiveHeaders(),
-      });
-
-      for (let i = 0; i < allSigs.length; i++) {
-        const { r: sigR, s: sigS } = parseDerSignature(allSigs[i]);
-        if (isLegacy) {
-          scriptSigs.push(makeP2PKHScriptSig(sigR, sigS, compressedPubKey));
-        } else {
-          witnesses.push(makeP2WPKHWitness(sigR, sigS, compressedPubKey));
-        }
-      }
-
-      // 4. Assemble and serialize
-      let rawHex: string;
-      let txid: string;
-      if (isLegacy) {
-        rawHex = bytesToHex(serializeLegacyTx(ltcTx, scriptSigs));
-        txid = computeLegacyTxid(ltcTx, scriptSigs);
-      } else {
-        rawHex = bytesToHex(serializeWitnessTx(ltcTx, witnesses));
-        txid = computeTxid(ltcTx);
-      }
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(rawHex);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 5. Broadcast
-      setSigningPhase("broadcasting");
-      const broadcastTxid = await broadcastLtcTx(rawHex, ltcApi);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, txHash: broadcastTxid || txid, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(broadcastTxid || txid, to, amount);
-
-      // 6. Wait for confirmation
-      setPendingTxHash(broadcastTxid || txid);
-      setSigningPhase("polling");
-      const result = await waitForLtcConfirmation(broadcastTxid || txid, () => {}, 60, 5000, ltcApi);
-
-      setTxResult({
-        status: result.confirmed ? "success" : "pending",
-        txHash: broadcastTxid || txid,
-        blockNumber: result.blockHeight,
-      });
-      if (result.confirmed) onTxConfirmed?.(broadcastTxid || txid);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] LTC Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
-  }
-
-  // ── Solana signing flow ──────────────────────────────────────
-  async function executeSolanaSigningFlow() {
-    if (!keyFile || !chain.rpcUrl) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    try {
-      // Restore key handles if not in memory
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Build unsigned transaction message
-      const fromPubKey = base58.decode(address);
-      const toPubKey = base58.decode(to);
-      const tokenAmount = parseUnits(amount, asset.decimals);
-      const recentBlockhash = await getLatestBlockhash(chain.rpcUrl);
-
-      let message: Uint8Array;
-      if (!asset.isNative && asset.contractAddress) {
-        const mint = base58.decode(asset.contractAddress);
-        const destAta = findAssociatedTokenAddress(toPubKey, mint);
-        const needsCreateAta = !(await checkAtaExists(chain.rpcUrl, base58.encode(destAta)));
-message = buildSplTransferMessage({
-          from: fromPubKey, to: toPubKey, mint, amount: tokenAmount,
-          decimals: asset.decimals, recentBlockhash, createAta: needsCreateAta,
-        });
-      } else {
-        message = buildSolanaTransferMessage({ from: fromPubKey, to: toPubKey, lamports: tokenAmount, recentBlockhash });
-      }
-
-      // 2. MPC EdDSA signing
-      setSigningPhase("mpc-signing");
-
-
-      const { signature: sigRaw, sessionId } = await performMpcSign({
-        algorithm: "eddsa",
-        keyId: keyFile.id,
-        hash: message,
-        initPayload: { id: keyFile.id, algorithm: "eddsa", from: address, chainType: "solana", unsignedTx: toBase64(message) },
-        headers: sensitiveHeaders(),
-      });
-
-      // 3. Assemble signed transaction
-      const signedTxBase58 = assembleSolanaTransaction(message, sigRaw);
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(signedTxBase58);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 4. Broadcast
-      setSigningPhase("broadcasting");
-      const txSig = await broadcastSolanaTransaction(chain.rpcUrl, signedTxBase58);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, sessionId, txHash: txSig, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(txSig, to, amount);
-
-      // 5. Poll for confirmation
-      setPendingTxHash(txSig);
-      setSigningPhase("polling");
-      const result = await waitForSolanaConfirmation(chain.rpcUrl, txSig, () => {}, 60, 2000);
-
-      setTxResult({
-        status: result.confirmed ? "success" : "pending",
-        txHash: txSig,
-        blockNumber: result.slot,
-      });
-      if (result.confirmed) onTxConfirmed?.(txSig);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] Solana Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
-  }
-
-  // ── XRP signing flow ────────────────────────────────────────────
-  async function executeXrpSigningFlow() {
-    if (!keyFile || !chain.rpcUrl) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    try {
-      // Restore key handles if not in memory
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Build payment params
-      const acctInfo = await getXrpAccountInfo(chain.rpcUrl, address);
-      const ledgerIndex = await getCurrentLedgerIndex(chain.rpcUrl);
-      const amountDrops = BigInt(Math.round(parseFloat(amount.replace(/,/g, "")) * 1e6));
-
-      const pubKeyRaw = hexToBytes(keyFile.publicKey);
-      const compressed = getCompressedPublicKey(
-        Array.from(pubKeyRaw).map((b) => b.toString(16).padStart(2, "0")).join("")
-      );
-
-      const params: XrpPaymentParams = {
-        from: address,
-        to,
-        amountDrops,
-        fee: XRP_BASE_FEE,
-        sequence: acctInfo.sequence,
-        lastLedgerSequence: ledgerIndex + 20,
-        destinationTag: destinationTag ? Number(destinationTag) : undefined,
-        signingPubKey: compressed,
-      };
-
-      // 2. MPC signing
-      setSigningPhase("mpc-signing");
-
-      const sighash = xrpHashForSigning(params);
-
-      const { signature: sigRaw, sessionId } = await performMpcSign({
-        algorithm: "ecdsa",
-        keyId: keyFile.id,
-        hash: sighash,
-        initPayload: {
-          id: keyFile.id,
-          chainType: "xrp",
-          xrpTx: {
-            from: address,
-            to,
-            amountDrops: amountDrops.toString(),
-            fee: XRP_BASE_FEE.toString(),
-            sequence: params.sequence,
-            lastLedgerSequence: params.lastLedgerSequence,
-            destinationTag: params.destinationTag,
-            signingPubKey: bytesToHex(compressed),
-          },
-          from: address,
-        },
-        headers: sensitiveHeaders(),
-      });
-
-      // 3. Parse DER signature (low-S normalized) and re-encode for XRP
-      const { r, s } = parseDerSignature(sigRaw);
-      const rHex = r.toString(16).padStart(64, "0");
-      const sHex = s.toString(16).padStart(64, "0");
-      const rBytes = hexToBytes(rHex);
-      const sBytes = hexToBytes(sHex);
-      // DER encode: 30 <len> 02 <rlen> <r> 02 <slen> <s>
-      const rDer = rBytes[0] >= 0x80 ? new Uint8Array([0, ...rBytes]) : rBytes;
-      const sDer = sBytes[0] >= 0x80 ? new Uint8Array([0, ...sBytes]) : sBytes;
-      const derLen = 2 + rDer.length + 2 + sDer.length;
-      const sigDer = new Uint8Array(2 + derLen);
-      sigDer[0] = 0x30; sigDer[1] = derLen;
-      sigDer[2] = 0x02; sigDer[3] = rDer.length; sigDer.set(rDer, 4);
-      sigDer[4 + rDer.length] = 0x02; sigDer[5 + rDer.length] = sDer.length; sigDer.set(sDer, 6 + rDer.length);
-      const signedTxHex = xrpAssembleSignedTx(params, sigDer);
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(signedTxHex);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 4. Broadcast
-      setSigningPhase("broadcasting");
-      const txHash = await broadcastXrpTransaction(chain.rpcUrl, signedTxHex);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, sessionId, txHash, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(txHash, to, amount);
-
-      // 5. Wait for confirmation
-      setPendingTxHash(txHash);
-      setSigningPhase("polling");
-      const result = await waitForXrpConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
-
-      setTxResult({
-        status: result.confirmed ? "success" : "pending",
-        txHash,
-        blockNumber: result.ledgerIndex,
-      });
-      if (result.confirmed) onTxConfirmed?.(txHash);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] XRP Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
-  }
-
-  // ── XLM signing flow ────────────────────────────────────────────
-  async function executeXlmSigningFlow() {
-    if (!keyFile || !chain.rpcUrl) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    try {
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Derive the correct source address from keyFile.eddsaPublicKey.
-      // cb-mpc's ecKey2pInfo() returns different publicKey values for party 0 (client)
-      // vs party 1 (server). The signature verifies against party 0's key (client).
-      // The server DB stores party 1's key (wrong for address derivation).
-      // So we always derive fromAddress from keyFile.eddsaPublicKey here.
-      const fromAddress = eddsaPubKeyToXlmAddress(keyFile.eddsaPublicKey);
-      const fromPubKey = strKeyToPublicKey(fromAddress);
-
-      const { sequence } = await getXlmAccountInfo(chain.rpcUrl, fromAddress);
-      const feeStroops = xlmFeeRates?.[feeLevel] ?? 100;
-      const amountStroops = BigInt(Math.round(parseFloat(amount.replace(/,/g, "")) * 1e7));
-      const isTestnet = chain.rpcUrl.includes("testnet");
-
-      // 2. Check if destination exists; use CREATE_ACCOUNT for new native XLM accounts
-      const destExists = await checkXlmAccountExists(chain.rpcUrl, to);
-      if (!destExists && !asset.isNative) {
-        throw new Error("Destination account is not activated. Send XLM first to activate it.");
-      }
-
-      const txXdr = destExists
-        ? buildXlmTransactionXdr({
-            from: fromAddress, to, amountStroops, feeStroops,
-            sequence: sequence + 1n,
-            asset: asset.isNative ? undefined : { code: asset.symbol, issuer: asset.contractAddress! },
-            memo: xlmMemo || undefined,
-          })
-        : buildXlmCreateAccountXdr({
-            from: fromAddress, to, amountStroops, feeStroops,
-            sequence: sequence + 1n,
-            memo: xlmMemo || undefined,
-          });
-
-      // 3. MPC EdDSA sign
-      setSigningPhase("mpc-signing");
-
-      const signingHash = await xlmHashForSigning(txXdr, isTestnet);
-
-      const { signature: sigRaw, sessionId } = await performMpcSign({
-        algorithm: "eddsa",
-        keyId: keyFile.id,
-        hash: signingHash,
-        initPayload: {
-          id: keyFile.id,
-          algorithm: "eddsa",
-          from: fromAddress,
-          chainType: "xlm",
-          unsignedTx: toBase64(txXdr),
-          // Send client-computed eddsaPublicKey so the server can correct its DB
-          eddsaPublicKey: keyFile.eddsaPublicKey,
-          xlmTx: {
-            to,
-            amount: amount,
-            asset: asset.isNative ? "XLM" : asset.symbol,
-            ...(xlmMemo ? { memo: xlmMemo } : {}),
-          },
-        },
-        headers: sensitiveHeaders(),
-      });
-
-      // 4. Assemble signed envelope
-      const txBase64 = assembleXlmSignedTx(txXdr, fromPubKey, sigRaw);
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(txBase64);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 5. Broadcast
-      setSigningPhase("broadcasting");
-      const txHash = await broadcastXlmTransaction(chain.rpcUrl, txBase64);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, sessionId, txHash, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(txHash, to, amount);
-
-      // 6. Poll for confirmation
-      setPendingTxHash(txHash);
-      setSigningPhase("polling");
-      const result = await waitForXlmConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
-
-      setTxResult({
-        status: result.confirmed ? "success" : "pending",
-        txHash,
-        blockNumber: result.ledger,
-      });
-      if (result.confirmed) onTxConfirmed?.(txHash);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] XLM Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
-  }
-
-  // ── TRON signing flow ──────────────────────────────────────
-  async function executeTronSigningFlow() {
-    if (!keyFile || !chain.rpcUrl) return;
-
-    setStep("signing");
-    setSigningPhase("building-tx");
-    setSignatureCount(1);
-    setSigningError(null);
-
-    try {
-      if (!clientKeys.has(keyFile.id)) {
-        await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
-      }
-
-      // 1. Build transaction via TronGrid API
-      const amountSun = BigInt(Math.round(parseFloat(amount.replace(/,/g, "")) * 1e6));
-      let tronTx;
-      if (asset.isNative) {
-        tronTx = await buildTrxTransfer(chain.rpcUrl, address, to, amountSun);
-      } else {
-        tronTx = await buildTrc20Transfer(chain.rpcUrl, address, to, asset.contractAddress!, amountSun);
-      }
-
-      // 2. MPC signing
-      setSigningPhase("mpc-signing");
-
-      const sighash = tronHashForSigning(tronTx);
-
-      const { signature: sigRaw, sessionId } = await performMpcSign({
-        algorithm: "ecdsa",
-        keyId: keyFile.id,
-        hash: sighash,
-        initPayload: {
-          id: keyFile.id,
-          chainType: "tron",
-          tronTx: {
-            from: address,
-            to,
-            amountSun: amountSun.toString(),
-            rawDataHex: tronTx.raw_data_hex,
-            contractAddress: asset.contractAddress || undefined,
-            nativeSymbol: asset.isNative ? "TRX" : undefined,
-          },
-          from: address,
-        },
-        headers: sensitiveHeaders(),
-      });
-
-      // 3. Parse DER signature and assemble 65-byte TRON signature (r || s || v)
-      const { r, s } = parseDerSignature(sigRaw);
-      const pubKeyRaw = hexToBytes(keyFile.publicKey);
-      const recoveryBit = recoverV(sighash, r, s, pubKeyRaw);
-      const { signedTxJson, txId } = tronAssembleSignedTx(tronTx, r, s, recoveryBit);
-
-      if (confirmBeforeBroadcast) {
-        setSignedRawTx(signedTxJson);
-        setTxResult({ status: "success", txHash: "sign-only" });
-        setKeyFile(null); setPendingEncrypted(null);
-        setStep("result");
-        return;
-      }
-
-      // 4. Broadcast
-      setSigningPhase("broadcasting");
-      const txHash = await broadcastTronTransaction(chain.rpcUrl, signedTxJson);
-
-      fetch(apiUrl("/api/sign/broadcast"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeaders() },
-        body: JSON.stringify({ keyShareId: keyFile.id, sessionId, txHash: txHash || txId, chainId: chain.id }),
-      }).catch(() => {});
-
-      onTxSubmitted?.(txHash || txId, to, amount);
-
-      // 5. Wait for confirmation
-      setPendingTxHash(txHash || txId);
-      setSigningPhase("polling");
-      const result = await waitForTronConfirmation(chain.rpcUrl, txHash || txId, () => {}, 30, 3000);
-
-      setTxResult({
-        status: result.confirmed ? "success" : "pending",
-        txHash: txHash || txId,
-        blockNumber: result.blockNumber,
-      });
-      if (result.confirmed) onTxConfirmed?.(txHash || txId);
-      setKeyFile(null); setPendingEncrypted(null);
-      setStep("result");
-
-    } catch (err: unknown) {
-      console.error("[send] TRON Error:", err);
-      setSigningError(friendlyError(err, t));
-    } finally {
-      clearClientKey(keyFile.id);
-    }
+  function buildUtxoFetchCtx(): UtxoFetchContext {
+    return { chain, address, setAvailableUtxos, setUtxoLoading };
   }
 
   // Map internal phases to 4 display steps: Build (0) → Sign (1) → Broadcast (2) → Confirming (3)
@@ -1691,917 +648,197 @@ message = buildSplTransferMessage({
         </div>
 
         {step === "input" && (
-          <>
-            {/* Body — Input step */}
-            <div className="px-5 pt-3 pb-5 space-y-4">
-              {/* Key share file */}
-              <div>
-                <label className="block text-xs text-text-muted mb-1.5">{t("send.keyShare")}</label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".json"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                {keyFile ? (
-                  <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-3.5 h-3.5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                      </svg>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-text-secondary truncate">
-                        {keyFile.id.slice(0, 8)}...{keyFile.id.slice(-4)}
-                      </p>
-                      <p className="text-[10px] text-text-muted font-mono truncate">{keyFile.publicKey.slice(0, 24)}...</p>
-                    </div>
-                    <button
-                      onClick={() => !recovery && setKeyFile(null)}
-                      disabled={recovery}
-                      className={`p-1 rounded-md transition-colors ${recovery ? "opacity-40 cursor-not-allowed" : "hover:bg-surface-tertiary"}`}
-                      title={recovery ? t("send.keyLoaded") : t("send.changeKey")}
-                    >
-                      <svg className="w-4 h-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                      </svg>
-                    </button>
-                  </div>
-                ) : browserShareMode && !showBrowserPassphrase ? (
-                  <div className="space-y-2">
-                    <button
-                      onClick={loadBrowserShare}
-                      disabled={browserShareLoading}
-                      className="w-full bg-surface-primary border border-blue-500/30 rounded-lg px-3 py-2.5 flex items-center gap-2.5 hover:border-blue-500/50 transition-colors text-left disabled:opacity-50 animate-pulse"
-                    >
-                      <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 17.25v1.007a3 3 0 01-.879 2.122L7.5 21h9l-.621-.621A3 3 0 0115 18.257V17.25m6-12V15a2.25 2.25 0 01-2.25 2.25H5.25A2.25 2.25 0 013 15V5.25m18 0A2.25 2.25 0 0018.75 3H5.25A2.25 2.25 0 003 5.25m18 0V12a9 9 0 11-18 0V5.25" />
-                      </svg>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-text-secondary truncate">{keyId.slice(0, 8)}...</p>
-                        <p className="text-[10px] text-text-muted">{browserShareMode === "prf" ? t("send.passkeyEncrypted") : t("send.passphraseEncrypted")} · ECDSA + EdDSA</p>
-                      </div>
-                      {browserShareLoading ? (
-                        <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                      ) : (
-                        <svg className="w-4 h-4 text-blue-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-                        </svg>
-                      )}
-                    </button>
-                    {browserShareError && (
-                      <p className="text-[11px] text-red-400 text-center">{browserShareError}</p>
-                    )}
-                    <button
-                      onClick={() => { setBrowserShareMode(null); }}
-                      className="w-full text-[11px] text-text-muted hover:text-text-tertiary transition-colors"
-                    >
-                      {t("send.orUploadFile")}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    <button
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full bg-surface-primary border border-border-primary border-dashed rounded-lg px-3 py-3 flex items-center justify-center gap-2 hover:border-blue-500/50 transition-colors text-left"
-                    >
-                      <svg className="w-4 h-4 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                      </svg>
-                      <span className="text-xs text-text-muted">{t("send.uploadKeyShare")}</span>
-                    </button>
-                    <p className="text-[10px] text-text-muted text-center">
-                      {t("send.restoreFromBackup")}
-                    </p>
-                  </div>
-                )}
-              </div>
-
-              {/* Passphrase prompt for encrypted files */}
-              {pendingEncrypted && !keyFile && (
-                <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">
-                    <span className="font-mono text-text-tertiary">{pendingEncrypted.id.slice(0, 8)}...</span> — {t("send.enterPassphrase")}
-                  </p>
-                  <PassphraseInput
-                    mode="enter"
-                    submitLabel={t("send.decrypt")}
-                    onSubmit={async (passphrase) => {
-                      const decrypted = await decryptKeyFile(pendingEncrypted, passphrase);
-                      setKeyFile(decrypted as KeyFile);
-                      setPendingEncrypted(null);
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* Browser-stored share passphrase prompt */}
-              {showBrowserPassphrase && !keyFile && (
-                <div className="bg-surface-primary border border-border-primary rounded-lg p-3">
-                  <p className="text-xs text-text-muted mb-2">
-                    {t("send.enterPassphraseKey")}
-                  </p>
-                  <PassphraseInput
-                    mode="enter"
-                    submitLabel={t("send.decrypt")}
-                    onSubmit={async (passphrase) => {
-                      const data = await getKeyShareWithPassphrase(keyId, passphrase);
-                      if (data) {
-                        setKeyFile(data as KeyFile);
-                        setShowBrowserPassphrase(false);
-                      }
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* From */}
-              <div>
-                <label className="block text-xs text-text-muted mb-1.5">{t("send.from")}</label>
-                <div className="bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5">
-                  <p className="text-xs font-mono text-text-tertiary truncate">{address}</p>
-                  <p className="text-[10px] text-text-muted mt-0.5">
-                    {t("send.balance")}: {maskBalance(truncateBalance(balance), balancesHidden)} {asset.symbol} &middot; {chain.displayName}
-                  </p>
-                </div>
-              </div>
-
-              {/* Speed-up banner */}
-              {speedUpData && (
-                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2">
-                  <p className="text-xs text-yellow-400 font-medium">{t("send.rbfBanner")}</p>
-                  <p className="text-[11px] text-yellow-400/70 mt-0.5">{t("send.rbfDesc")}</p>
-                </div>
-              )}
-
-              {/* To */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs text-text-muted">{t("send.to")}</label>
-                  {toValid && !savingToBook && (
-                    <button
-                      type="button"
-                      onClick={() => setSavingToBook(true)}
-                      className="text-[10px] text-text-muted hover:text-blue-400 transition-colors"
-                    >
-                      {t("send.saveToBook")}
-                    </button>
-                  )}
-                </div>
-                {savingToBook && (
-                  <div className="flex items-center gap-2 mb-2">
-                    <input
-                      type="text"
-                      value={bookmarkLabel}
-                      onChange={(e) => setBookmarkLabel(e.target.value)}
-                      placeholder={t("send.labelPlaceholder")}
-                      className="flex-1 bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted outline-none focus:border-blue-500"
-                      autoFocus
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && bookmarkLabel.trim()) {
-                          saveAddressEntry({ address: to, label: bookmarkLabel.trim(), chain: chain.type });
-                          setSavingToBook(false);
-                          setBookmarkLabel("");
-                        } else if (e.key === "Escape") {
-                          setSavingToBook(false);
-                          setBookmarkLabel("");
-                        }
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (bookmarkLabel.trim()) {
-                          saveAddressEntry({ address: to, label: bookmarkLabel.trim(), chain: chain.type });
-                        }
-                        setSavingToBook(false);
-                        setBookmarkLabel("");
-                      }}
-                      className="text-xs text-blue-400 hover:text-blue-300 shrink-0"
-                    >
-                      {bookmarkLabel.trim() ? t("send.saveBookmark") : t("send.cancelBookmark")}
-                    </button>
-                  </div>
-                )}
-                <div className={`relative flex items-center bg-surface-primary border rounded-lg ${
-                  toError
-                    ? "border-red-500/50 focus-within:border-red-500"
-                    : toSelf
-                      ? "border-yellow-500/50 focus-within:border-yellow-500"
-                      : "border-border-primary focus-within:border-blue-500"
-                }`}>
-                  <input
-                    type="text"
-                    value={to}
-                    onChange={(e) => { if (!speedUpData) setTo(e.target.value.trim()); }}
-                    onFocus={() => { if (!to && !speedUpData) setShowSuggestions(true); }}
-                    onBlur={() => { setToTouched(true); setTimeout(() => setShowSuggestions(false), 200); }}
-                    placeholder={placeholder}
-                    readOnly={!!speedUpData}
-                    className="flex-1 min-w-0 bg-transparent px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none font-mono"
-                  />
-                  {/* Address book button */}
-                  {!speedUpData && (
-                    <button
-                      type="button"
-                      className="p-1.5 mr-0.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors shrink-0"
-                      onClick={() => setShowSuggestions((v) => !v)}
-                      title={t("common.addressBook")}
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                      </svg>
-                    </button>
-                  )}
-                  {/* Paste button — mobile only */}
-                  <button
-                    type="button"
-                    className="md:hidden p-1.5 mr-0.5 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors shrink-0"
-                    onClick={async () => {
-                      try {
-                        const text = await navigator.clipboard.readText();
-                        if (text) setTo(text.trim());
-                      } catch { /* clipboard denied */ }
-                    }}
-                    title={t("common.paste")}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                  </button>
-                  {/* Scan QR button */}
-                  <button
-                    type="button"
-                    className="p-1.5 mr-1 rounded-md text-text-muted hover:text-text-secondary hover:bg-surface-tertiary transition-colors shrink-0"
-                    onClick={() => setShowAddrScanner((v) => !v)}
-                    title={t("common.scanQr")}
-                  >
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 7V5a2 2 0 012-2h2m10 0h2a2 2 0 012 2v2m0 10v2a2 2 0 01-2 2h-2M3 17v2a2 2 0 002 2h2" />
-                      <rect x="7" y="7" width="4" height="4" rx="0.5" />
-                      <rect x="13" y="7" width="4" height="4" rx="0.5" />
-                      <rect x="7" y="13" width="4" height="4" rx="0.5" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 13h4v4h-4" />
-                    </svg>
-                  </button>
-                </div>
-                {/* Address suggestions dropdown */}
-                {showSuggestions && !speedUpData && (() => {
-                  const suggestions = getAddressSuggestions(chain.type);
-                  if (suggestions.length === 0) return null;
-                  return (
-                    <div className="mt-1 bg-surface-primary border border-border-primary rounded-lg overflow-hidden max-h-[160px] overflow-y-auto">
-                      {suggestions.map((s, i) => {
-                        const isBookmark = "label" in s;
-                        const addr = s.address;
-                        return (
-                          <button
-                            key={`${addr}-${i}`}
-                            type="button"
-                            className="w-full px-3 py-2 text-left hover:bg-surface-tertiary transition-colors flex items-center gap-2.5 border-b border-border-secondary last:border-b-0"
-                            onMouseDown={(e) => { e.preventDefault(); setTo(addr); setShowSuggestions(false); }}
-                          >
-                            <div className="w-6 h-6 rounded-full bg-surface-tertiary flex items-center justify-center shrink-0">
-                              {isBookmark ? (
-                                <svg className="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z" />
-                                </svg>
-                              ) : (
-                                <svg className="w-3 h-3 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              {isBookmark && <p className="text-xs text-text-secondary truncate">{(s as AddressEntry).label}</p>}
-                              <p className="text-[11px] font-mono text-text-muted truncate">{addr}</p>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
-                {showAddrScanner && (
-                  <div className="mt-2 rounded-lg overflow-hidden border border-border-primary">
-                    <Scanner
-                      onScan={(results) => {
-                        if (results.length > 0) {
-                          let raw = results[0].rawValue;
-                          // Strip common URI prefixes (ethereum:, solana:, bitcoin:)
-                          const colonIdx = raw.indexOf(":");
-                          if (colonIdx > 0 && colonIdx < 10) raw = raw.slice(colonIdx + 1);
-                          // Strip query params
-                          const qIdx = raw.indexOf("?");
-                          if (qIdx > 0) raw = raw.slice(0, qIdx);
-                          setTo(raw.trim());
-                          setShowAddrScanner(false);
-                        }
-                      }}
-                      onError={() => setShowAddrScanner(false)}
-                      formats={["qr_code"]}
-                      components={{ finder: true }}
-                      styles={{ container: { width: "100%" } }}
-                    />
-                  </div>
-                )}
-                {/* Name resolution indicator */}
-                {resolving && isResolvableName(to) && (
-                  <div className="flex items-center gap-1.5 mt-1.5 px-0.5">
-                    <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                    <p className="text-[11px] text-text-muted">{t("send.resolving", { name: to })}</p>
-                  </div>
-                )}
-                {resolvedName?.input === to && (
-                  <div className="flex items-center gap-1.5 mt-1.5 px-0.5">
-                    <svg className="w-3.5 h-3.5 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                    </svg>
-                    <p className="text-[11px] text-text-secondary">
-                      <span className="text-text-muted">{resolvedName.source}:</span>{" "}
-                      <span className="font-mono">{resolvedName.address.slice(0, 10)}...{resolvedName.address.slice(-6)}</span>
-                    </p>
-                  </div>
-                )}
-                {!resolving && isResolvableName(to) && !resolvedName && to.length > 0 && (
-                  <p className="text-[11px] text-yellow-500/70 mt-1.5 px-0.5">{t("send.cannotResolve")}</p>
-                )}
-                {toError && (
-                  <p className="text-[10px] text-red-400 mt-1">{toError}</p>
-                )}
-                {toSelf && (
-                  <p className="text-[10px] text-yellow-400 mt-1">{t("send.ownAddress")}</p>
-                )}
-              </div>
-
-              {/* Destination Tag (XRP only) */}
-              {chain.type === "xrp" && (
-              <div>
-                <label className="block text-xs text-text-muted mb-1.5">{t("send.destinationTag")} <span className="text-text-muted/50">{t("send.destinationTagOptional")}</span></label>
-                <input
-                  type="text"
-                  value={destinationTag}
-                  onChange={(e) => setDestinationTag(e.target.value.replace(/\D/g, ""))}
-                  placeholder="e.g. 12345"
-                  className={`w-full bg-surface-primary border rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none tabular-nums ${
-                    destinationTag && !destTagValid
-                      ? "border-red-500/50 focus:border-red-500"
-                      : "border-border-primary focus:border-blue-500"
-                  }`}
-                />
-                {destinationTag && !destTagValid && (
-                  <p className="text-[10px] text-red-400 mt-1">{t("send.destinationTagError")}</p>
-                )}
-              </div>
-              )}
-
-              {/* Memo (XLM only) */}
-              {chain.type === "xlm" && (
-              <div>
-                <label className="block text-xs text-text-muted mb-1.5">{t("send.memo")} <span className="text-text-muted/50">{t("send.memoOptional")}</span></label>
-                <input
-                  type="text"
-                  value={xlmMemo}
-                  onChange={(e) => setXlmMemo(e.target.value.slice(0, 28))}
-                  placeholder={t("send.memoPlaceholder")}
-                  className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500"
-                />
-              </div>
-              )}
-
-              {/* Amount */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs text-text-muted">{t("send.amount")}</label>
-                  <button
-                    onClick={() => { setAmount(maxSendable); setAmountTouched(true); }}
-                    className="text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
-                  >
-                    {t("send.max")}
-                  </button>
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={amount}
-                    onChange={(e) => { if (!speedUpData) setAmount(e.target.value); }}
-                    onBlur={() => setAmountTouched(true)}
-                    placeholder="0.00"
-                    readOnly={!!speedUpData}
-                    className={`w-full bg-surface-primary border rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none tabular-nums pr-16 ${
-                      amountError
-                        ? "border-red-500/50 focus:border-red-500"
-                        : "border-border-primary focus:border-blue-500"
-                    }`}
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-text-muted">
-                    {asset.symbol}
-                  </span>
-                </div>
-                <div className="flex items-center justify-end mt-1">
-                  {amountError ? (
-                    <p className="text-[10px] text-red-400">{amountError}</p>
-                  ) : amountUsd != null ? (
-                    <p className="text-[10px] text-text-muted tabular-nums">{formatUsd(amountUsd)}</p>
-                  ) : null}
-                </div>
-              </div>
-
-              {/* Fee level selector — expert: 3-option grid; non-expert: simple fee line */}
-              {feeDisplay.hasLevelSelector && (
-                expert ? (
-                  <div className="bg-surface-primary border border-border-primary rounded-lg p-1.5">
-                    <div className="grid grid-cols-3 gap-1">
-                      {(["low", "medium", "high"] as FeeLevel[]).map((level) => {
-                        const isActive = feeLevel === level;
-                        const feeText = chain.type === "btc" || chain.type === "ltc"
-                          ? ((chain.type === "btc" ? btcFeeRates : ltcFeeRates)?.[level] != null ? `${(chain.type === "btc" ? btcFeeRates : ltcFeeRates)![level]} sat/vB` : "...")
-                          : (baseGasPrice != null ? `${formatGwei(BigInt(Math.round(Number(baseGasPrice) * EVM_FEE_MULTIPLIER[level])))} Gwei` : "...");
-                        return (
-                          <button
-                            key={level}
-                            onClick={() => setFeeLevel(level)}
-                            className={`flex flex-col items-center py-2 px-1 rounded-md transition-all ${
-                              isActive
-                                ? "bg-surface-tertiary ring-1 ring-blue-500/40"
-                                : "hover:bg-surface-tertiary/50"
-                            }`}
-                          >
-                            <span className={`text-[11px] font-medium ${isActive ? "text-text-primary" : "text-text-muted"}`}>
-                              {FEE_LABELS[level]}
-                            </span>
-                            <span className={`text-[10px] tabular-nums mt-0.5 ${isActive ? "text-text-secondary" : "text-text-muted/70"}`}>
-                              {feeText}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between px-3 py-2 bg-surface-primary border border-border-primary rounded-lg">
-                    <span className="text-xs text-text-muted">{t("send.networkFee")}</span>
-                    <span className="text-xs tabular-nums text-text-secondary">
-                      {feeDisplay.usd != null && feeDisplay.usd > 0
-                        ? formatUsd(feeDisplay.usd)
-                        : feeDisplay.formatted != null
-                          ? `${feeDisplay.formatted} ${feeDisplay.symbol}`
-                          : t("common.estimating")}
-                    </span>
-                  </div>
-                )
-              )}
-
-              {/* Expert mode: advanced tx overrides */}
-              {expert && chain.type === "evm" && (
-                <div className="space-y-2">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1">{t("send.nonce")}</label>
-                      <input
-                        value={nonceOverride}
-                        onChange={(e) => setNonceOverride(e.target.value)}
-                        placeholder={currentNonce != null ? currentNonce.toString() : "..."}
-                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1">{t("send.gasLimit")}</label>
-                      <input
-                        value={gasLimitOverride}
-                        onChange={(e) => setGasLimitOverride(e.target.value)}
-                        placeholder={defaultGasLimit.toString()}
-                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1">{t("send.maxFee")}</label>
-                      <input
-                        value={maxFeeOverride}
-                        onChange={(e) => setMaxFeeOverride(e.target.value)}
-                        placeholder={gasPrice != null ? formatGwei(gasPrice) : "Auto"}
-                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-xs text-text-muted mb-1">{t("send.priorityFee")}</label>
-                      <input
-                        value={priorityFeeOverride}
-                        onChange={(e) => setPriorityFeeOverride(e.target.value)}
-                        placeholder={baseGasPrice != null ? formatGwei(baseGasPrice / 10n) : "Auto"}
-                        className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {expert && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
-                <div className="space-y-2">
-                  <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
-                  <div>
-                    <label className="block text-xs text-text-muted mb-1">{t("send.feeRate")}</label>
-                    <input
-                      value={btcFeeRateOverride}
-                      onChange={(e) => setBtcFeeRateOverride(e.target.value)}
-                      placeholder={chain.type === "btc" ? (btcFeeRates?.[feeLevel]?.toString() ?? "Auto") : chain.type === "ltc" ? (ltcFeeRates?.[feeLevel]?.toString() ?? "Auto") : (bchFeeRates?.[feeLevel]?.toString() ?? "Auto")}
-                      className="w-full bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5 text-xs text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-                  {(chain.type === "btc" || chain.type === "ltc") && (
-                    <button
-                      type="button"
-                      onClick={() => setRbfEnabled((v) => !v)}
-                      className="flex items-center gap-2 w-full px-2.5 py-1.5 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary transition-colors"
-                    >
-                      <div className={`w-7 h-4 rounded-full transition-colors relative ${rbfEnabled ? "bg-blue-500" : "bg-surface-tertiary"}`}>
-                        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${rbfEnabled ? "left-3.5" : "left-0.5"}`} />
-                      </div>
-                      <span className="text-xs text-text-secondary">{t("send.rbf")}</span>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => { setShowUtxoPicker(v => !v); if (!availableUtxos && !utxoLoading) handleFetchUtxos(); }}
-                    className="w-full text-left px-2.5 py-1.5 text-xs text-blue-400 hover:text-blue-300 transition-colors rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary"
-                  >
-                    {selectedUtxoKeys.size > 0
-                      ? t("send.utxosSelected", { count: selectedUtxoKeys.size })
-                      : t("send.selectUtxos")}
-                  </button>
-                  {showUtxoPicker && (
-                    <div className="bg-surface-primary border border-border-primary rounded-xl p-3 space-y-2 max-h-52 overflow-y-auto">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("send.utxos")}</span>
-                        <div className="flex items-center gap-2">
-                          {selectedUtxoKeys.size > 0 && (
-                            <button type="button" onClick={() => setSelectedUtxoKeys(new Set())} className="text-[10px] text-text-muted hover:text-text-secondary">
-                              {t("send.clear")}
-                            </button>
-                          )}
-                          <button type="button" onClick={handleFetchUtxos} disabled={utxoLoading} className="text-[10px] text-blue-400 hover:text-blue-300 disabled:text-text-muted">
-                            {utxoLoading ? t("common.loading") : t("common.refresh")}
-                          </button>
-                        </div>
-                      </div>
-                      {utxoLoading && !availableUtxos && (
-                        <p className="text-[10px] text-text-muted animate-pulse py-2 text-center">{t("send.fetchingUtxos")}</p>
-                      )}
-                      {availableUtxos && availableUtxos.length === 0 && (
-                        <p className="text-[10px] text-text-muted py-2 text-center">{t("send.noUtxos")}</p>
-                      )}
-                      {availableUtxos && availableUtxos.length > 0 && (
-                        <>
-                          <div className="flex items-center justify-between text-[10px] text-text-muted">
-                            <span>{availableUtxos.length} {t("send.available")}</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (selectedUtxoKeys.size === availableUtxos.length)
-                                  setSelectedUtxoKeys(new Set());
-                                else
-                                  setSelectedUtxoKeys(new Set(availableUtxos.map(u => `${u.txid}:${u.vout}`)));
-                              }}
-                              className="text-blue-400 hover:text-blue-300"
-                            >
-                              {selectedUtxoKeys.size === availableUtxos.length ? t("send.deselectAll") : t("send.selectAll")}
-                            </button>
-                          </div>
-                          {[...availableUtxos].sort((a, b) => b.value - a.value).map((utxo) => {
-                            const key = `${utxo.txid}:${utxo.vout}`;
-                            const checked = selectedUtxoKeys.has(key);
-                            const val = (utxo.value / 1e8).toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
-                            return (
-                              <label key={key} className={`flex items-start gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${checked ? "bg-blue-500/5" : "hover:bg-surface-secondary"}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={checked}
-                                  onChange={() => {
-                                    const next = new Set(selectedUtxoKeys);
-                                    if (checked) next.delete(key); else next.add(key);
-                                    setSelectedUtxoKeys(next);
-                                  }}
-                                  className="mt-0.5 accent-blue-500"
-                                />
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] font-mono text-text-primary truncate max-w-[160px]">
-                                      {utxo.txid.slice(0, 8)}...{utxo.txid.slice(-6)}:{utxo.vout}
-                                    </span>
-                                    <span className="text-[10px] font-mono text-text-secondary ml-2 whitespace-nowrap tabular-nums">
-                                      {val} {asset.symbol}
-                                    </span>
-                                  </div>
-                                  <span className={`text-[9px] ${utxo.status.confirmed ? "text-green-400" : "text-yellow-400"}`}>
-                                    {utxo.status.confirmed ? t("send.confirmed") : t("send.unconfirmed")}
-                                  </span>
-                                </div>
-                              </label>
-                            );
-                          })}
-                          {selectedUtxoKeys.size > 0 && (
-                            <div className="flex items-center justify-between pt-1.5 border-t border-border-primary text-[10px]">
-                              <span className="text-text-muted">{t("send.utxosSelected", { count: selectedUtxoKeys.size })}</span>
-                              <span className="font-mono text-text-secondary tabular-nums">
-                                {(availableUtxos.filter(u => selectedUtxoKeys.has(`${u.txid}:${u.vout}`)).reduce((s, u) => s + u.value, 0) / 1e8)
-                                  .toFixed(8).replace(/0+$/, "").replace(/\.$/, "")} {asset.symbol}
-                              </span>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Fee summary */}
-              <div className="flex items-center justify-between px-1">
-                <span className="text-[10px] text-text-muted flex items-center gap-1">
-                  {t("send.estFee")}
-                  {!feeDisplay.isFixed && (
-                  <span className="text-text-muted/40 tabular-nums">
-                    {feeCountdown > 0 ? `\u00b7 ${feeCountdown}s` : "\u00b7 \u27f3"}
-                  </span>
-                  )}
-                </span>
-                {feeDisplay.formatted != null ? (
-                  <span className="text-[11px] tabular-nums text-text-secondary">
-                    {feeDisplay.formatted} {feeDisplay.symbol}
-                    {feeDisplay.usd != null && feeDisplay.usd > 0 && (
-                      <span className="text-text-muted ml-1">({formatUsd(feeDisplay.usd)})</span>
-                    )}
-                  </span>
-                ) : (
-                  <span className="text-[10px] text-text-muted animate-pulse">{t("common.estimating")}</span>
-                )}
-              </div>
-            </div>
-
-            {/* Footer — Input step */}
-            <div className="px-5 py-4 border-t border-border-secondary shrink-0">
-              {backupGateError && (
-                <p className="text-[11px] text-yellow-400 mb-2">{backupGateError}</p>
-              )}
-              <button
-                disabled={!canReview || policyChecking}
-                onClick={async () => {
-                  // Gate large sends on backup completion
-                  if (hasBackup === false && (amountUsd ?? 0) > 100) {
-                    setBackupGateError(t("send.backupRequired"));
-                    return;
+          <InputStep
+            chain={chain}
+            asset={asset}
+            address={address}
+            balance={balance}
+            expert={expert}
+            recovery={recovery}
+            speedUpData={speedUpData}
+            keyFile={keyFile}
+            setKeyFile={setKeyFile}
+            pendingEncrypted={pendingEncrypted}
+            setPendingEncrypted={setPendingEncrypted}
+            fileInputRef={fileInputRef}
+            browserShareMode={browserShareMode}
+            setBrowserShareMode={setBrowserShareMode}
+            browserShareLoading={browserShareLoading}
+            browserShareError={browserShareError}
+            showBrowserPassphrase={showBrowserPassphrase}
+            setShowBrowserPassphrase={setShowBrowserPassphrase}
+            keyId={keyId}
+            to={to}
+            setTo={setTo}
+            resolving={resolving}
+            resolvedName={resolvedName}
+            showAddrScanner={showAddrScanner}
+            setShowAddrScanner={setShowAddrScanner}
+            showSuggestions={showSuggestions}
+            setShowSuggestions={setShowSuggestions}
+            savingToBook={savingToBook}
+            setSavingToBook={setSavingToBook}
+            bookmarkLabel={bookmarkLabel}
+            setBookmarkLabel={setBookmarkLabel}
+            toTouched={toTouched}
+            setToTouched={setToTouched}
+            toValid={toValid}
+            toSelf={toSelf}
+            toError={toError}
+            placeholder={placeholder}
+            destinationTag={destinationTag}
+            setDestinationTag={setDestinationTag}
+            xlmMemo={xlmMemo}
+            setXlmMemo={setXlmMemo}
+            amount={amount}
+            setAmount={setAmount}
+            amountTouched={amountTouched}
+            setAmountTouched={setAmountTouched}
+            amountCheck={amountCheck}
+            amountError={amountError}
+            amountUsd={amountUsd}
+            maxSendable={maxSendable}
+            balancesHidden={balancesHidden}
+            feeLevel={feeLevel}
+            setFeeLevel={setFeeLevel}
+            feeDisplay={feeDisplay}
+            feeCountdown={feeCountdown}
+            btcFeeRates={btcFeeRates}
+            ltcFeeRates={ltcFeeRates}
+            bchFeeRates={bchFeeRates}
+            baseGasPrice={baseGasPrice}
+            gasPrice={gasPrice}
+            defaultGasLimit={defaultGasLimit}
+            nonceOverride={nonceOverride}
+            setNonceOverride={setNonceOverride}
+            gasLimitOverride={gasLimitOverride}
+            setGasLimitOverride={setGasLimitOverride}
+            maxFeeOverride={maxFeeOverride}
+            setMaxFeeOverride={setMaxFeeOverride}
+            priorityFeeOverride={priorityFeeOverride}
+            setPriorityFeeOverride={setPriorityFeeOverride}
+            btcFeeRateOverride={btcFeeRateOverride}
+            setBtcFeeRateOverride={setBtcFeeRateOverride}
+            rbfEnabled={rbfEnabled}
+            setRbfEnabled={setRbfEnabled}
+            currentNonce={currentNonce}
+            showUtxoPicker={showUtxoPicker}
+            setShowUtxoPicker={setShowUtxoPicker}
+            availableUtxos={availableUtxos}
+            selectedUtxoKeys={selectedUtxoKeys}
+            setSelectedUtxoKeys={setSelectedUtxoKeys}
+            utxoLoading={utxoLoading}
+            hasBackup={hasBackup}
+            backupGateError={backupGateError}
+            setBackupGateError={setBackupGateError}
+            totalUsd={totalUsd}
+            canReview={canReview}
+            policyChecking={policyChecking}
+            handleFileSelect={handleFileSelect}
+            loadBrowserShare={loadBrowserShare}
+            guardedSign={guardedSign}
+            onClose={onClose}
+            onPreview={async () => {
+              if (chain.type === "xlm" && chain.rpcUrl) {
+                setXlmDestExists(null);
+                const exists = await checkXlmAccountExists(chain.rpcUrl, to);
+                setXlmDestExists(exists);
+              }
+              if (!isRecoveryMode()) {
+                setPolicyChecking(true);
+                setPolicyCheck(null);
+                try {
+                  const baseUnits = parseUnits(amount, asset.decimals).toString();
+                  const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/check`), {
+                    method: "POST",
+                    headers: { ...authHeaders(), "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      to: resolvedName?.input === to ? resolvedName.address : to,
+                      amount: baseUnits,
+                      nativeSymbol: asset.isNative ? asset.symbol : undefined,
+                      contractAddress: asset.contractAddress || undefined,
+                      chainId: chain.evmChainId ?? undefined,
+                      ...(resolvedName?.input === to ? { resolvedFrom: to, resolvedVia: resolvedName.source } : {}),
+                    }),
+                  });
+                  if (res.ok) {
+                    const result = await res.json();
+                    setPolicyCheck(result);
                   }
-                  setBackupGateError(null);
-                  if (chain.type === "xlm" && chain.rpcUrl) {
-                    setXlmDestExists(null);
-                    const exists = await checkXlmAccountExists(chain.rpcUrl, to);
-                    setXlmDestExists(exists);
-                  }
-                  // Policy pre-check (skip in recovery mode — no server)
-                  if (!isRecoveryMode()) {
-                    setPolicyChecking(true);
-                    setPolicyCheck(null);
-                    try {
-                      const baseUnits = parseUnits(amount, asset.decimals).toString();
-                      const res = await fetch(apiUrl(`/api/keys/${keyId}/rules/check`), {
-                        method: "POST",
-                        headers: { ...authHeaders(), "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          to: resolvedName?.input === to ? resolvedName.address : to,
-                          amount: baseUnits,
-                          nativeSymbol: asset.isNative ? asset.symbol : undefined,
-                          contractAddress: asset.contractAddress || undefined,
-                          chainId: chain.evmChainId ?? undefined,
-                          ...(resolvedName?.input === to ? { resolvedFrom: to, resolvedVia: resolvedName.source } : {}),
-                        }),
-                      });
-                      if (res.ok) {
-                        const result = await res.json();
-                        setPolicyCheck(result);
-                      }
-                    } catch {
-                      // Fail-open: if pre-check fails, still show preview
-                    }
-                    setPolicyChecking(false);
-                  }
-                  // EVM transaction simulation (non-blocking)
-                  if (chain.type === "evm" && chain.rpcUrl) {
-                    setSimResult(null);
-                    const value = asset.isNative ? "0x" + parseUnits(amount, asset.decimals).toString(16) : "0x0";
-                    const dataBytes = !asset.isNative && asset.contractAddress
-                      ? encodeErc20Transfer(to, parseUnits(amount, asset.decimals))
-                      : null;
-                    const data = dataBytes ? "0x" + bytesToHex(dataBytes as Uint8Array) : "0x";
-                    const txTo = !asset.isNative && asset.contractAddress ? asset.contractAddress : to;
-                    simulateEvmTransaction(chain.rpcUrl, { from: address, to: txTo, value, data }).then((r) => {
-                      if (r) setSimResult(r);
-                    });
-                  }
-                  // If a name was resolved, use the resolved address for the transaction
-                  if (resolvedName?.input === to && resolvedName.address) {
-                    setTo(resolvedName.address);
-                  }
-                  setStep("preview");
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
-              >
-                {policyChecking ? t("wc.checking") : t("send.previewButton")}
-              </button>
-            </div>
-          </>
+                } catch {
+                  // fail-open
+                }
+                setPolicyChecking(false);
+              }
+              if (chain.type === "evm" && chain.rpcUrl) {
+                setSimResult(null);
+                const value = asset.isNative ? "0x" + parseUnits(amount, asset.decimals).toString(16) : "0x0";
+                const dataBytes = !asset.isNative && asset.contractAddress
+                  ? encodeErc20Transfer(to, parseUnits(amount, asset.decimals))
+                  : null;
+                const data = dataBytes ? "0x" + bytesToHex(dataBytes as Uint8Array) : "0x";
+                const txTo = !asset.isNative && asset.contractAddress ? asset.contractAddress : to;
+                simulateEvmTransaction(chain.rpcUrl, { from: address, to: txTo, value, data }).then((r) => {
+                  if (r) setSimResult(r);
+                });
+              }
+              if (resolvedName?.input === to && resolvedName.address) {
+                setTo(resolvedName.address);
+              }
+              setStep("preview");
+            }}
+            t={t}
+            handleFetchUtxosCallback={() => handleFetchUtxos(buildUtxoFetchCtx())}
+          />
         )}
 
         {step === "preview" && (
-          <>
-            {/* Body — Preview step */}
-            <div className="p-5 space-y-5">
-              <PolicyWarning policyCheck={policyCheck} />
-
-              {chain.type === "evm" && gasEstimateError && (
-                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">
-                  <p className="text-xs text-red-400 leading-relaxed">
-                    {t("send.gasEstFailed")}: {gasEstimateError}
-                  </p>
-                </div>
-              )}
-
-              {/* Amount hero */}
-              <div className="text-center py-2">
-                <p className="text-2xl font-semibold tabular-nums text-text-primary">
-                  {amount} <span className="text-text-tertiary text-sm">{asset.symbol}</span>
-                </p>
-                {amountUsd != null && (
-                  <p className="text-sm text-text-muted tabular-nums mt-0.5">{formatUsd(amountUsd)}</p>
-                )}
-              </div>
-
-              {/* From → To */}
-              <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                <div className="px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">{t("send.from")}</span>
-                  <span className="text-[9px] font-mono text-text-secondary">{address}</span>
-                </div>
-                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="text-xs text-text-muted">{t("send.to")}</span>
-                    {expert && !asset.isNative && asset.contractAddress && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-400 font-medium">{t("send.contract")}</span>
-                    )}
-                  </div>
-                  <span className="text-[9px] font-mono text-text-secondary">
-                    {expert && !asset.isNative && asset.contractAddress
-                      ? asset.contractAddress
-                      : to}
-                  </span>
-                </div>
-                {expert && !asset.isNative && asset.contractAddress && (
-                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">{t("send.to")}</span>
-                    <span className="text-[9px] font-mono text-text-secondary">{to}</span>
-                  </div>
-                )}
-                {expert && !asset.isNative && asset.contractAddress && (
-                  <div className="border-t border-border-secondary px-3 py-2.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-text-muted">{t("send.data")}</span>
-                    </div>
-                    <pre className="text-[10px] font-mono text-text-muted break-all mt-1 leading-relaxed max-h-20 overflow-auto">
-                      {"0x" + bytesToHex(encodeErc20Transfer(to, parseUnits(amount, asset.decimals)) as Uint8Array)}
-                    </pre>
-                  </div>
-                )}
-                {destinationTag && (
-                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">{t("send.destinationTag")}</span>
-                  <span className="text-xs tabular-nums text-text-secondary">{destinationTag}</span>
-                </div>
-                )}
-                {chain.type === "xlm" && xlmMemo && (
-                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">{t("send.memo")}</span>
-                  <span className="text-xs text-text-secondary">{xlmMemo}</span>
-                </div>
-                )}
-              </div>
-              {chain.type === "xlm" && xlmDestExists === false && (
-                <p className="text-[10px] text-yellow-400 -mt-3">{t("send.xlmDestNotActive")}</p>
-              )}
-
-              {/* Details */}
-              <div className="bg-surface-primary border border-border-primary rounded-lg overflow-hidden">
-                <div className="px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">{t("send.network")}</span>
-                  <span className="text-xs text-text-secondary">{chain.displayName}</span>
-                </div>
-                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted">{t("send.networkFee")}</span>
-                  <span className="text-xs tabular-nums text-text-secondary font-medium">
-                    {feeDisplay.usd != null && feeDisplay.usd > 0
-                      ? formatUsd(feeDisplay.usd)
-                      : (feeDisplay.formatted ?? "—") + " " + feeDisplay.symbol}
-                  </span>
-                </div>
-                {expert && feeDisplay.rateLabel != null && (
-                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">{chain.type === "btc" || chain.type === "ltc" || chain.type === "bch" ? t("send.feeRate") : chain.type === "xlm" ? t("send.baseFee") : t("send.maxFee")}</span>
-                    <span className="text-xs tabular-nums text-text-muted">{feeDisplay.rateLabel}</span>
-                  </div>
-                )}
-                {expert && chain.type === "evm" && (
-                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">{t("send.gasLimit")}</span>
-                    <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
-                  </div>
-                )}
-                {expert && manualUtxos && (chain.type === "btc" || chain.type === "ltc" || chain.type === "bch") && (
-                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">{t("send.utxos")}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-blue-500/10 text-blue-400">
-                      {t("send.utxosSelected", { count: manualUtxos.length })}
-                    </span>
-                  </div>
-                )}
-                {expert && (chain.type === "btc" || chain.type === "ltc") && (
-                  <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                    <span className="text-xs text-text-muted">{t("send.rbf")}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${rbfEnabled ? "bg-blue-500/10 text-blue-400" : "bg-surface-tertiary text-text-muted"}`}>
-                      {rbfEnabled ? t("xlm.enabled") : t("wallet.disabled")}
-                    </span>
-                  </div>
-                )}
-                <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                  <span className="text-xs text-text-muted font-medium">{t("send.total")}</span>
-                  <span className="text-xs tabular-nums text-text-primary font-semibold">
-                    {totalUsd > 0 ? formatUsd(totalUsd) : `${amount} ${asset.symbol}`}
-                  </span>
-                </div>
-              </div>
-
-              {/* Expert warnings */}
-              {expert && chain.type === "evm" && (
-                <ExpertWarnings
-                  gasLimitOverride={gasLimitOverride}
-                  maxFeeOverride={maxFeeOverride}
-                  estimatedGas={estimatedGas}
-                  baseGasPrice={baseGasPrice}
-                  lowMultiplier={EVM_FEE_MULTIPLIER.low}
-                />
-              )}
-
-
-              {/* Balance changes — simulation or static fallback */}
-              {simResult && simResult.changes.length > 0 ? (
-                <SimulationPreview simResult={simResult} prices={prices} />
-              ) : (() => {
-                const changes: BalanceChange[] = [];
-                const amountBase = amount ? parseUnits(amount, asset.decimals) : 0n;
-                const balanceBase = parseUnits(balance, asset.decimals);
-
-                if (asset.isNative) {
-                  let feeCost = 0n;
-                  if (chain.type === "evm" && estimatedFeeWei != null) feeCost = estimatedFeeWei;
-                  else if (chain.type === "solana") feeCost = SOLANA_BASE_FEE;
-                  else if (chain.type === "xrp") feeCost = XRP_BASE_FEE;
-                  else if (chain.type === "btc" && btcEstimatedFee != null) feeCost = BigInt(btcEstimatedFee);
-                  else if (chain.type === "ltc" && ltcEstimatedFee != null) feeCost = BigInt(ltcEstimatedFee);
-                  else if (chain.type === "bch" && bchEstimatedFee != null) feeCost = bchEstimatedFee;
-                  changes.push({
-                    symbol: asset.symbol,
-                    decimals: asset.decimals,
-                    currentBalance: balanceBase.toString(),
-                    delta: -(amountBase + feeCost),
-                  });
-                } else {
-                  changes.push({
-                    symbol: asset.symbol,
-                    decimals: asset.decimals,
-                    currentBalance: balanceBase.toString(),
-                    delta: -amountBase,
-                  });
-                }
-
-                return <BalancePreview changes={changes} prices={prices} />;
-              })()}
-            </div>
-
-            {/* Footer — Preview step */}
-            <div className="px-5 py-4 border-t border-border-secondary shrink-0">
-              <button
-                disabled={policyCheck?.allowed === false}
-                onClick={() => {
-                  const flows: Record<string, () => void> = { solana: executeSolanaSigningFlow, btc: executeBtcSigningFlow, ltc: executeLtcSigningFlow, bch: executeBchSigningFlow, evm: executeSigningFlow, xrp: executeXrpSigningFlow, xlm: executeXlmSigningFlow, tron: executeTronSigningFlow };
-                  const flow = flows[chain.type];
-                  if (flow) guardedSign(flow);
-                  else setSigningError(`Send is not yet supported for ${chain.displayName}.`);
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
-              >
-                {policyCheck?.allowed === false ? `\u26D4 ${t("send.blockedByPolicy")}` : `\uD83D\uDD10 ${t("send.confirmSend")}`}
-              </button>
-            </div>
-          </>
+          <PreviewStep
+            chain={chain}
+            asset={asset}
+            address={address}
+            to={effectiveTo}
+            amount={amount}
+            expert={expert}
+            feeDisplay={feeDisplay}
+            gasLimit={gasLimit}
+            gasLimitOverride={gasLimitOverride}
+            maxFeeOverride={maxFeeOverride}
+            estimatedGas={estimatedGas}
+            baseGasPrice={baseGasPrice}
+            gasEstimateError={gasEstimateError}
+            estimatedFeeWei={estimatedFeeWei}
+            xlmDestExists={xlmDestExists}
+            destinationTag={destinationTag}
+            xlmMemo={xlmMemo}
+            policyCheck={policyCheck}
+            simResult={simResult}
+            manualUtxos={manualUtxos}
+            rbfEnabled={rbfEnabled}
+            currentNonce={currentNonce}
+            totalUsd={totalUsd}
+            amountUsd={amountUsd}
+            balancesHidden={balancesHidden}
+            btcEstimatedFee={btcEstimatedFee}
+            ltcEstimatedFee={ltcEstimatedFee}
+            bchEstimatedFee={bchEstimatedFee}
+            prices={prices}
+            balance={balance}
+            setStep={setStep}
+            guardedSign={guardedSign}
+            signingFlows={{
+              executeEvm: () => executeSigningFlow(buildSigningCtx()),
+              executeBtc: () => executeBtcSigningFlow(buildSigningCtx()),
+              executeLtc: () => executeLtcSigningFlow(buildSigningCtx()),
+              executeBch: () => executeBchSigningFlow(buildSigningCtx()),
+              executeSolana: () => executeSolanaSigningFlow(buildSigningCtx()),
+              executeXrp: () => executeXrpSigningFlow(buildSigningCtx()),
+              executeXlm: () => executeXlmSigningFlow(buildSigningCtx()),
+              executeTron: () => executeTronSigningFlow(buildSigningCtx()),
+            }}
+            setSigningError={setSigningError}
+            t={t}
+          />
         )}
 
         {step === "signing" && (
@@ -2613,22 +850,16 @@ message = buildSplTransferMessage({
                 onRetry={() => { setSigningError(null); setStep("preview"); }}
               />
             ) : (
-              /* Progress state */
               <div className="py-6">
-                {/* Phase label */}
                 <p className="text-sm font-medium text-text-primary text-center mb-2">
                   {phaseLabels[signingPhase]}
                 </p>
                 <p className="text-[11px] text-text-muted text-center mb-4">
                   {amount} {asset.symbol} to {shortAddrPreview(to)}
                 </p>
-
-                {/* Progress bar */}
                 <div className="mb-5">
                   <ProgressBar {...progress} />
                 </div>
-
-                {/* Progress steps */}
                 <SigningStepper
                   steps={confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
                     ? [{ label: t("send.buildTx") }, { label: signLabelActive }]
@@ -2636,8 +867,6 @@ message = buildSplTransferMessage({
                   }
                   currentIndex={phaseIndex[signingPhase]}
                 />
-
-                {/* Tx hash card (visible during Confirming step) */}
                 {pendingTxHash && signingPhase === "polling" && (
                   <a
                     href={explorerLink(chain.explorerUrl, `/tx/${pendingTxHash}`)}
@@ -2660,186 +889,25 @@ message = buildSplTransferMessage({
         )}
 
         {step === "result" && txResult && (
-          <div className="p-5">
-            <div className="text-center py-6">
-              {confirmBeforeBroadcast && signedRawTx ? (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-blue-500/10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.rawTx")}</p>
-                  <p className="text-xs text-text-muted mb-3">
-                    {t("send.copyRaw")}
-                  </p>
-                  <div className="text-left bg-surface-secondary rounded-lg border border-border-primary p-3 max-h-32 overflow-auto">
-                    <p className="text-[11px] font-mono text-text-secondary break-all select-all">{signedRawTx}</p>
-                  </div>
-                  <div className="flex items-center justify-center gap-3 mt-3">
-                    <button
-                      onClick={() => { navigator.clipboard.writeText(signedRawTx); }}
-                      className="text-xs text-text-muted hover:text-text-secondary transition-colors font-medium"
-                    >
-                      {t("common.copy")}
-                    </button>
-                    {confirmBeforeBroadcast && (
-                      <button
-                        onClick={async () => {
-                          // Transition back to signing step with broadcast → confirm progress
-                          setSignedRawTx(null);
-                          setTxResult(null);
-                          setStep("signing");
-                          setSigningPhase("broadcasting");
-                          setSigningError(null);
-                          try {
-                            let txHash: string;
-                            const rawTx = signedRawTx!;
-                            if (chain.type === "btc") {
-                              txHash = await broadcastBtcTx(rawTx, mempoolApiUrl(chain.explorerUrl));
-                            } else if (chain.type === "ltc") {
-                              txHash = await (await import("../lib/chains/ltcTx")).broadcastLtcTx(rawTx, (await import("../lib/chains/ltcTx")).ltcApiUrl(chain.explorerUrl));
-                            } else if (chain.type === "bch") {
-                              txHash = await (await import("../lib/chains/bchTx")).broadcastBchTx(rawTx, (await import("../lib/chains/bchTx")).bchApiUrl());
-                            } else if (chain.type === "evm") {
-                              txHash = await broadcastTransaction(chain.rpcUrl, rawTx);
-                            } else if (chain.type === "solana") {
-                              txHash = await broadcastSolanaTransaction(chain.rpcUrl, rawTx);
-                            } else if (chain.type === "xrp") {
-                              txHash = await broadcastXrpTransaction(chain.rpcUrl, rawTx);
-                            } else if (chain.type === "xlm") {
-                              txHash = await broadcastXlmTransaction(chain.rpcUrl, rawTx);
-                            } else if (chain.type === "tron") {
-                              txHash = await broadcastTronTransaction(chain.rpcUrl, rawTx);
-                            } else {
-                              throw new Error(`Unsupported chain type: ${chain.type}`);
-                            }
-
-                            onTxSubmitted?.(txHash, to, amount);
-                            setPendingTxHash(txHash);
-                            setSigningPhase("polling");
-
-                            // Wait for confirmation (chain-specific)
-                            let confirmed = false;
-                            let blockHeight: number | undefined;
-                            if (chain.type === "btc") {
-                              const r = await waitForBtcConfirmation(txHash, () => {}, 60, 5000, mempoolApiUrl(chain.explorerUrl));
-                              confirmed = r.confirmed; blockHeight = r.blockHeight;
-                            } else if (chain.type === "ltc") {
-                              const r = await (await import("../lib/chains/ltcTx")).waitForLtcConfirmation(txHash, () => {}, 60, 5000, (await import("../lib/chains/ltcTx")).ltcApiUrl(chain.explorerUrl));
-                              confirmed = r.confirmed; blockHeight = r.blockHeight;
-                            } else if (chain.type === "bch") {
-                              const r = await (await import("../lib/chains/bchTx")).waitForBchConfirmation(txHash, () => {}, 60, 5000, (await import("../lib/chains/bchTx")).bchApiUrl());
-                              confirmed = r.confirmed; blockHeight = r.blockHeight;
-                            } else if (chain.type === "evm") {
-                              const r = await waitForReceipt(chain.rpcUrl, txHash, () => {}, 60, 3000);
-                              confirmed = r.status === "success"; blockHeight = r.blockNumber ? parseInt(String(r.blockNumber)) : undefined;
-                            } else if (chain.type === "solana") {
-                              const r = await waitForSolanaConfirmation(chain.rpcUrl, txHash, () => {}, 60, 2000);
-                              confirmed = r.confirmed;
-                            } else if (chain.type === "xrp") {
-                              const r = await waitForXrpConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
-                              confirmed = r.confirmed;
-                            } else if (chain.type === "xlm") {
-                              const r = await waitForXlmConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
-                              confirmed = r.confirmed;
-                            } else if (chain.type === "tron") {
-                              const r = await waitForTronConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
-                              confirmed = r.confirmed; blockHeight = r.blockNumber;
-                            }
-
-                            setTxResult({
-                              status: confirmed ? "success" : "pending",
-                              txHash,
-                              blockNumber: blockHeight,
-                            });
-                            if (confirmed) onTxConfirmed?.(txHash);
-                            setStep("result");
-                          } catch (err: unknown) {
-                            setSigningError(friendlyError(err, t));
-                          }
-                        }}
-                        disabled={false}
-                        className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 transition-colors"
-                      >
-                        📡 {t("send.broadcast")}
-                      </button>
-                    )}
-                  </div>
-                </>
-              ) : txResult.status === "success" ? (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txSuccess")}</p>
-                  <p className="text-sm text-text-muted tabular-nums">
-                    {amount} {asset.symbol}
-                  </p>
-                </>
-              ) : txResult.status === "pending" ? (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txBroadcast")}</p>
-                  <p className="text-sm text-text-muted tabular-nums mb-1">
-                    {amount} {asset.symbol}
-                  </p>
-                  <p className="text-[11px] text-text-muted">{t("send.confirming")}...</p>
-                </>
-              ) : (
-                <>
-                  <div className="w-14 h-14 rounded-full bg-red-500/10 flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </div>
-                  <p className="text-lg font-semibold text-text-primary mb-1">{t("send.txFailed")}</p>
-                  <p className="text-sm text-text-muted">{t("send.failed")}</p>
-                </>
-              )}
-
-              {/* Transaction details card */}
-              {!confirmBeforeBroadcast && <div className="mt-5 mx-auto max-w-[280px] rounded-lg bg-surface-primary/60 border border-border-secondary overflow-hidden">
-                <a
-                  href={explorerLink(chain.explorerUrl, `/tx/${txResult.txHash}`)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between px-3 py-2.5 hover:bg-surface-tertiary/50 transition-colors group"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-[11px] text-text-muted shrink-0">Tx</span>
-                    <span className="text-xs font-mono text-text-secondary truncate">{shortAddrPreview(txResult.txHash)}</span>
-                  </div>
-                  <svg className="w-3.5 h-3.5 text-text-muted group-hover:text-blue-400 shrink-0 ml-2 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-                {txResult.blockNumber && (
-                  <div className="flex items-center px-3 py-2 border-t border-border-secondary">
-                    <span className="text-[11px] text-text-muted shrink-0">{t("wc.block")}</span>
-                    <span className="text-xs font-mono text-text-secondary tabular-nums ml-2">
-                      {(typeof txResult.blockNumber === "number" ? txResult.blockNumber : parseInt(txResult.blockNumber, 16)).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-              </div>}
-            </div>
-
-            <div className="border-t border-border-secondary pt-4">
-              <button
-                onClick={onClose}
-                className="w-full bg-surface-tertiary hover:bg-border-primary text-text-secondary text-sm font-medium py-2.5 rounded-lg transition-colors"
-              >
-                {t("common.done")}
-              </button>
-            </div>
-          </div>
+          <ResultStep
+            chain={chain}
+            asset={asset}
+            to={effectiveTo}
+            amount={amount}
+            txResult={txResult}
+            signedRawTx={signedRawTx}
+            confirmBeforeBroadcast={confirmBeforeBroadcast}
+            onClose={onClose}
+            onTxSubmitted={onTxSubmitted}
+            onTxConfirmed={onTxConfirmed}
+            setSignedRawTx={setSignedRawTx}
+            setTxResult={setTxResult}
+            setStep={setStep}
+            setSigningPhase={setSigningPhase}
+            setSigningError={setSigningError}
+            setPendingTxHash={setPendingTxHash}
+            t={t}
+          />
         )}
       </div>
 
