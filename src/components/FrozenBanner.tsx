@@ -130,7 +130,7 @@ export function FrozenBanner({
                 </svg>
               </div>
               <h1 className="text-3xl font-bold tracking-tight text-text-primary mb-1">kexify</h1>
-              <p className="text-[11px] text-text-muted mb-6">{t("login.tagline")}</p>
+              <p className="text-[11px] text-text-muted mb-6">keys simplified</p>
               <p className="text-sm text-text-secondary mb-2">
                 {t("freeze.title")}
               </p>

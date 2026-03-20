@@ -51,7 +51,7 @@ export function Login() {
         {/* Logo + branding */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
-          <p className="text-[11px] text-text-muted mt-0.5">{t("login.tagline")}</p>
+          <p className="text-[11px] text-text-muted mt-0.5">keys simplified</p>
         </div>
 
         {sent ? (
