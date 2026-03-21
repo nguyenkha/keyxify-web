@@ -48,7 +48,11 @@
     "recoveryMode": "Chế độ khôi phục",
     "recoveryDesc": "Nhập key share để sử dụng ví mà không cần server",
     "switchToLight": "Chuyển sang giao diện sáng",
-    "switchToDark": "Chuyển sang giao diện tối"
+    "switchToDark": "Chuyển sang giao diện tối",
+    "inAppBrowser": "Bạn đang dùng trình duyệt trong ứng dụng",
+    "inAppBrowserDesc": "Để có trải nghiệm tốt nhất, hãy mở trang này trong trình duyệt mặc định.",
+    "openInBrowser": "Mở trong trình duyệt",
+    "copyLink": "Sao chép liên kết"
   },
   "nav": {
     "accounts": "Tài khoản",

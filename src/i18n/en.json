@@ -48,7 +48,11 @@
     "recoveryMode": "Recovery Mode",
     "recoveryDesc": "Import key shares to use your wallet without server",
     "switchToLight": "Switch to light mode",
-    "switchToDark": "Switch to dark mode"
+    "switchToDark": "Switch to dark mode",
+    "inAppBrowser": "You're using an in-app browser",
+    "inAppBrowserDesc": "For the best experience, open this page in your default browser.",
+    "openInBrowser": "Open in Browser",
+    "copyLink": "Copy Link"
   },
   "nav": {
     "accounts": "Accounts",

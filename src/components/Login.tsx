@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { requestMagicLink, verifyCode, setToken } from "../lib/auth";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { ErrorBox } from "./ui";
 import { LangSwitcher } from "./LangSwitcher";
+
+/** Detect in-app browsers (Facebook, Instagram, TikTok, etc.) */
+function isInAppBrowser(): boolean {
+  const ua = navigator.userAgent || "";
+  return /FBAN|FBAV|Instagram|Line\/|Twitter|TikTok|Snapchat|WeChat|MicroMessenger/i.test(ua);
+}
 
 export function Login() {
   const navigate = useNavigate();
@@ -15,6 +21,8 @@ export function Login() {
   const [loading, setLoading] = useState(false);
   const [code, setCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const inApp = useMemo(isInAppBrowser, []);
+  const [copied, setCopied] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -46,13 +54,30 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-dvh bg-surface-primary text-text-primary flex items-start justify-center pt-[30vh]">
+    <div className="min-h-dvh bg-surface-primary text-text-primary flex items-center justify-center pb-16">
       <div className="max-w-sm w-full px-4">
         {/* Logo + branding */}
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold tracking-tight">kexify</h1>
           <p className="text-[11px] text-text-muted mt-0.5">keys simplified</p>
         </div>
+
+        {inApp && (
+          <div className="mb-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 text-center">
+            <p className="text-yellow-400 text-xs font-medium mb-1">{t("login.inAppBrowser")}</p>
+            <p className="text-text-muted text-[10px] mb-2">{t("login.inAppBrowserDesc")}</p>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className="text-[10px] px-3 py-1 rounded bg-surface-tertiary text-text-secondary hover:text-text-primary transition-colors"
+            >
+              {copied ? "✓" : t("login.copyLink")}
+            </button>
+          </div>
+        )}
 
         {sent ? (
           <div className="space-y-4">
