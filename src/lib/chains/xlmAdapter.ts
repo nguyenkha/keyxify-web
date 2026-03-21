@@ -221,7 +221,7 @@ export const xlmAdapter: ChainAdapter = {
               value: "0",
               formatted: "",
               symbol: "",
-              label: `Enabled ${assetLabel}`,
+              label: `enabled:${assetLabel}`,
               timestamp: Math.floor(new Date(op.created_at).getTime() / 1000),
               direction: "out" as const,
               confirmed: op.transaction_successful,

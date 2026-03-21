@@ -884,7 +884,9 @@
     "speedUp": "Tăng tốc",
     "from": "Từ",
     "to": "Đến",
-    "contractAddr": "Hợp đồng"
+    "contractAddr": "Hợp đồng",
+    "enabled": "Đã bật {{symbol}}",
+    "optedIn": "Đã opt-in {{symbol}}"
   },
   "addressBook": {
     "title": "Sổ địa chỉ",

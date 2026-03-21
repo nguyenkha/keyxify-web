@@ -40,7 +40,11 @@ export function TxRow({ tx, explorerUrl, onSpeedUp, chainName, chainIcon }: { tx
     ? t("tx.failed")
     : isPending
       ? t("tx.pending")
-      : tx.label ?? (tx.isDeployment ? t("tx.deployedContract") : tx.direction === "in" ? t("tx.received") : tx.direction === "out" ? (tx.isApprove ? t("tx.approved") : tx.isContractCall ? t("tx.executedContract") : t("tx.sent")) : t("tx.self"));
+      : tx.label
+        ? (tx.label.startsWith("enabled:") ? t("tx.enabled", { symbol: tx.label.slice(8) })
+          : tx.label.startsWith("opt-in:") ? t("tx.optedIn", { symbol: tx.label.slice(7) })
+          : tx.label)
+        : (tx.isDeployment ? t("tx.deployedContract") : tx.direction === "in" ? t("tx.received") : tx.direction === "out" ? (tx.isApprove ? t("tx.approved") : tx.isContractCall ? t("tx.executedContract") : t("tx.sent")) : t("tx.self"));
   const dirSign = tx.direction === "in" ? "+" : tx.direction === "out" ? "-" : "";
 
   return (

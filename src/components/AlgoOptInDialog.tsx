@@ -255,7 +255,7 @@ export function AlgoOptInDialog({
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-text-primary">{a.symbol}</p>
-                      <p className="text-[11px] text-text-muted truncate">{a.name.replace(/\s*\(?\s*(testnet|devnet)\s*\)?\s*/gi, " ").trim()}</p>
+                      <p className="text-[11px] text-text-muted truncate">{a.name.replace(/\s*\([^)]*(?:testnet|devnet)[^)]*\)\s*/gi, "").trim()}</p>
                     </div>
                     {isEnabled ? (
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-green-500/10 text-green-500 shrink-0">{t("algo.enabled")}</span>

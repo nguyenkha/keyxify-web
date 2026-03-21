@@ -245,7 +245,7 @@ export const algoAdapter: ChainAdapter = {
             timestamp: tx["round-time"],
             direction,
             confirmed: tx["confirmed-round"] != null,
-            label: isSelfOptIn ? `Opted in ${asset.symbol}` : undefined,
+            label: isSelfOptIn ? `opt-in:${asset.symbol}` : undefined,
           };
         });
 

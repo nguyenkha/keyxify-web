@@ -884,7 +884,9 @@
     "speedUp": "Speed Up",
     "from": "From",
     "to": "To",
-    "contractAddr": "Contract"
+    "contractAddr": "Contract",
+    "enabled": "Enabled {{symbol}}",
+    "optedIn": "Opted in {{symbol}}"
   },
   "addressBook": {
     "title": "Address Book",
