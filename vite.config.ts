@@ -1,9 +1,24 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import { execSync } from "child_process";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import wasm from "vite-plugin-wasm";
 import { sentryVitePlugin } from "@sentry/vite-plugin";
+
+/** Ensure Buffer polyfill is the first import in entry chunks for production builds */
+function bufferPolyfillPlugin(): Plugin {
+  return {
+    name: "buffer-polyfill",
+    enforce: "post",
+    transform(code, id) {
+      // Prepend Buffer import to the main entry file so it runs before @ton/core
+      if (id.endsWith("/src/main.tsx")) {
+        return `import { Buffer as _Bf } from 'buffer';\nglobalThis.Buffer = _Bf;\n` + code;
+      }
+      return null;
+    },
+  };
+}
 
 function git(cmd: string): string {
   try { return execSync(cmd, { encoding: "utf8" }).trim(); } catch { return ""; }
@@ -19,6 +34,7 @@ export default defineConfig({
     __GIT_TAG__: JSON.stringify(gitTag),
   },
   plugins: [
+    bufferPolyfillPlugin(),
     react(),
     tailwindcss(),
     wasm(),
