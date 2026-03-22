@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { type KeyFileData, isEncryptedKeyFile, decryptKeyFile, isHkdfEncrypted, decryptHkdfKeyFile } from "../lib/crypto";
@@ -14,6 +14,13 @@ type PeerState =
 export function RecoveryImport() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+
+  // Force dark mode on recovery page
+  useEffect(() => {
+    const prev = document.documentElement.getAttribute("data-theme");
+    document.documentElement.setAttribute("data-theme", "dark");
+    return () => { if (prev) document.documentElement.setAttribute("data-theme", prev); };
+  }, []);
 
   const [peer1, setPeer1] = useState<PeerState>({ step: "idle" });
   const [peer2, setPeer2] = useState<PeerState>({ step: "idle" });
@@ -168,7 +175,7 @@ export function RecoveryImport() {
             disabled={!canEnter}
             className="w-full bg-red-900 hover:bg-red-800 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-red-200"
           >
-            {entering ? t("recovery.initializing") : `🔓 ${t("recovery.enterRecoveryMode")}`}
+            {entering ? t("recovery.initializing") : t("recovery.enterRecoveryMode")}
           </button>
         </div>
 

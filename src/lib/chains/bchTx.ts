@@ -121,7 +121,7 @@ export function bchApiUrl(_explorerUrl?: string): string {
 
 export async function fetchUtxos(address: string, apiBase?: string): Promise<UTXO[]> {
   const api = apiBase ?? BCH_API_DEFAULT;
-  const res = await fetch(`${api}/dashboards/address/${address}?limit=0`);
+  const res = await fetch(`${api}/dashboards/address/${address}?limit=1`);
   if (!res.ok) throw new Error(`Failed to fetch UTXOs: ${res.status}`);
   const data = await res.json();
   const addrKey = Object.keys(data.data || {})[0];
@@ -217,7 +217,8 @@ export function selectUtxos(
   useAll: boolean = false,
 ): { selected: UTXO[]; fee: bigint; change: bigint } {
   if (useAll) {
-    const selected = utxos.filter((u) => u.status.confirmed);
+    const confirmedAll = utxos.filter((u) => u.status.confirmed);
+    const selected = confirmedAll.length > 0 ? confirmedAll : utxos;
     const totalIn = selected.reduce((sum, u) => sum + BigInt(u.value), 0n);
     const size2 = estimateLegacyBytes(selected.length, 2);
     const fee2 = BigInt(Math.ceil(size2 * feeRateSatPerByte));
@@ -242,8 +243,9 @@ export function selectUtxos(
     return { selected, fee: fee2, change };
   }
 
-  const sorted = [...utxos]
-    .filter((u) => u.status.confirmed)
+  // BCH supports 0-conf: prefer confirmed UTXOs, fall back to unconfirmed
+  const confirmed = utxos.filter((u) => u.status.confirmed);
+  const sorted = [...(confirmed.length > 0 ? confirmed : utxos)]
     .sort((a, b) => b.value - a.value);
 
   const selected: UTXO[] = [];
@@ -269,7 +271,9 @@ export function selectUtxos(
     }
   }
 
-  throw new Error("Insufficient funds (not enough confirmed UTXOs)");
+  throw new Error(utxos.length === 0
+    ? "No UTXOs found — balance may be stale. Try refreshing."
+    : `Insufficient funds (${utxos.length} UTXOs, ${confirmed.length} confirmed)`);
 }
 
 // ── Build transaction ───────────────────────────────────────────

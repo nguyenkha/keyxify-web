@@ -28,16 +28,16 @@ export async function fetchAssets(chainId?: string): Promise<Asset[]> {
 
   // Merge custom tokens from user overrides
   const custom = getCustomTokens()
-    .filter(t => !chainId || t.chainId === chainId)
+    .filter(t => !chainId || t.chain_id === chainId)
     .map(t => ({
       id: t.id,
       symbol: t.symbol,
       name: t.name,
       decimals: t.decimals,
-      contractAddress: t.contractAddress,
+      contractAddress: t.contract_address,
       isNative: false,
-      iconUrl: t.iconUrl,
-      chainId: t.chainId,
+      iconUrl: t.icon_url,
+      chainId: t.chain_id,
     } as Asset));
 
   // Dedupe: custom tokens with same contractAddress+chainId as server assets are skipped

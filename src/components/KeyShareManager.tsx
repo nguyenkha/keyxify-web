@@ -5,7 +5,7 @@ import { listKeyShares, deleteKeyShare, saveKeyShareWithPrf, saveKeyShareWithPas
 import { authenticatePasskey, sensitiveHeaders } from "../lib/passkey";
 import { encryptKeyFile, decryptKeyFile, type KeyFileData } from "../lib/crypto";
 import { PassphraseInput } from "./PassphraseInput";
-import { authHeaders } from "../lib/auth";
+import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { useFrozen } from "../context/FrozenContext";
 import { Spinner, ErrorBox } from "./ui";
@@ -72,7 +72,16 @@ export function KeyShareManager() {
   }, [confirmDeleteId, serverExportStep, importStep, restoreStep]);
 
   useEffect(() => {
-    setShares(listKeyShares());
+    // Filter local shares to current identity only
+    const identityId = getIdentityId();
+    const allShares = listKeyShares();
+    if (isStandaloneJwt()) {
+      // Standalone: only show shares matching this keyShareId
+      setShares(allShares.filter((s) => s.keyId === identityId));
+    } else {
+      // Email user: show only email-type shares (not standalone)
+      setShares(allShares.filter((s) => s.type === "email"));
+    }
     setLoading(false);
 
     // Fetch server keys for export section
@@ -431,7 +440,7 @@ export function KeyShareManager() {
         </p>
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg px-3 py-2 mt-2">
           <p className="text-[11px] text-yellow-500">
-            {t("keyShare.lostAccessHint")}
+            {t(isStandaloneJwt() ? "keyShare.lostAccessHintStandalone" : "keyShare.lostAccessHint")}
           </p>
         </div>
       </div>
@@ -497,8 +506,8 @@ export function KeyShareManager() {
         </div>
       )}
 
-      {/* Restore from server escrow — accounts with backup but no local share */}
-      {(() => {
+      {/* Restore from server escrow — accounts with backup but no local share (not for standalone — can't re-auth) */}
+      {!isStandaloneJwt() && (() => {
         const localKeyIds = new Set(shares.map((s) => s.keyId));
         const restorable = serverKeys.filter((k) => k.hasClientBackup && !localKeyIds.has(k.id));
         if (restorable.length === 0) return null;
@@ -533,7 +542,7 @@ export function KeyShareManager() {
                       disabled={(restoreId === k.id && restoreStep === "loading") || frozen}
                       className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors disabled:opacity-50 shrink-0"
                     >
-                      {restoreId === k.id && restoreStep === "loading" ? "..." : `📥 ${t("keyShare.download")}`}
+                      {restoreId === k.id && restoreStep === "loading" ? "..." : t("keyShare.download")}
                     </button>
                   </div>
 
@@ -596,7 +605,7 @@ export function KeyShareManager() {
                           {t("keyShare.serverBackupBadge")}
                         </button>
                       )}
-                      {k.hasClientBackup && (
+                      {k.hasClientBackup && !isStandaloneJwt() && (
                         <button
                           onClick={() => setBadgeExplain(badgeExplain === `bu-${k.id}` ? null : `bu-${k.id}`)}
                           className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
@@ -611,7 +620,7 @@ export function KeyShareManager() {
                     disabled={(serverExportId === k.id && serverExportStep === "loading") || frozen}
                     className="px-2.5 py-1.5 rounded-md text-[11px] font-medium bg-surface-tertiary text-text-secondary hover:bg-border-primary transition-colors disabled:opacity-50 shrink-0"
                   >
-                    {serverExportId === k.id && serverExportStep === "loading" ? "..." : `📥 ${t("keyShare.download")}`}
+                    {serverExportId === k.id && serverExportStep === "loading" ? "..." : t("keyShare.download")}
                   </button>
                 </div>
 
@@ -749,7 +758,7 @@ export function KeyShareManager() {
               </button>
             </div>
             <div className="px-5 py-5 space-y-4">
-              {!serverKeys.find((k) => k.id === confirmDeleteId)?.hasClientBackup && (
+              {!isStandaloneJwt() && !serverKeys.find((k) => k.id === confirmDeleteId)?.hasClientBackup && (
                 <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5 flex items-start gap-2">
                   <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />

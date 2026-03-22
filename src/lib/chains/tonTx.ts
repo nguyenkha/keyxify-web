@@ -40,6 +40,7 @@ function buildWalletStateInit(pubKey: Buffer): Cell {
     .storeUint(0, 32) // seqno
     .storeUint(WALLET_V4R2_SUBWALLET_ID, 32)
     .storeBuffer(pubKey, 32)
+    .storeBit(false) // empty plugins dictionary
     .endCell();
 
   return beginCell()
@@ -59,28 +60,43 @@ function buildWalletStateInit(pubKey: Buffer): Cell {
 export async function isTonWalletInitialized(rpcUrl: string, address: string): Promise<boolean> {
   const url = new URL(`${rpcUrl}/getAddressInformation`);
   url.searchParams.set("address", address);
-  const res = await fetch(url.toString());
-  if (!res.ok) return false;
-  const data = await res.json();
-  if (!data.ok) return false;
-  // state can be "active", "uninitialized", "frozen"
-  return data.result?.state === "active";
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(url.toString());
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      continue;
+    }
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (!data.ok) return false;
+    return data.result?.state === "active";
+  }
+  return false; // Assume uninitialized on persistent rate limit
 }
 
 // ── Seqno fetching ──────────────────────────────────────────────
 
 export async function getTonSeqno(rpcUrl: string, address: string): Promise<number> {
-  const url = new URL(`${rpcUrl}/runGetMethod`);
-  url.searchParams.set("address", address);
-  url.searchParams.set("method", "seqno");
-  url.searchParams.set("stack", "[]");
-  const res = await fetch(url.toString());
-  if (!res.ok) return 0; // Uninitialized wallet → seqno 0
-  const data = await res.json();
-  if (!data.ok) return 0;
-  const stack = data.result?.stack;
-  if (!stack || stack.length === 0) return 0;
-  return parseInt(stack[0][1], 16) || 0;
+  // toncenter v2 runGetMethod requires POST
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`${rpcUrl}/runGetMethod`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ address, method: "seqno", stack: [] }),
+    });
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      continue;
+    }
+    if (!res.ok) return 0; // Uninitialized wallet → seqno 0
+    const data = await res.json();
+    if (!data.ok) return 0;
+    const stack = data.result?.stack;
+    if (!stack || stack.length === 0) return 0;
+    return parseInt(stack[0][1], 16) || 0;
+  }
+  throw new Error("TON API rate limited. Please try again in a few seconds.");
 }
 
 // ── Transaction building ────────────────────────────────────────
@@ -93,32 +109,15 @@ export interface TonTransferParams {
   memo?: string;
 }
 
-/**
- * Build the unsigned message body (inner transfer) for wallet v4r2.
- * Returns the cell hash (to be signed) and the serialized body (to send to server).
- */
-export function buildTonTransferMessage(params: TonTransferParams): {
+/** Build wallet v4r2 signing body wrapping an internal message */
+function buildWalletV4R2Body(internalMsg: ReturnType<typeof internal>, seqno: number): {
   hash: Uint8Array;
-  unsignedBody: string; // base64 BOC
+  unsignedBody: string;
 } {
-  const { to, amount, seqno, memo } = params;
-
-  const destAddr = Address.parse(to);
-  const amountNano = toNano(amount);
-
-  const internalMsg = internal({
-    to: destAddr,
-    value: amountNano,
-    bounce: false,
-    body: memo ? beginCell().storeUint(0, 32).storeStringTail(memo).endCell() : undefined,
-  });
-
-  // Wallet v4r2 signing body:
-  // subwallet_id(32) + valid_until(32) + seqno(32) + op(8) + send_mode(8) + msg_ref
   const validUntil = Math.floor(Date.now() / 1000) + 300; // 5 min expiry
   const msgCell = beginCell().store(storeMessageRelaxed(internalMsg)).endCell();
   const body = beginCell()
-    .storeUint(698983191, 32) // subwallet_id
+    .storeUint(WALLET_V4R2_SUBWALLET_ID, 32)
     .storeUint(validUntil, 32)
     .storeUint(seqno, 32)
     .storeUint(0, 8) // simple send op
@@ -126,10 +125,117 @@ export function buildTonTransferMessage(params: TonTransferParams): {
     .storeRef(msgCell)
     .endCell();
 
-  const hash = body.hash();
-  const boc = body.toBoc().toString("base64");
+  return { hash: new Uint8Array(body.hash()), unsignedBody: body.toBoc().toString("base64") };
+}
 
-  return { hash: new Uint8Array(hash), unsignedBody: boc };
+/**
+ * Build the unsigned message body for a native TON transfer.
+ * Returns the cell hash (to be signed) and the serialized body.
+ */
+export function buildTonTransferMessage(params: TonTransferParams): {
+  hash: Uint8Array;
+  unsignedBody: string; // base64 BOC
+} {
+  const { to, amount, seqno, memo } = params;
+
+  const internalMsg = internal({
+    to: Address.parse(to),
+    value: toNano(amount),
+    bounce: false,
+    body: memo ? beginCell().storeUint(0, 32).storeStringTail(memo).endCell() : undefined,
+  });
+
+  return buildWalletV4R2Body(internalMsg, seqno);
+}
+
+// ── Jetton (TEP-74) transfer ────────────────────────────────────
+
+/** TEP-74 transfer op code */
+const JETTON_TRANSFER_OP = 0xf8a7ea5;
+
+/** TON attached to jetton transfer for gas + notification (0.05 TON) */
+export const JETTON_FORWARD_TON = toNano("0.05");
+
+export interface TonJettonTransferParams {
+  eddsaPubKeyHex: string;
+  senderAddress: string;       // sender's wallet address (for response_destination)
+  jettonWalletAddress: string; // sender's jetton wallet contract
+  to: string;                  // recipient's wallet address
+  jettonAmount: bigint;        // amount in base units
+  seqno: number;
+  forwardTonAmount?: bigint;   // TON for notification to recipient (default: 1 nanoton)
+}
+
+/**
+ * Build unsigned message body for a Jetton (TEP-74) transfer.
+ * Sends an internal message to the sender's jetton wallet with the transfer payload.
+ */
+export function buildTonJettonTransferMessage(params: TonJettonTransferParams): {
+  hash: Uint8Array;
+  unsignedBody: string;
+} {
+  const { senderAddress, jettonWalletAddress, to, jettonAmount, seqno, forwardTonAmount } = params;
+
+  // TEP-74 transfer body
+  const transferBody = beginCell()
+    .storeUint(JETTON_TRANSFER_OP, 32) // op: transfer
+    .storeUint(0, 64)                  // query_id
+    .storeCoins(jettonAmount)          // amount of jettons to transfer
+    .storeAddress(Address.parse(to))   // destination (recipient)
+    .storeAddress(Address.parse(senderAddress)) // response_destination (excess TON returns here)
+    .storeBit(false)                   // custom_payload: null
+    .storeCoins(forwardTonAmount ?? 1n) // forward_ton_amount (1 nanoton for notification)
+    .storeBit(false)                   // forward_payload: empty
+    .endCell();
+
+  // Internal message to the sender's jetton wallet, carrying enough TON for gas
+  const internalMsg = internal({
+    to: Address.parse(jettonWalletAddress),
+    value: JETTON_FORWARD_TON,
+    bounce: true,
+    body: transferBody,
+  });
+
+  return buildWalletV4R2Body(internalMsg, seqno);
+}
+
+/**
+ * Resolve the sender's jetton wallet address via toncenter v3 API.
+ */
+export async function resolveJettonWalletAddress(
+  rpcUrl: string,
+  jettonMasterAddress: string,
+  ownerAddress: string,
+): Promise<string> {
+  const baseUrl = rpcUrl.replace(/\/api\/v2\/?$/, "");
+  const url = new URL(`${baseUrl}/api/v3/jetton/wallets`);
+  url.searchParams.set("owner_address", ownerAddress);
+  url.searchParams.set("jetton_address", jettonMasterAddress);
+  url.searchParams.set("limit", "1");
+
+  let res: Response | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    res = await fetch(url.toString());
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      continue;
+    }
+    break;
+  }
+  if (!res || !res.ok) {
+    const errText = await res?.text().catch(() => "") ?? "";
+    throw new Error(`Failed to resolve jetton wallet address: ${res?.status} ${errText}`);
+  }
+  const data = await res.json();
+
+  const wallet = data.jetton_wallets?.[0];
+  if (!wallet) throw new Error("Jetton wallet not found. You may need to receive tokens first.");
+
+  // Get user-friendly address from address_book, fallback to raw
+  const rawAddr = wallet.address as string;
+  const friendly = data.address_book?.[rawAddr]?.user_friendly as string | undefined;
+
+  return friendly || rawAddr;
 }
 
 /**
@@ -162,38 +268,47 @@ export function assembleTonSignedMessage(
   }
 
   // External message to the wallet contract
+  // TL-B: init:(Maybe (Either StateInit ^StateInit)) body:(Either X ^X)
   const ext = beginCell()
     .storeUint(0b10, 2) // ext_in_msg_info tag
     .storeUint(0, 2) // src: addr_none
     .storeAddress(addr)
-    .storeCoins(0) // import_fee
-    .storeBit(stateInit !== null) // state init present?
-    .storeMaybeRef(stateInit)
-    .storeBit(true) // body as ref
-    .storeRef(signedBody)
-    .endCell();
+    .storeCoins(0); // import_fee
+  if (stateInit) {
+    ext.storeBit(true)  // init: present
+       .storeBit(true)  // init: as ref
+       .storeRef(stateInit);
+  } else {
+    ext.storeBit(false); // init: absent
+  }
+  ext.storeBit(true)     // body: as ref
+     .storeRef(signedBody);
+  const extCell = ext.endCell();
 
-  return ext.toBoc().toString("base64");
+  return extCell.toBoc().toString("base64");
 }
 
 // ── Broadcasting ────────────────────────────────────────────────
 
 export async function broadcastTonTransaction(rpcUrl: string, bocBase64: string): Promise<string> {
-  const url = new URL(`${rpcUrl}/sendBoc`);
-  const res = await fetch(url.toString(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ boc: bocBase64 }),
-  });
-  if (!res.ok) {
-    const err = await res.text();
-    throw new Error(`TON broadcast failed: ${err}`);
+  // Retry on rate limit
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch(`${rpcUrl}/sendBoc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ boc: bocBase64 }),
+    });
+    if (res.status === 429) {
+      await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
+      continue;
+    }
+    const data = await res.json();
+    if (!data.ok) throw new Error(`TON broadcast failed: ${data.error || res.statusText}`);
+    // Compute tx hash from the BOC
+    const cell = Cell.fromBoc(Buffer.from(bocBase64, "base64"))[0];
+    return cell.hash().toString("hex");
   }
-  const data = await res.json();
-  if (!data.ok) throw new Error(`TON broadcast error: ${data.error || "unknown"}`);
-  // Compute tx hash from the BOC
-  const cell = Cell.fromBoc(Buffer.from(bocBase64, "base64"))[0];
-  return cell.hash().toString("hex");
+  throw new Error("TON broadcast rate limited. Please try again.");
 }
 
 /** Poll for TON transaction confirmation via seqno increment */

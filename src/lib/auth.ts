@@ -81,6 +81,25 @@ export async function verifyCode(email: string, code: string): Promise<string> {
   return data.token as string;
 }
 
+// ── JWT helpers ──
+
+export function getJwtPayload(): { sub: string; type?: string; email?: string } | null {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch { return null; }
+}
+
+export function isStandaloneJwt(): boolean {
+  return getJwtPayload()?.type === "standalone";
+}
+
+/** Get the identity ID from the JWT (userId for email, keyShareId for standalone) */
+export function getIdentityId(): string | null {
+  return getJwtPayload()?.sub ?? null;
+}
+
 export interface MeUser {
   id: string;
   email: string;
@@ -88,9 +107,17 @@ export interface MeUser {
   unfreezeAt: string | null;
 }
 
+export interface MeStandalone {
+  keyShareId: string;
+  type: "standalone";
+}
+
 export async function getMe(): Promise<MeUser | null> {
   const token = getToken();
   if (!token) return null;
+
+  // Standalone users don't have a user record — return null for MeUser
+  if (isStandaloneJwt()) return null;
 
   try {
     const res = await fetch(apiUrl("/api/auth/me"), {

@@ -40,16 +40,19 @@ import { WalletConnect as WalletConnectPage } from "./components/WalletConnect";
 import { WalletConnectProvider } from "./context/WalletConnectContext";
 import { useTranslation } from "react-i18next";
 import { usePullToRefresh } from "./lib/use-pull-to-refresh";
+import { useSwipeSidebar } from "./lib/use-swipe-sidebar";
 import { notifyBalanceRefresh, clearAllTokenBalanceCaches, clearAllTxCaches } from "./lib/dataCache";
 import { ToastProvider } from "./context/ToastContext";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
+import { StandaloneKeygen } from "./components/StandaloneKeygen";
 import { LangSwitcher } from "./components/LangSwitcher";
 import { setLanguage } from "./i18n/i18n";
 import { Broadcast as BroadcastPage } from "./components/Broadcast";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
+import { isStandaloneJwt, getIdentityId } from "./lib/auth";
 
 const WalletConnectIcon = () => (
   <svg className="w-4 h-4 inline-block align-[-2px] mr-1" viewBox="0 0 24 24" fill="currentColor">
@@ -173,8 +176,10 @@ const CLIENT_VERSION = __GIT_TAG__ || (__GIT_HASH__ ? `Build ${__GIT_HASH__}` : 
 
 function DashboardLayout() {
   const recovery = isRecoveryMode();
+  const standalone = isStandaloneJwt();
   const [user, setUser] = useState<MeUser | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  useSwipeSidebar(sidebarOpen, setSidebarOpen);
   const mainRef = useRef<HTMLElement>(null);
   const { pulling, pullDistance, refreshing } = usePullToRefresh(async () => {
     clearAllTokenBalanceCaches();
@@ -204,7 +209,7 @@ function DashboardLayout() {
     document.title = recovery ? "[Recovery Mode] kexify" : "kexify";
   }, [recovery]);
 
-  const email = recovery ? "" : (user?.email || "");
+  const email = recovery ? "" : standalone ? "" : (user?.email || "");
 
   const expert = useExpertMode();
 
@@ -232,7 +237,7 @@ function DashboardLayout() {
 
   return (
     <RecoveryProvider value={{ isRecovery: recovery, recoveryKeys: recovery ? getRecoveryKeys() : [] }}>
-    <FrozenProvider value={!!user?.frozenAt}>
+    <FrozenProvider value={!standalone && !!user?.frozenAt}>
     <div className="min-h-dvh bg-surface-primary text-text-primary flex">
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -321,7 +326,7 @@ function DashboardLayout() {
                     </button>
                   );
                 })}
-                {user && !user.frozenAt && (
+                {user && !user.frozenAt && !standalone && (
                   <FrozenBanner user={user} onUpdate={refreshUser} />
                 )}
               </div>
@@ -342,15 +347,15 @@ function DashboardLayout() {
             </div>
             <HideBalancesToggle />
           </div>
-        ) : email ? (<>
+        ) : (email || standalone) ? (<>
           <div className="px-4 py-1.5 text-[10px] text-text-muted/40 font-mono space-y-0.5">
             <p>Client: {CLIENT_VERSION}</p>
             <p>Server: {serverVersion ?? "..."}</p>
           </div>
           <div className="p-4 border-t border-border-primary flex items-center justify-between">
             <div className="min-w-0 flex-1">
-              <p className="text-xs text-text-tertiary truncate" title={email}>
-                {email}
+              <p className="text-xs text-text-tertiary truncate" title={email || t("nav.anonymousMode")}>
+                {email || `${t("nav.anonymousMode")} ${(getIdentityId() || "").slice(0, 6)}`}
               </p>
               <button
                 onClick={() => {
@@ -427,7 +432,7 @@ function DashboardLayout() {
             </div>
           )}
           {recovery && <RecoveryBanner />}
-          {user?.frozenAt && <FrozenBanner user={user} onUpdate={refreshUser} />}
+          {user?.frozenAt && !standalone && <FrozenBanner user={user} onUpdate={refreshUser} />}
           <Outlet />
         </main>
         <div className="shrink-0 px-4 md:px-8 py-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))] flex items-center justify-between">
@@ -477,6 +482,7 @@ function App() {
       <LangFromUrl />
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/standalone" element={<StandaloneKeygen />} />
         <Route path="/recovery" element={<RecoveryImport />} />
         <Route path="/auth/verify" element={<VerifyToken />} />
         <Route path="/auth/freeze" element={<FreezeAccount />} />

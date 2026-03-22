@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
-import { getMe } from "../lib/auth";
+import { getMe, getIdentityId } from "../lib/auth";
 import { getUserOverrides } from "../lib/userOverrides";
 
 const ExpertModeContext = createContext<{ expert: boolean; setExpert: (v: boolean) => void }>({ expert: false, setExpert: () => {} });
@@ -12,7 +12,8 @@ export function ExpertModeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     getMe().then((me) => {
-      const overrides = getUserOverrides(me?.id);
+      const uid = me?.id ?? getIdentityId() ?? undefined;
+      const overrides = getUserOverrides(uid);
       setExpertState(overrides.preferences?.expert_mode ?? false);
     });
   }, []);

@@ -14,10 +14,13 @@ export function PasskeyGate({
   onRegistered,
   onCancel,
   inline,
+  onRegisteredWithPrf,
 }: {
   onRegistered: () => void;
   onCancel: () => void;
   inline?: boolean;
+  /** If provided, called with PRF key + credentialId after register+auth (avoids extra passkey prompt) */
+  onRegisteredWithPrf?: (prfKey: CryptoKey, credentialId: string) => void;
 }) {
   const { t } = useTranslation();
   const [registering, setRegistering] = useState(false);
@@ -28,9 +31,13 @@ export function PasskeyGate({
     setError("");
     try {
       await registerPasskey();
-      // After registration, authenticate immediately to get a token
-      await authenticatePasskey({ withPrf: true });
-      onRegistered();
+      // After registration, authenticate immediately to get a token + PRF key
+      const auth = await authenticatePasskey({ withPrf: true });
+      if (onRegisteredWithPrf && auth.prfKey && auth.credentialId) {
+        onRegisteredWithPrf(auth.prfKey, auth.credentialId);
+      } else {
+        onRegistered();
+      }
     } catch (err) {
       setError(String(err));
       setRegistering(false);

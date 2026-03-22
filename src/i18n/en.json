@@ -26,12 +26,18 @@
     "paste": "Paste",
     "refresh": "Refresh",
     "tryAgain": "Try Again",
+    "continue": "Continue",
     "decrypt": "Decrypt",
     "passphrase": "Passphrase",
     "addressBook": "Address book",
     "viewOnExplorer": "View on explorer",
     "revokeApprovals": "Revoke token approvals",
     "copyLegacyAddress": "Copy legacy address"
+  },
+  "progress": {
+    "preparing": "Preparing...",
+    "almostDone": "Almost done...",
+    "complete": "Complete"
   },
   "login": {
     "tagline": "keys simplified",
@@ -53,7 +59,14 @@
     "inAppBrowser": "You're using an in-app browser",
     "inAppBrowserDesc": "For the best experience, open this page in your default browser.",
     "openInBrowser": "Open in Browser",
-    "copyLink": "Copy Link"
+    "copyLink": "Copy Link",
+    "or": "or",
+    "continueWithoutEmail": "Continue without email",
+    "returning": "Returning?",
+    "anonymousWallet": "Anonymous Wallet",
+    "unlock": "Unlock",
+    "importFile": "Import file",
+    "useWithoutEmail": "Use without email"
   },
   "nav": {
     "accounts": "Accounts",
@@ -67,7 +80,8 @@
     "signOut": "Sign Out",
     "exitRecovery": "Exit Recovery",
     "recoveryMode": "Recovery Mode",
-    "advanced": "Advanced"
+    "advanced": "Advanced",
+    "anonymousMode": "Anonymous"
   },
   "wallet": {
     "portfolioValue": "Portfolio Value",
@@ -192,7 +206,11 @@
     "networkFee": "Network fee",
     "estFee": "Est. fee",
     "nonce": "Nonce",
+    "feeSlow": "Slow",
+    "feeStandard": "Standard",
+    "feeFast": "Fast",
     "gasLimit": "Gas limit",
+    "gasPrice": "Gas price",
     "maxFee": "Max fee (Gwei)",
     "priorityFee": "Priority fee (Gwei)",
     "feeRate": "Fee rate (sat/vB)",
@@ -367,6 +385,7 @@
     "enterAmount": "Enter amount",
     "nonce": "Nonce",
     "gasLimit": "Gas limit",
+    "gasPrice": "Gas price",
     "maxFee": "Max fee (Gwei)",
     "priorityFee": "Priority fee (Gwei)",
     "estFee": "Est. fee",
@@ -639,6 +658,7 @@
     "browserStorage": "Browser Storage",
     "browserStorageDesc": "Your client key share (1 of 2) is encrypted and stored in this browser only. It never leaves your device.",
     "lostAccessHint": "Lost access? Restore from a backup file or server escrow.",
+    "lostAccessHintStandalone": "Lost access? Restore from your downloaded backup file.",
     "lostAccess": "Lost access to browser storage",
     "chooseFile": "Choose key share file (.json)",
     "noShares": "No key shares stored in this browser",
@@ -975,5 +995,40 @@
     "missingToken": "Missing verification token",
     "backToLogin": "Back to login",
     "verifying": "Verifying..."
+  },
+  "standalone": {
+    "title": "Anonymous Wallet",
+    "verifyCaptcha": "Complete the verification to continue",
+    "keyName": "Wallet Name (optional)",
+    "keyNamePlaceholder": "e.g. Trading Key",
+    "createWallet": "Create Wallet",
+    "backToLogin": "Back to login",
+    "generating": "Generating your MPC key pair...",
+    "setPassphrase": "Set a passphrase to encrypt your key share",
+    "backupRequired": "Backup Required",
+    "backupDesc": "This file is the ONLY way to recover your wallet if you lose access. No email recovery available.",
+    "keyShareFile": "Your key share file",
+    "downloadBackup": "Download Backup File",
+    "downloaded": "Downloaded",
+    "goToDashboard": "Go to Dashboard",
+    "unlockTitle": "Unlock Wallet",
+    "unlockFailed": "Failed to decrypt share",
+    "passphrasePlaceholder": "Enter your passphrase",
+    "unlock": "Unlock",
+    "prfUnlockHint": "Tap your passkey to unlock this wallet",
+    "invalidFile": "Invalid key file format",
+    "importedFile": "Key file loaded",
+    "enterPassphraseToImport": "Enter your passphrase to decrypt and import this wallet",
+    "confirmDeleteTitle": "Remove wallet?",
+    "confirmDelete": "This will remove the wallet from this browser. You'll need your backup file to recover it.",
+    "unlockWithPasskey": "Unlock with Passkey",
+    "authenticating": "Authenticating...",
+    "passkeyTitle": "Passkey protects your wallet",
+    "passkeyDesc": "You'll be prompted twice: first to create the passkey, then to verify it. This passkey is required for signing transactions — without it, no one can move your funds.",
+    "creationFailed": "Creation Failed",
+    "creatingTime": "This usually takes 10–20 seconds",
+    "stepEncryption": "Setting up encryption",
+    "stepSecuring": "Securing your account",
+    "stepSaving": "Saving"
   }
 }

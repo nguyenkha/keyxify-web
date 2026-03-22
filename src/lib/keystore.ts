@@ -27,6 +27,7 @@ export function setStoragePreference(pref: "browser" | "file") {
 interface StoredShare {
   keyId: string;
   mode: "prf" | "passphrase";
+  type?: "email" | "standalone"; // defaults to "email" for backward compat
   credentialId?: string;
   salt?: string; // base64, for passphrase mode
   iv: string; // base64
@@ -121,11 +122,13 @@ export async function saveKeyShareWithPrf(
   data: KeyFileData,
   prfKey: CryptoKey,
   credentialId: string,
+  type: "email" | "standalone" = "email",
 ): Promise<void> {
   const { iv, ciphertext } = await aesEncrypt(prfKey, serialize(data));
   lsPut({
     keyId,
     mode: "prf",
+    type,
     credentialId,
     iv,
     ciphertext,
@@ -140,6 +143,7 @@ export async function saveKeyShareWithPassphrase(
   keyId: string,
   data: KeyFileData,
   passphrase: string,
+  type: "email" | "standalone" = "email",
 ): Promise<void> {
   const salt = crypto.getRandomValues(new Uint8Array(SALT_BYTES));
   const key = await derivePassphraseKey(passphrase, salt);
@@ -147,6 +151,7 @@ export async function saveKeyShareWithPassphrase(
   lsPut({
     keyId,
     mode: "passphrase",
+    type,
     salt: toBase64(salt),
     iv,
     ciphertext,
@@ -194,6 +199,7 @@ export interface KeyShareInfo {
   keyId: string;
   publicKey: string;
   mode: "prf" | "passphrase";
+  type: "email" | "standalone";
   storedAt: string;
   name?: string;
   credentialId?: string;
@@ -216,8 +222,32 @@ export function listKeyShares(): KeyShareInfo[] {
     keyId: e.keyId,
     publicKey: e.meta.publicKey,
     mode: e.mode,
+    type: e.type ?? "email",
     storedAt: e.meta.storedAt,
     name: e.meta.name,
     credentialId: e.credentialId,
   }));
+}
+
+/** Get only standalone shares from localStorage */
+export function getStandaloneShares(): KeyShareInfo[] {
+  return listKeyShares().filter((s) => s.type === "standalone");
+}
+
+/** Remove corrupted or incomplete keyshare entries from localStorage */
+export function cleanupStaleShares(): void {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (!k?.startsWith(STORAGE_PREFIX)) continue;
+    try {
+      const v = JSON.parse(localStorage.getItem(k)!);
+      // Remove entries missing required fields
+      if (!v?.keyId || !v?.iv || !v?.ciphertext) {
+        localStorage.removeItem(k);
+      }
+    } catch {
+      // Corrupted JSON — remove
+      localStorage.removeItem(k);
+    }
+  }
 }

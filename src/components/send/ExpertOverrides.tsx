@@ -1,6 +1,6 @@
 import {
   EVM_FEE_MULTIPLIER,
-  FEE_LABELS,
+  FEE_LABEL_KEYS,
   formatGwei,
 } from "../sendTypes";
 import type { FeeLevel } from "../sendTypes";
@@ -252,6 +252,7 @@ interface FeeLevelSelectorProps {
   btcFeeRates: { low: number; medium: number; high: number } | null;
   ltcFeeRates: { low: number; medium: number; high: number } | null;
   baseGasPrice: bigint | null;
+  t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
 export function ExpertFeeLevelSelector({
@@ -261,6 +262,7 @@ export function ExpertFeeLevelSelector({
   btcFeeRates,
   ltcFeeRates,
   baseGasPrice,
+  t,
 }: FeeLevelSelectorProps) {
   return (
     <div className="bg-surface-primary border border-border-primary rounded-lg p-1.5">
@@ -281,7 +283,7 @@ export function ExpertFeeLevelSelector({
               }`}
             >
               <span className={`text-[11px] font-medium ${isActive ? "text-text-primary" : "text-text-muted"}`}>
-                {FEE_LABELS[level]}
+                {t(FEE_LABEL_KEYS[level])}
               </span>
               <span className={`text-[10px] tabular-nums mt-0.5 ${isActive ? "text-text-secondary" : "text-text-muted/70"}`}>
                 {feeText}

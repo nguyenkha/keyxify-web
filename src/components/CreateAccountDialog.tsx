@@ -15,7 +15,7 @@ import {
 } from "../lib/keystore";
 import { apiUrl } from "../lib/apiBase";
 import { useExpertMode, useSetExpertMode } from "../context/ExpertModeContext";
-import { getMe } from "../lib/auth";
+import { getMe, isStandaloneJwt } from "../lib/auth";
 import { getUserOverrides, setUserOverrides } from "../lib/userOverrides";
 import { useSteppedProgress, CREATING_DURATION_MS, ProgressBar } from "./ProgressBar";
 
@@ -274,9 +274,8 @@ export function CreateAccountDialog({
         }
 
         // Auto-escrow: upload PRF-encrypted StoredShare to server (non-blocking)
-        // This is the same encrypted blob from localStorage — never upload raw keys.
-        // The restore flow detects StoredShare format and re-authenticates passkey PRF to decrypt.
-        if (prfSaved) {
+        // Skip for standalone — can't re-auth without the key share, so escrow is useless.
+        if (prfSaved && !isStandaloneJwt()) {
           try {
             const stored = localStorage.getItem(`keyshare:${keyId}`);
             if (stored) {
@@ -538,7 +537,7 @@ export function CreateAccountDialog({
                 onClick={guardedCreate}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
               >
-                ✨ Create Account
+                Create Account
               </button>
             </div>
           )}
@@ -697,8 +696,8 @@ export function CreateAccountDialog({
                 )}
               </button>
 
-              {/* Server escrow option */}
-              {escrowStatus === "idle" && downloaded && (
+              {/* Server escrow option — hidden for standalone (can't re-auth to download) */}
+              {escrowStatus === "idle" && downloaded && !isStandaloneJwt() && (
                 <button
                   onClick={async () => {
                     if (!rawKeyData || !keyFile) return;

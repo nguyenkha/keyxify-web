@@ -7,14 +7,14 @@ const HideBalancesContext = createContext<{
 }>({ hidden: false, toggle: () => {} });
 
 export function HideBalancesProvider({ children }: { children: ReactNode }) {
-  const [hidden, setHidden] = useState(() => getUserOverrides().hideBalances === true);
+  const [hidden, setHidden] = useState(() => getUserOverrides().hide_balances === true);
 
   function toggle() {
     setHidden((prev) => {
       const next = !prev;
       const overrides = getUserOverrides();
-      if (next) overrides.hideBalances = true;
-      else delete overrides.hideBalances;
+      if (next) overrides.hide_balances = true;
+      else delete overrides.hide_balances;
       setUserOverrides(overrides);
       return next;
     });

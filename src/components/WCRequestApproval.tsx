@@ -56,7 +56,7 @@ interface ResolvedAccount {
 
 // ── Fee constants ────────────────────────────────────────────────
 type FeeLevel = "low" | "medium" | "high";
-const FEE_LABELS: Record<FeeLevel, string> = { low: "Slow", medium: "Standard", high: "Fast" };
+const FEE_LABEL_KEYS: Record<FeeLevel, string> = { low: "send.feeSlow", medium: "send.feeStandard", high: "send.feeFast" };
 const FEE_MULTIPLIER: Record<FeeLevel, number> = { low: 0.8, medium: 1.0, high: 1.3 };
 const GAS_LIMIT_DEFAULT = 21_000n;
 const GAS_LIMIT_CONTRACT = 200_000n;
@@ -1108,7 +1108,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   {/* Expert: TRON details */}
                   {expert && (
                     <div className="space-y-2">
-                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <div className="bg-surface-primary border border-border-primary rounded-lg px-2.5 py-1.5">
                           <p className="text-[10px] text-text-muted mb-0.5">Bandwidth</p>
@@ -1266,7 +1266,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                             }`}
                           >
                             <span className={`text-[11px] font-medium ${isActive ? "text-text-primary" : "text-text-muted"}`}>
-                              {FEE_LABELS[level]}
+                              {t(FEE_LABEL_KEYS[level])}
                             </span>
                             <span className={`text-[10px] tabular-nums mt-0.5 ${isActive ? "text-text-secondary" : "text-text-muted/70"}`}>
                               {feeText}
@@ -1280,10 +1280,10 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                   {/* Expert: advanced tx overrides */}
                   {expert && (
                     <div className="space-y-2">
-                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">Advanced</p>
+                      <p className="text-[10px] text-text-muted uppercase tracking-wider font-semibold">{t("common.advanced")}</p>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Nonce</label>
+                          <label className="block text-xs text-text-muted mb-1">{t("wc.nonce")}</label>
                           <input
                             value=""
                             readOnly
@@ -1292,7 +1292,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Gas limit</label>
+                          <label className="block text-xs text-text-muted mb-1">{t("wc.gasLimit")}</label>
                           <input
                             value={gasLimitInput}
                             onChange={(e) => setGasLimitInput(e.target.value.replace(/[^0-9]/g, ""))}
@@ -1301,7 +1301,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Max fee (Gwei)</label>
+                          <label className="block text-xs text-text-muted mb-1">{t("wc.maxFee")}</label>
                           <input
                             value={maxFeeOverride}
                             onChange={(e) => setMaxFeeOverride(e.target.value)}
@@ -1310,7 +1310,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                           />
                         </div>
                         <div>
-                          <label className="block text-xs text-text-muted mb-1">Priority fee (Gwei)</label>
+                          <label className="block text-xs text-text-muted mb-1">{t("wc.priorityFee")}</label>
                           <input
                             value={priorityFeeOverride}
                             onChange={(e) => setPriorityFeeOverride(e.target.value)}
@@ -1706,13 +1706,13 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                     </div>
                     {expert && gasPrice != null && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Gas price</span>
+                        <span className="text-xs text-text-muted">{t("wc.gasPrice")}</span>
                         <span className="text-xs tabular-nums text-text-muted">{formatGwei(gasPrice)} Gwei</span>
                       </div>
                     )}
                     {expert && (
                       <div className="border-t border-border-secondary px-3 py-2.5 flex items-center justify-between">
-                        <span className="text-xs text-text-muted">Gas limit</span>
+                        <span className="text-xs text-text-muted">{t("wc.gasLimit")}</span>
                         <span className="text-xs tabular-nums text-text-muted">{gasLimit.toLocaleString()}</span>
                       </div>
                     )}

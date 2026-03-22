@@ -4,6 +4,8 @@ import { apiUrl } from "../../lib/apiBase";
 import { sensitiveHeaders } from "../../lib/passkey";
 import {
   buildTonTransferMessage,
+  buildTonJettonTransferMessage,
+  resolveJettonWalletAddress,
   assembleTonSignedMessage,
   broadcastTonTransaction,
   waitForTonConfirmation,
@@ -16,7 +18,7 @@ import { friendlyError } from "./signing-flows";
 
 export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> {
   const {
-    keyFile, chain, to, amount,
+    keyFile, chain, asset, to, amount,
     confirmBeforeBroadcast,
     onTxSubmitted, onTxConfirmed,
     setStep, setSigningPhase, setSignatureCount, setSigningError,
@@ -36,20 +38,50 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
       await restoreKeyHandles(keyFile.id, keyFile.share, keyFile.eddsaShare);
     }
 
-    // 1. Derive address, get seqno, and check if wallet is initialized
+    // 1. Derive address and fetch needed data (staggered to avoid toncenter 1 req/s limit)
     const fromAddress = publicKeyToTonAddress(keyFile.eddsaPublicKey);
-    const [seqno, walletInitialized] = await Promise.all([
-      getTonSeqno(chain.rpcUrl, fromAddress),
-      isTonWalletInitialized(chain.rpcUrl, fromAddress),
-    ]);
+    const isJetton = !asset.isNative && !!asset.contractAddress;
 
-    // 2. Build unsigned transfer message
-    const { hash, unsignedBody } = buildTonTransferMessage({
-      eddsaPubKeyHex: keyFile.eddsaPublicKey,
-      to,
-      amount,
-      seqno,
-    });
+    // Stagger all toncenter calls sequentially (free tier: 1 req/sec)
+    let jettonWalletAddress: string | undefined;
+    if (isJetton) {
+      jettonWalletAddress = await resolveJettonWalletAddress(
+        chain.rpcUrl, asset.contractAddress!, fromAddress,
+      );
+      await new Promise((r) => setTimeout(r, 1500));
+    }
+    const seqno = await getTonSeqno(chain.rpcUrl, fromAddress);
+    // seqno > 0 means wallet is definitely deployed — skip the extra API call
+    let walletInitialized = seqno > 0;
+    if (!walletInitialized) {
+      await new Promise((r) => setTimeout(r, 1500));
+      walletInitialized = await isTonWalletInitialized(chain.rpcUrl, fromAddress);
+    }
+
+    // 2. Build unsigned transfer message (native TON or Jetton)
+    let hash: Uint8Array;
+    let unsignedBody: string;
+
+    if (!isJetton) {
+      ({ hash, unsignedBody } = buildTonTransferMessage({
+        eddsaPubKeyHex: keyFile.eddsaPublicKey,
+        to,
+        amount,
+        seqno,
+      }));
+    } else {
+      const jettonAmount = BigInt(
+        Math.round(parseFloat(amount.replace(/,/g, "")) * 10 ** asset.decimals),
+      );
+      ({ hash, unsignedBody } = buildTonJettonTransferMessage({
+        eddsaPubKeyHex: keyFile.eddsaPublicKey,
+        senderAddress: fromAddress,
+        jettonWalletAddress: jettonWalletAddress!,
+        to,
+        jettonAmount,
+        seqno,
+      }));
+    }
 
     // 3. MPC EdDSA signing
     setSigningPhase("mpc-signing");
@@ -65,7 +97,16 @@ export async function executeTonSigningFlow(ctx: SigningContext): Promise<void> 
         chainType: "ton",
         unsignedTx: unsignedBody,
         eddsaPublicKey: keyFile.eddsaPublicKey,
-        tonTx: { to, amount, seqno },
+        tonTx: {
+          to,
+          amount,
+          seqno,
+          ...(asset.isNative ? {} : {
+            contractAddress: asset.contractAddress,
+            jettonWalletAddress,
+            symbol: asset.symbol,
+          }),
+        },
       },
       headers: sensitiveHeaders(),
     });

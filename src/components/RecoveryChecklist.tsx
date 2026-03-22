@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { authHeaders } from "../lib/auth";
+import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
 import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
 import { Spinner } from "./ui";
 import { apiUrl } from "../lib/apiBase";
@@ -54,7 +54,12 @@ export function RecoveryChecklist() {
   const [pendingDownloadData, setPendingDownloadData] = useState<{ data: KeyFileData; account: AccountStatus } | null>(null);
 
   function fetchAccounts() {
-    const browserShares = listKeyShares();
+    const allShares = listKeyShares();
+    // Filter to current identity only
+    const identityId = getIdentityId();
+    const browserShares = isStandaloneJwt()
+      ? allShares.filter((s) => s.keyId === identityId)
+      : allShares.filter((s) => s.type === "email");
     const browserIds = new Set(browserShares.map((s) => s.keyId));
 
     fetch(apiUrl("/api/keys"), { headers: authHeaders() })
@@ -302,8 +307,9 @@ export function RecoveryChecklist() {
     );
   }
 
+  const standalone = isStandaloneJwt();
   const allBrowserShares = accounts.every((a) => a.hasBrowserShare);
-  const allBackedUp = accounts.every((a) => a.hasClientBackup);
+  const allBackedUp = standalone || accounts.every((a) => a.hasClientBackup);
   const allServerExported = accounts.every((a) => a.hkdfDownloadedAt || a.selfCustodyAt);
   const overallReady = allBrowserShares && allBackedUp && allServerExported;
 
@@ -341,6 +347,7 @@ export function RecoveryChecklist() {
       {accounts.map((account) => {
         const serverKeyDone = !!(account.hkdfDownloadedAt || account.selfCustodyAt);
 
+        const standalone = isStandaloneJwt();
         const steps = [
           {
             key: "browser",
@@ -348,12 +355,13 @@ export function RecoveryChecklist() {
             detail: t("recovery.browserDetail"),
             done: account.hasBrowserShare,
           },
-          {
+          // Escrow backup is useless for standalone — can't re-auth without the key share
+          ...(!standalone ? [{
             key: "escrow",
             label: t("recovery.keyBackedUpOnServer"),
             detail: t("recovery.escrowDetail"),
             done: account.hasClientBackup,
-          },
+          }] : []),
           {
             key: "server",
             label: t("recovery.serverKeyDownloaded"),

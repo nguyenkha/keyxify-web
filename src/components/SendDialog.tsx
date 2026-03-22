@@ -7,7 +7,7 @@ import { useExpertMode } from "../context/ExpertModeContext";
 import { SigningError, SigningStepper } from "./tx";
 import { fetchPrices, getUsdValue } from "../lib/prices";
 import { clearClientKey } from "../lib/mpc";
-import { authHeaders } from "../lib/auth";
+import { authHeaders, isStandaloneJwt } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
 import { PasskeyGate } from "./PasskeyGate";
@@ -162,9 +162,11 @@ export function SendDialog({
   const [showBrowserPassphrase, setShowBrowserPassphrase] = useState(false);
 
   // Backup status — gate large sends (>$100) on backup completion
-  const [hasBackup, setHasBackup] = useState<boolean | null>(null);
+  // Standalone mode: skip gate (escrow backup is impossible — can't re-auth without key share)
+  const [hasBackup, setHasBackup] = useState<boolean | null>(isStandaloneJwt() ? true : null);
   const [backupGateError, setBackupGateError] = useState<string | null>(null);
   useEffect(() => {
+    if (isStandaloneJwt()) return; // standalone: always treat as backed up
     fetch(apiUrl("/api/keys"), { headers: authHeaders() })
       .then((r) => r.json())
       .then(({ keys }) => {

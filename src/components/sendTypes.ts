@@ -11,6 +11,9 @@ export interface KeyFile {
 
 export type FeeLevel = "low" | "medium" | "high";
 
+export const FEE_LABEL_KEYS: Record<FeeLevel, string> = { low: "send.feeSlow", medium: "send.feeStandard", high: "send.feeFast" };
+
+/** @deprecated Use FEE_LABEL_KEYS with t() instead */
 export const FEE_LABELS: Record<FeeLevel, string> = { low: "Slow", medium: "Standard", high: "Fast" };
 
 export const EVM_FEE_MULTIPLIER: Record<FeeLevel, number> = { low: 0.8, medium: 1.0, high: 1.3 };

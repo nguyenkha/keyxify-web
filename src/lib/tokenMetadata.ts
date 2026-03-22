@@ -295,6 +295,70 @@ export async function fetchAlgoTokenMetadata(assetId: string, rpcUrl: string): P
   return { symbol, name, decimals, contractAddress: assetId, iconUrl: null };
 }
 
+// ── TON (Jetton) ──────────────────────────────────────────────
+
+async function fetchTonJettonMetadata(
+  contractAddress: string,
+  rpcUrl: string,
+): Promise<TokenMetadata> {
+  // Use toncenter v3 API to get Jetton master info
+  const baseUrl = rpcUrl.replace(/\/api\/v2\/?$/, "");
+  const v3Url = new URL(`${baseUrl}/api/v3/jetton/masters`);
+  v3Url.searchParams.set("address", contractAddress);
+  v3Url.searchParams.set("limit", "1");
+
+  const res = await fetch(v3Url.toString());
+  if (!res.ok) throw new Error("Failed to query Jetton master contract");
+  const data = await res.json();
+  const jetton = data.jetton_masters?.[0];
+  if (!jetton) throw new Error("Jetton not found. Verify the contract address.");
+
+  const content = jetton.jetton_content || {};
+  const decimals = parseInt(content.decimals || "9", 10);
+
+  // Extract enriched metadata from toncenter's metadata.token_info
+  const rawAddr = jetton.address as string | undefined;
+  const tokenInfo = rawAddr
+    ? (data.metadata?.[rawAddr]?.token_info?.[0] as
+        { name?: string; symbol?: string; image?: string } | undefined)
+    : undefined;
+
+  // Resolve image URL (prefer token_info, then on-chain content)
+  const resolveImage = (url?: string | null): string | null => {
+    if (!url) return null;
+    return url.startsWith("ipfs://") ? `https://ipfs.io/ipfs/${url.slice(7)}` : url;
+  };
+
+  // If we have a URI, fetch full metadata from it
+  if (content.uri) {
+    try {
+      const fetchUrl = content.uri.startsWith("ipfs://")
+        ? `https://ipfs.io/ipfs/${content.uri.slice(7)}`
+        : content.uri;
+      const metaRes = await fetch(fetchUrl, { signal: AbortSignal.timeout(8000) });
+      if (metaRes.ok) {
+        const meta = await metaRes.json();
+        return {
+          symbol: meta.symbol || tokenInfo?.symbol || content.symbol || "???",
+          name: meta.name || tokenInfo?.name || content.name || "Unknown Jetton",
+          decimals: meta.decimals ?? decimals,
+          contractAddress,
+          iconUrl: resolveImage(meta.image) || resolveImage(tokenInfo?.image) || resolveImage(content.image),
+        };
+      }
+    } catch { /* fall through to token_info / on-chain content */ }
+  }
+
+  // Use token_info (enriched metadata) or on-chain content fields
+  return {
+    symbol: tokenInfo?.symbol || content.symbol || "???",
+    name: tokenInfo?.name || content.name || "Unknown Jetton",
+    decimals,
+    contractAddress,
+    iconUrl: resolveImage(tokenInfo?.image) || resolveImage(content.image),
+  };
+}
+
 // ── Unified fetcher ────────────────────────────────────────────
 
 export async function fetchTokenMetadata(
@@ -319,6 +383,8 @@ export async function fetchTokenMetadata(
       return fetchTronTokenMetadata(contractAddress, rpcUrl);
     case "algo":
       return fetchAlgoTokenMetadata(contractAddress, rpcUrl);
+    case "ton":
+      return fetchTonJettonMetadata(contractAddress, rpcUrl);
     default:
       throw new Error(`Custom tokens not supported for ${chainType}`);
   }

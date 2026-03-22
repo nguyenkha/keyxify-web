@@ -14,6 +14,7 @@ export interface KeyFileData {
   publicKey: string;
   eddsaShare: string;
   eddsaPublicKey: string;
+  type?: "email" | "standalone"; // standalone backup marker
   encrypted?: boolean;
   salt?: string;
   encryption?: "server-hkdf"; // present when encrypted by server HKDF

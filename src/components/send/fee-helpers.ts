@@ -83,6 +83,19 @@ export function computeFeeDisplay(p: ComputeFeeDisplayParams): FeeDisplay {
       isFixed: true,
     };
   }
+  if (chain.type === "ton") {
+    // Native transfer ~0.005 TON; Jetton transfer ~0.05 TON (gas + forward)
+    const tonFee = asset.isNative ? 5_000_000n : 50_000_000n;
+    const tonFeeStr = (Number(tonFee) / 1e9).toFixed(9).replace(/\.?0+$/, "");
+    return {
+      formatted: `~${tonFeeStr}`,
+      symbol: "TON",
+      usd: getUsdValue(tonFeeStr, "TON", prices),
+      rateLabel: asset.isNative ? null : "Jetton transfer gas",
+      hasLevelSelector: false,
+      isFixed: true,
+    };
+  }
   if (chain.type === "algo") {
     const feeAlgo = (1000 / 1e6).toFixed(6).replace(/\.?0+$/, "");
     return {
@@ -180,6 +193,8 @@ export function computeMaxSendable(p: ComputeMaxSendableParams): string {
     feeBaseUnits = BigInt(p.xlmFeeRates[feeLevel]);
   } else if (chain.type === "algo") {
     feeBaseUnits = 1000n; // 0.001 ALGO flat fee
+  } else if (chain.type === "ton") {
+    feeBaseUnits = 5_000_000n; // ~0.005 TON (native only; tokens use full balance)
   }
 
   if (feeBaseUnits == null) return balance;

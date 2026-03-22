@@ -195,7 +195,7 @@ export function ManageDisplayPanel({
             >
               <option value="">{t("manageDisplay.selectNetwork")}</option>
               {uniqueChains
-                .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm" || chain.type === "tron" || chain.type === "ton" || chain.type === "algo")
+                .filter(({ chain }) => chain.type === "evm" || chain.type === "solana" || chain.type === "xlm" || chain.type === "tron" || chain.type === "algo" || chain.type === "ton")
                 .map(({ chain }) => (
                   <option key={chain.id} value={chain.id}>{chain.displayName}</option>
                 ))}
@@ -264,7 +264,7 @@ export function ManageDisplayPanel({
                     if (!chain || !addPreview) return;
                     const me = await getMe();
                     const overrides = getUserOverrides(me?.id);
-                    const existing = overrides.customTokens ?? [];
+                    const existing = overrides.custom_tokens ?? [];
                     const tokenId = `custom:${chain.id}:${addContract.trim().toLowerCase()}`;
                     // Skip if already added
                     if (existing.some(t => t.id === tokenId)) {
@@ -276,12 +276,12 @@ export function ManageDisplayPanel({
                       symbol: addPreview.symbol,
                       name: addPreview.name,
                       decimals: addPreview.decimals,
-                      contractAddress: addContract.trim(),
-                      iconUrl: addPreview.iconUrl,
-                      chainId: chain.id,
-                      addedAt: Date.now(),
+                      contract_address: addContract.trim(),
+                      icon_url: addPreview.iconUrl,
+                      chain_id: chain.id,
+                      added_at: Date.now(),
                     };
-                    setUserOverrides({ ...overrides, customTokens: [...existing, newToken] }, me?.id);
+                    setUserOverrides({ ...overrides, custom_tokens: [...existing, newToken] }, me?.id);
                     // Auto-enable display
                     onToggle(tokenId, true);
                     setShowAddToken(false);

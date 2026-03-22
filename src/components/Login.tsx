@@ -5,6 +5,7 @@ import { requestMagicLink, verifyCode, setToken } from "../lib/auth";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { ErrorBox } from "./ui";
 import { LangSwitcher } from "./LangSwitcher";
+import { cleanupStaleShares } from "../lib/keystore";
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
@@ -28,6 +29,8 @@ export function Login() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
+  // Cleanup corrupted shares on login page mount
+  useEffect(() => { cleanupStaleShares(); }, []);
 
   // Load Turnstile script and render widget
   const renderTurnstile = useCallback(() => {
@@ -185,18 +188,18 @@ export function Login() {
           </form>
         )}
 
-        {/* Recovery Mode link */}
-        <div className="mt-8 pt-6 border-t border-border-primary text-center">
-          <Link
-            to="/recovery"
-            className="text-xs text-text-muted hover:text-orange-400 transition-colors"
-          >
-            {t("login.recoveryMode")}
-          </Link>
-          <p className="text-[10px] text-text-muted/60 mt-1">
-            {t("login.recoveryDesc")}
-          </p>
-        </div>
+        {/* Bottom links */}
+        {!sent && (
+          <div className="mt-6 pt-5 border-t border-border-primary flex items-center justify-center gap-3 text-[11px]">
+            <Link to="/standalone" className="text-text-muted hover:text-text-secondary transition-colors">
+              {t("login.continueWithoutEmail")}
+            </Link>
+            <span className="text-border-primary">·</span>
+            <Link to="/recovery" className="text-text-muted hover:text-orange-400 transition-colors">
+              {t("login.recoveryMode")}
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Theme & language toggle - bottom left */}

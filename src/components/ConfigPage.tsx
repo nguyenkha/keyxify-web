@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
 import type { Settings } from "../shared/types";
-import { getMe } from "../lib/auth";
+import { getMe, isStandaloneJwt, getIdentityId } from "../lib/auth";
 import { getUserOverrides, setUserOverrides, clearUserOverrides, type UserOverrides } from "../lib/userOverrides";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
@@ -115,7 +115,7 @@ export function ConfigPage() {
       if (s.refresh_interval && typeof s.refresh_interval === "number") {
         setServerRefresh(s.refresh_interval);
       }
-      const uid = me?.id;
+      const uid = me?.id ?? getIdentityId() ?? undefined;
       setUserId(uid);
       setOverrides(getUserOverrides(uid));
       setLoading(false);
@@ -123,7 +123,7 @@ export function ConfigPage() {
       // Run health checks for all chains
       const userOvr = getUserOverrides(uid);
       for (const chain of c) {
-        const url = userOvr.chains?.[chain.name]?.rpcUrl || chain.rpcUrl;
+        const url = userOvr.chains?.[chain.name]?.rpc_url || chain.rpcUrl;
         if (!url) continue;
         setRpcStatus((prev) => ({ ...prev, [chain.name]: "checking" }));
         checkRpcHealth(url, chain.type).then((ok) => {
@@ -142,7 +142,7 @@ export function ConfigPage() {
 
   // ── Chain overrides ──
 
-  function setChainField(name: string, field: "rpcUrl" | "explorerUrl", value: string) {
+  function setChainField(name: string, field: "rpc_url" | "explorer_url", value: string) {
     const prev = overrides.chains ?? {};
     const chain = { ...prev[name] };
     if (value) {
@@ -157,7 +157,7 @@ export function ConfigPage() {
     save({ ...overrides, chains: Object.keys(updatedChains).length ? updatedChains : undefined });
 
     // Re-check RPC health when URL changes (debounced — wait 1s after typing stops)
-    if (field === "rpcUrl") {
+    if (field === "rpc_url") {
       const chainData = chains.find((c) => c.name === name);
       const url = value || chainData?.rpcUrl || "";
       clearTimeout(healthCheckTimers.current[name]);
@@ -172,7 +172,7 @@ export function ConfigPage() {
     }
   }
 
-  function getChainField(name: string, field: "rpcUrl" | "explorerUrl"): string {
+  function getChainField(name: string, field: "rpc_url" | "explorer_url"): string {
     return overrides.chains?.[name]?.[field] ?? "";
   }
 
@@ -563,7 +563,7 @@ export function ConfigPage() {
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {visibleChains.map((chain) => {
             const expanded = expandedChain === chain.name;
-            const hasFieldOverrides = !!getChainField(chain.name, "rpcUrl") || !!getChainField(chain.name, "explorerUrl");
+            const hasFieldOverrides = !!getChainField(chain.name, "rpc_url") || !!getChainField(chain.name, "explorer_url");
 
             return (
               <div key={chain.id}>
@@ -596,7 +596,7 @@ export function ConfigPage() {
                         "bg-surface-tertiary"
                       }`} />
                       <p className="text-[11px] text-text-muted font-mono truncate">
-                        {getChainField(chain.name, "rpcUrl") || chain.rpcUrl || "—"}
+                        {getChainField(chain.name, "rpc_url") || chain.rpcUrl || "—"}
                       </p>
                     </div>
                   </div>
@@ -611,14 +611,14 @@ export function ConfigPage() {
                       <label className="block text-xs text-text-muted mb-1.5">{t("config.rpcUrl")}</label>
                       <div className="relative">
                         <input
-                          value={getChainField(chain.name, "rpcUrl")}
-                          onChange={(e) => setChainField(chain.name, "rpcUrl", e.target.value)}
+                          value={getChainField(chain.name, "rpc_url")}
+                          onChange={(e) => setChainField(chain.name, "rpc_url", e.target.value)}
                           placeholder={chain.rpcUrl || t("config.noDefaultRpc")}
                           className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                         />
-                        {getChainField(chain.name, "rpcUrl") && (
+                        {getChainField(chain.name, "rpc_url") && (
                           <button
-                            onClick={() => setChainField(chain.name, "rpcUrl", "")}
+                            onClick={() => setChainField(chain.name, "rpc_url", "")}
                             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
                             title={t("config.clear")}
                           >
@@ -633,14 +633,14 @@ export function ConfigPage() {
                       <label className="block text-xs text-text-muted mb-1.5">{t("config.explorerUrl")}</label>
                       <div className="relative">
                         <input
-                          value={getChainField(chain.name, "explorerUrl")}
-                          onChange={(e) => setChainField(chain.name, "explorerUrl", e.target.value)}
+                          value={getChainField(chain.name, "explorer_url")}
+                          onChange={(e) => setChainField(chain.name, "explorer_url", e.target.value)}
                           placeholder={chain.explorerUrl}
                           className="w-full bg-surface-primary border border-border-primary rounded-lg px-3 py-2.5 pr-8 text-sm text-text-primary font-mono placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
                         />
-                        {getChainField(chain.name, "explorerUrl") && (
+                        {getChainField(chain.name, "explorer_url") && (
                           <button
-                            onClick={() => setChainField(chain.name, "explorerUrl", "")}
+                            onClick={() => setChainField(chain.name, "explorer_url", "")}
                             className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-muted hover:text-text-secondary transition-colors"
                             title={t("config.clear")}
                           >
@@ -687,6 +687,7 @@ export function ConfigPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
                 </svg>
               </button>
+              {!isStandaloneJwt() && (
               <button
                 onClick={emailConfig}
                 disabled={emailSending}
@@ -697,6 +698,7 @@ export function ConfigPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
               </button>
+              )}
               <button
                 onClick={exportConfig}
                 className="px-3 py-2 rounded-lg bg-surface-primary border border-border-primary hover:border-border-secondary text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"

@@ -2,7 +2,8 @@ import { useTranslation } from "react-i18next";
 import type { Transaction } from "../lib/transactions";
 import { explorerLink } from "../shared/utils";
 
-export function shortAddr(addr: string): string {
+export function shortAddr(addr: string | undefined): string {
+  if (!addr) return "—";
   if (addr.length <= 16) return addr;
   return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 }

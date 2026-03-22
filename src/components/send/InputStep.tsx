@@ -213,6 +213,7 @@ export function InputStep({
               btcFeeRates={btcFeeRates}
               ltcFeeRates={ltcFeeRates}
               baseGasPrice={baseGasPrice}
+              t={t}
             />
           ) : (
             <div className="flex items-center justify-between px-3 py-2 bg-surface-primary border border-border-primary rounded-lg">

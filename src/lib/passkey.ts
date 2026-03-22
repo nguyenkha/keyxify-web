@@ -193,6 +193,45 @@ export async function authenticatePasskey(opts?: { withPrf?: boolean }): Promise
   return { token: data.passkeyToken, prfKey, credentialId: credential.id };
 }
 
+/**
+ * Local-only PRF authentication — no server calls needed.
+ * Used for standalone unlock on the login page (no JWT available).
+ * Returns the PRF-derived CryptoKey for decrypting the stored share.
+ */
+export async function localPrfAuthenticate(credentialId: string): Promise<CryptoKey> {
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const publicKey: PublicKeyCredentialRequestOptions = {
+    challenge,
+    rpId: window.location.hostname,
+    timeout: 60000,
+    userVerification: "preferred",
+    allowCredentials: [{
+      id: base64URLStringToBuffer(credentialId),
+      type: "public-key",
+    }],
+    extensions: {
+      prf: { eval: { first: PRF_SALT } },
+    } as AuthenticationExtensionsClientInputs,
+  };
+
+  const rawCredential = await navigator.credentials.get({ publicKey }) as PublicKeyCredential;
+  if (!rawCredential) throw new Error("Authentication was not completed");
+
+  const extResults = rawCredential.getClientExtensionResults();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const prfResult = (extResults as any)?.prf?.results?.first;
+  if (!prfResult) throw new Error("PRF not supported by this passkey");
+
+  const rawKey = await crypto.subtle.importKey("raw", prfResult, "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: PRF_SALT, info: new Uint8Array(0) },
+    rawKey,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["encrypt", "decrypt"],
+  );
+}
+
 export async function renamePasskey(id: string, name: string): Promise<void> {
   const res = await fetch(apiUrl(`/api/passkeys/${id}`), {
     method: "PATCH",

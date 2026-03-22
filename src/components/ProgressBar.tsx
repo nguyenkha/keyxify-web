@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -131,6 +132,7 @@ export const CREATING_DURATION_MS = 10000;
 
 /** Shared progress bar visual component */
 export function ProgressBar({ pct, phase, remainingMs }: ProgressState) {
+  const { t } = useTranslation();
   const remainingSec = Math.ceil(remainingMs / 1000);
 
   return (
@@ -157,13 +159,13 @@ export function ProgressBar({ pct, phase, remainingMs }: ProgressState) {
       </div>
       <p className="text-[10px] text-text-muted text-center mt-1.5">
         {phase === "indeterminate"
-          ? "Preparing..."
+          ? t("progress.preparing")
           : phase === "main"
             ? `${pct}%${remainingSec > 10 ? ` · ~${remainingSec}s` : ""}`
             : phase === "post"
-              ? "Almost done..."
+              ? t("progress.almostDone")
               : phase === "done"
-                ? "Complete"
+                ? t("progress.complete")
                 : `${pct}%`}
       </p>
 
