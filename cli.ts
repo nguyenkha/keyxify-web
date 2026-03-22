@@ -18,9 +18,11 @@ import type { CbMpc, DataTransport, Ecdsa2pKeyHandle, EcKey2pHandle } from "cb-m
 import { ethers } from "ethers";
 import { keccak_256 } from "@noble/hashes/sha3";
 import { sha256 } from "@noble/hashes/sha256";
+import { sha512_256 } from "@noble/hashes/sha2";
 import { ripemd160 } from "@noble/hashes/ripemd160";
 import { secp256k1 } from "@noble/curves/secp256k1.js";
-import { base58, bech32 } from "@scure/base";
+import { base58, bech32, base58check } from "@scure/base";
+import { beginCell, Cell, contractAddress } from "@ton/core";
 import { Core } from "@walletconnect/core";
 import { Web3Wallet } from "@walletconnect/web3wallet";
 import type { Web3WalletTypes } from "@walletconnect/web3wallet";
@@ -159,19 +161,7 @@ function deriveLtcAddress(pubKeyHex: string): string {
 }
 
 function deriveSolanaAddress(eddsaPubKeyHex: string): string {
-  const pubKeyBytes = hexToBytes(eddsaPubKeyHex);
-  let key32: Uint8Array;
-  if (pubKeyBytes.length === 32) {
-    key32 = pubKeyBytes;
-  } else if (pubKeyBytes.length === 65 && pubKeyBytes[0] === 0x04) {
-    const x_be = pubKeyBytes.slice(1, 33);
-    const y_le = pubKeyBytes.slice(33).reverse();
-    key32 = new Uint8Array(y_le);
-    key32[31] = (key32[31] & 0x7f) | ((x_be[31] & 1) << 7);
-  } else {
-    throw new Error(`Expected 32 or 65-byte Ed25519 public key, got ${pubKeyBytes.length} bytes`);
-  }
-  return base58.encode(key32);
+  return base58.encode(extractEd25519Key(eddsaPubKeyHex));
 }
 
 function deriveXrpAddress(pubKeyHex: string): string {
@@ -188,6 +178,141 @@ function deriveXrpAddress(pubKeyHex: string): string {
   full.set(payload);
   full.set(checksum, payload.length);
   return xrpBase58Encode(full);
+}
+
+function deriveBchAddress(pubKeyHex: string): string {
+  const rawKey = extractPublicKeyFromDER(pubKeyHex);
+  const point = secp256k1.Point.fromHex(rawKey);
+  const compressed = point.toBytes(true);
+  const h = ripemd160(sha256(compressed));
+  // Legacy P2PKH format (same as BTC legacy)
+  const b58c = base58check(sha256);
+  const payload = new Uint8Array(21);
+  payload[0] = 0x00;
+  payload.set(h, 1);
+  return b58c.encode(payload);
+}
+
+function deriveTronAddress(pubKeyHex: string): string {
+  const rawKey = extractPublicKeyFromDER(pubKeyHex);
+  const uncompressedHex = secp256k1.Point.fromHex(rawKey).toHex(false);
+  const rawBytes = hexToBytes(uncompressedHex);
+  const hash = keccak_256(rawBytes.slice(1));
+  const addrBytes = hash.slice(hash.length - 20);
+  const payload = new Uint8Array(21);
+  payload[0] = 0x41;
+  payload.set(addrBytes, 1);
+  // Base58check with standard BTC alphabet
+  const checksum = sha256(sha256(payload)).slice(0, 4);
+  const full = new Uint8Array(25);
+  full.set(payload);
+  full.set(checksum, 21);
+  return base58.encode(full);
+}
+
+/** Extract 32-byte Ed25519 key from raw or SEC1 uncompressed format */
+function extractEd25519Key(eddsaPubKeyHex: string): Uint8Array {
+  const pubKeyBytes = hexToBytes(eddsaPubKeyHex);
+  if (pubKeyBytes.length === 32) return pubKeyBytes;
+  if (pubKeyBytes.length === 65 && pubKeyBytes[0] === 0x04) {
+    const x_be = pubKeyBytes.slice(1, 33);
+    const y_le = pubKeyBytes.slice(33).reverse();
+    const key32 = new Uint8Array(y_le);
+    key32[31] = (key32[31] & 0x7f) | ((x_be[31] & 1) << 7);
+    return key32;
+  }
+  throw new Error(`Expected 32 or 65-byte Ed25519 public key, got ${pubKeyBytes.length} bytes`);
+}
+
+function deriveXlmAddress(eddsaPubKeyHex: string): string {
+  const key32 = extractEd25519Key(eddsaPubKeyHex);
+  const STRKEY_VERSION = 6 << 3; // 0x30 → G...
+  const payload = new Uint8Array(35);
+  payload[0] = STRKEY_VERSION;
+  payload.set(key32, 1);
+  // CRC16-XMODEM checksum
+  let crc = 0x0000;
+  for (let i = 0; i < 33; i++) {
+    crc ^= payload[i] << 8;
+    for (let j = 0; j < 8; j++) crc = crc & 0x8000 ? (crc << 1) ^ 0x1021 : crc << 1;
+    crc &= 0xffff;
+  }
+  payload[33] = crc & 0xff;        // little-endian
+  payload[34] = (crc >> 8) & 0xff;
+  // Base32 encode
+  const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0, value = 0, output = "";
+  for (const byte of payload) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) { output += B32[(value >>> (bits - 5)) & 31]; bits -= 5; }
+  }
+  if (bits > 0) output += B32[(value << (5 - bits)) & 31];
+  return output;
+}
+
+// TON Wallet V4R2 code cell (constant)
+const WALLET_V4R2_CODE = Cell.fromBoc(
+  Buffer.from(
+    "te6cckECFAEAAtQAART/APSkE/S88sgLAQIBIAIPAgFIAwYC5tAB0NMDIXGwkl8E4CLXScEgkl8E4ALTHyGCEHBsdWe9IoIQZHN0cr2wkl8F4AP6QDAg+kQByMoHy//J0O1E0IEBQNch9AQwXIEBCPQKb6Exs5JfB+AF0z/IJYIQcGx1Z7qSODDjDQOCEGRzdHK6kl8G4w0EBQB4AfoA9AQw+CdvIjBQCqEhvvLgUIIQcGx1Z4MesXCAGFAEywUmzxZY+gIZ9ADLaRfLH1Jgyz8gyYBA+wAGAIpQBIEBCPRZMO1E0IEBQNcgyAHPFvQAye1UAXKwjiOCEGRzdHKDHrFwgBhQBcsFUAPPFiP6AhPLassfyz/JgED7AJJfA+ICASAHDgIBIAgNAgFYCQoAPbKd+1E0IEBQNch9AQwAsjKB8v/ydABgQEI9ApvoTGACASALDAAZrc52omhAIGuQ64X/wAAZrx32omhAEGuQ64WPwAARuMl+1E0NcLH4AFm9JCtvaiaECAoGuQ+gIYRw1AgIR6STfSmRDOaQPp/5g3gSgBt4EBSJhxWfMYQE+PKDCNcYINMf0x/THwL4I7vyZO1E0NMf0x/T//QE0VFDuvKhUVG68qIF+QFUEGT5EPKj+AAkpMjLH1JAyx9SMMv/UhD0AMntVPgPAdMHIcAAn2xRkyDXSpbTB9QC+wDoMOAhwAHjACHAAuMAAcADkTDjDQOkyMsfEssfy/8QERITAG7SB/oA1NQi+QAFyMoHFcv/ydB3dIAYyMsFywIizxZQBfoCFMtrEszMyXP7AMhAFIEBCPRR8qcCAHCBAQjXGPoA0z/IVCBHgQEI9FHyp4IQbm90ZXB0gBjIywXLAlAGzxZQBPoCFMtqEssfyz/Jc/sAAgBsgQEI1xj6ANM/MFIkgQEI9Fnyp4IQZHN0cnB0gBjIywXLAlAFzxZQA/oCE8tqyx8Syz/Jc/sAAAr0AMntVAj45Sg=",
+    "base64",
+  ),
+)[0];
+
+function deriveTonAddress(eddsaPubKeyHex: string): string {
+  const pubKey = Buffer.from(extractEd25519Key(eddsaPubKeyHex));
+  const data = beginCell()
+    .storeUint(0, 32)           // seqno
+    .storeUint(698983191, 32)   // subwallet id
+    .storeBuffer(pubKey, 32)
+    .storeBit(false)            // empty plugins dict
+    .endCell();
+  const addr = contractAddress(0, { code: WALLET_V4R2_CODE, data });
+  return addr.toString({ bounceable: false, urlSafe: true });
+}
+
+function deriveAlgoAddress(eddsaPubKeyHex: string): string {
+  const key32 = extractEd25519Key(eddsaPubKeyHex);
+  const hash = sha512_256(key32);
+  const checksum = hash.slice(28); // last 4 bytes
+  const addrBytes = new Uint8Array(36);
+  addrBytes.set(key32, 0);
+  addrBytes.set(checksum, 32);
+  // Base32 encode (no padding)
+  const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  let bits = 0, value = 0, output = "";
+  for (const byte of addrBytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) { output += B32[(value >>> (bits - 5)) & 31]; bits -= 5; }
+  }
+  if (bits > 0) output += B32[(value << (5 - bits)) & 31];
+  return output;
+}
+
+// Legacy P2PKH address derivation (BTC/LTC)
+function deriveBtcLegacyAddress(pubKeyHex: string): string {
+  const rawKey = extractPublicKeyFromDER(pubKeyHex);
+  const point = secp256k1.Point.fromHex(rawKey);
+  const compressed = point.toBytes(true);
+  const h = ripemd160(sha256(compressed));
+  const b58c = base58check(sha256);
+  const payload = new Uint8Array(21);
+  payload[0] = 0x00; // BTC mainnet
+  payload.set(h, 1);
+  return b58c.encode(payload);
+}
+
+function deriveLtcLegacyAddress(pubKeyHex: string): string {
+  const rawKey = extractPublicKeyFromDER(pubKeyHex);
+  const point = secp256k1.Point.fromHex(rawKey);
+  const compressed = point.toBytes(true);
+  const h = ripemd160(sha256(compressed));
+  const b58c = base58check(sha256);
+  const payload = new Uint8Array(21);
+  payload[0] = 0x30; // LTC mainnet P2PKH
+  payload.set(h, 1);
+  return b58c.encode(payload);
 }
 
 function xrpBase58Encode(data: Uint8Array): string {
@@ -711,26 +836,41 @@ async function cmdRecover(share1Path: string, share2Path: string): Promise<void>
   const ecdsaPrivKeyHex = bytesToHex(ecdsaPrivKey);
   const eddsaPrivKeyHex = bytesToHex(eddsaPrivKey);
 
-  // Derive addresses
+  // Derive addresses — ECDSA chains
   const evmAddr = deriveEvmAddress(share1.publicKey);
-  const btcAddr = deriveBtcAddress(share1.publicKey);
-  const ltcAddr = deriveLtcAddress(share1.publicKey);
-  const solAddr = deriveSolanaAddress(share1.eddsaPublicKey);
+  const btcSegwit = deriveBtcAddress(share1.publicKey);
+  const btcLegacy = deriveBtcLegacyAddress(share1.publicKey);
+  const bchAddr = deriveBchAddress(share1.publicKey);
+  const ltcSegwit = deriveLtcAddress(share1.publicKey);
+  const ltcLegacy = deriveLtcLegacyAddress(share1.publicKey);
   const xrpAddr = deriveXrpAddress(share1.publicKey);
+  const tronAddr = deriveTronAddress(share1.publicKey);
+  // EdDSA chains
+  const solAddr = deriveSolanaAddress(share1.eddsaPublicKey);
+  const xlmAddr = deriveXlmAddress(share1.eddsaPublicKey);
+  const tonAddr = deriveTonAddress(share1.eddsaPublicKey);
+  const algoAddr = deriveAlgoAddress(share1.eddsaPublicKey);
 
   console.log("\nRecovered addresses:");
-  console.log(`  Ethereum: ${evmAddr}`);
-  console.log(`  Bitcoin:  ${btcAddr}`);
-  console.log(`  Litecoin: ${ltcAddr}`);
-  console.log(`  Solana:   ${solAddr}`);
-  console.log(`  XRP:      ${xrpAddr}`);
+  console.log(`  Ethereum (EVM):    ${evmAddr}`);
+  console.log(`  Bitcoin (segwit):  ${btcSegwit}`);
+  console.log(`  Bitcoin (legacy):  ${btcLegacy}`);
+  console.log(`  Bitcoin Cash:      ${bchAddr}`);
+  console.log(`  Litecoin (segwit): ${ltcSegwit}`);
+  console.log(`  Litecoin (legacy): ${ltcLegacy}`);
+  console.log(`  XRP:               ${xrpAddr}`);
+  console.log(`  TRON:              ${tronAddr}`);
+  console.log(`  Solana:            ${solAddr}`);
+  console.log(`  Stellar (XLM):     ${xlmAddr}`);
+  console.log(`  TON:               ${tonAddr}`);
+  console.log(`  Algorand:          ${algoAddr}`);
 
   // Interactive menu
   initReadline();
   while (true) {
     console.log("\nOptions:");
-    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/LTC/XRP");
-    console.log("  2. Export EdDSA private key (hex) — Solana");
+    console.log("  1. Export ECDSA private key (hex) — EVM/BTC/BCH/LTC/XRP/TRON");
+    console.log("  2. Export EdDSA private key (hex) — Solana/XLM/TON/ALGO");
     console.log("  3. Export private key (WIF — Bitcoin)");
     console.log("  4. Exit");
 
@@ -793,8 +933,18 @@ async function cmdConnect(share1Path: string, share2Path: string): Promise<void>
   const solAddr = deriveSolanaAddress(share1.eddsaPublicKey);
   const pubKeyRaw = hexToBytes(extractPublicKeyFromDER(share1.publicKey));
 
-  console.log(`\nEVM address:    ${evmAddr}`);
-  console.log(`Solana address: ${solAddr}`);
+  console.log(`\nEVM address:      ${evmAddr}`);
+  console.log(`BTC (segwit):     ${deriveBtcAddress(share1.publicKey)}`);
+  console.log(`BTC (legacy):     ${deriveBtcLegacyAddress(share1.publicKey)}`);
+  console.log(`BCH:              ${deriveBchAddress(share1.publicKey)}`);
+  console.log(`LTC (segwit):     ${deriveLtcAddress(share1.publicKey)}`);
+  console.log(`LTC (legacy):     ${deriveLtcLegacyAddress(share1.publicKey)}`);
+  console.log(`XRP:              ${deriveXrpAddress(share1.publicKey)}`);
+  console.log(`TRON:             ${deriveTronAddress(share1.publicKey)}`);
+  console.log(`Solana:           ${solAddr}`);
+  console.log(`Stellar (XLM):    ${deriveXlmAddress(share1.eddsaPublicKey)}`);
+  console.log(`TON:              ${deriveTonAddress(share1.eddsaPublicKey)}`);
+  console.log(`Algorand:         ${deriveAlgoAddress(share1.eddsaPublicKey)}`);
 
   // Initialize WalletConnect
   process.stdout.write("\nInitializing WalletConnect... ");
