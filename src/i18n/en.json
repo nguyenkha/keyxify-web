@@ -750,6 +750,8 @@
     "prfNotSupported": "Your passkey does not support PRF — use Import key file instead",
     "useImportKeyFile": "Backup format requires passphrase — use Import key file instead",
     "unknownBackupFormat": "Unknown backup format",
+    "wrongPassphrase": "Wrong passphrase — try again",
+    "enterPassphraseToRestore": "Enter the passphrase used when backing up this key",
     "moreOptionsInExpertMode": "More options in Expert Mode",
     "howToRecover": "How to recover your wallet",
     "getBothKeyFiles": "Get both key files",

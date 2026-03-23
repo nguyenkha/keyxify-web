@@ -49,8 +49,9 @@ export function RecoveryChecklist() {
 
   // Restore from server escrow state
   const [restoreId, setRestoreId] = useState<string | null>(null);
-  const [restoreStep, setRestoreStep] = useState<"idle" | "loading" | "saving">("idle");
+  const [restoreStep, setRestoreStep] = useState<"idle" | "loading" | "saving" | "passphrase">("idle");
   const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [restoreEncryptedData, setRestoreEncryptedData] = useState<KeyFileData | null>(null);
 
   // Download from browser state
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -278,8 +279,13 @@ export function RecoveryChecklist() {
           return;
         }
         keyData = decrypted;
+      } else if ((parsed as KeyFileData).encrypted) {
+        // Passphrase-encrypted: need user to enter passphrase
+        setRestoreEncryptedData(parsed as KeyFileData);
+        setRestoreStep("passphrase");
+        return;
       } else if (parsed.share) {
-        // Raw KeyFileData (unencrypted or passphrase-encrypted but stored as-is)
+        // Unencrypted KeyFileData
         keyData = parsed as KeyFileData;
       } else {
         setRestoreError(t("recovery.unknownBackupFormat"));
@@ -293,6 +299,31 @@ export function RecoveryChecklist() {
       fetchAccounts();
     } catch (err) {
       setRestoreError(String(err));
+    }
+    setRestoreStep("idle");
+    setRestoreId(null);
+  }
+
+  async function handleRestoreDecryptPassphrase(passphrase: string) {
+    if (!restoreEncryptedData || !restoreId) return;
+    setRestoreError(null);
+    try {
+      const decrypted = await decryptKeyFile(restoreEncryptedData, passphrase);
+      setRestoreStep("saving");
+
+      const prfAuth = await authenticatePasskey({ withPrf: true });
+      if (!prfAuth.prfKey || !prfAuth.credentialId) {
+        // No PRF: save with passphrase instead
+        await saveKeyShareWithPassphrase(restoreId, decrypted, passphrase);
+      } else {
+        await saveKeyShareWithPrf(restoreId, decrypted, prfAuth.prfKey, prfAuth.credentialId);
+      }
+
+      setRestoreEncryptedData(null);
+      fetchAccounts();
+    } catch {
+      setRestoreError(t("recovery.wrongPassphrase"));
+      return; // stay on passphrase step
     }
     setRestoreStep("idle");
     setRestoreId(null);
@@ -544,6 +575,21 @@ export function RecoveryChecklist() {
                           <div className="flex items-center gap-2">
                             <Spinner size="xs" />
                             <span className="text-[10px] text-text-muted">{t("recovery.saving")}</span>
+                          </div>
+                        ) : restoreStep === "passphrase" && restoreId === account.id ? (
+                          <div className="space-y-2">
+                            <p className="text-[10px] text-text-muted">{t("recovery.enterPassphraseToRestore")}</p>
+                            <PassphraseInput
+                              mode="enter"
+                              submitLabel={t("recovery.decryptAndSave")}
+                              onSubmit={handleRestoreDecryptPassphrase}
+                            />
+                            <button
+                              onClick={() => { setRestoreStep("idle"); setRestoreId(null); setRestoreEncryptedData(null); setRestoreError(null); }}
+                              className="text-[10px] text-text-muted hover:text-text-tertiary"
+                            >
+                              {t("common.cancel")}
+                            </button>
                           </div>
                         ) : restoreStep !== "idle" && restoreId === account.id ? (
                           <div className="flex items-center gap-2">

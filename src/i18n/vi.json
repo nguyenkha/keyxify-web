@@ -750,6 +750,8 @@
     "prfNotSupported": "Passkey không hỗ trợ PRF — hãy dùng Nhập tệp khóa",
     "useImportKeyFile": "Bản sao lưu cần mật khẩu — hãy dùng Nhập tệp khóa",
     "unknownBackupFormat": "Định dạng sao lưu không xác định",
+    "wrongPassphrase": "Sai mật khẩu — thử lại",
+    "enterPassphraseToRestore": "Nhập mật khẩu đã dùng khi sao lưu khóa này",
     "moreOptionsInExpertMode": "Thêm tùy chọn trong chế độ chuyên gia",
     "howToRecover": "Cách khôi phục ví",
     "getBothKeyFiles": "Lấy cả hai file key",
