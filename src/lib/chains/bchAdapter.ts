@@ -304,13 +304,17 @@ export const bchAdapter: ChainAdapter = {
 
       if (txHashes.length === 0) return { transactions: [], hasMore: false };
 
-      // Fetch transaction details
+      // Fetch transaction details with inputs/outputs
       const txRes = await fetch(`${api}/dashboards/transactions/${txHashes.join(",")}`);
       if (!txRes.ok) return { transactions: [], hasMore: false };
       const txData = await txRes.json();
 
+      // Normalize query address: strip prefix for comparison
+      const bareAddr = address.includes(":") ? address.split(":")[1] : address;
+
       const txs: Transaction[] = txHashes.map((txid) => {
-        const tx = txData.data?.[txid]?.transaction;
+        const txEntry = txData.data?.[txid];
+        const tx = txEntry?.transaction;
         if (!tx) {
           return {
             hash: txid,
@@ -325,19 +329,42 @@ export const bchAdapter: ChainAdapter = {
           };
         }
 
-        const balanceChange = BigInt(tx.balance_change ?? 0);
+        const inputs: { recipient: string; value: number }[] = txEntry.inputs ?? [];
+        const outputs: { recipient: string; value: number }[] = txEntry.outputs ?? [];
+
+        // Check if our address appears in inputs/outputs (compare bare addresses)
+        const matchAddr = (r: string) => {
+          const bare = r.includes(":") ? r.split(":")[1] : r;
+          return bare === bareAddr;
+        };
+        const inputSum = inputs.filter((i) => matchAddr(i.recipient)).reduce((s, i) => s + BigInt(i.value), 0n);
+        const outputSum = outputs.filter((o) => matchAddr(o.recipient)).reduce((s, o) => s + BigInt(o.value), 0n);
+
+        const isInInput = inputSum > 0n;
+        const isInOutput = outputSum > 0n;
         const direction: "in" | "out" | "self" =
-          balanceChange > 0n ? "in" : balanceChange < 0n ? "out" : "self";
+          isInInput && isInOutput && inputSum > outputSum ? "out"
+            : isInInput && !isInOutput ? "out"
+              : !isInInput && isInOutput ? "in"
+                : isInInput && isInOutput ? "self"
+                  : "in";
+
+        let displayValue: bigint;
+        if (direction === "in") {
+          displayValue = outputSum;
+        } else if (direction === "out") {
+          // Net sent = what we put in minus change back to us
+          displayValue = inputSum - outputSum;
+        } else {
+          displayValue = BigInt(tx.fee ?? 0);
+        }
 
         return {
           hash: txid,
           from: direction === "in" ? "..." : address,
           to: direction === "out" ? "..." : address,
-          value: (balanceChange < 0n ? -balanceChange : balanceChange).toString(),
-          formatted: formatTxValue(
-            (balanceChange < 0n ? -balanceChange : balanceChange).toString(),
-            asset.decimals,
-          ),
+          value: displayValue.toString(),
+          formatted: formatTxValue(displayValue.toString(), asset.decimals),
           symbol: asset.symbol,
           timestamp: tx.time ? Math.floor(new Date(tx.time).getTime() / 1000) : Math.floor(Date.now() / 1000),
           direction,

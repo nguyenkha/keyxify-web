@@ -15,6 +15,10 @@ const COINGECKO_IDS: Record<string, string> = {
   XLM: "stellar",
   SOL: "solana",
   BCH: "bitcoin-cash",
+  TON: "the-open-network",
+  TRX: "tron",
+  LTC: "litecoin",
+  ALGO: "algorand",
 };
 
 // In-memory fallback (survives within same session even if localStorage fails)

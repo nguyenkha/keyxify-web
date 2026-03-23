@@ -11,6 +11,7 @@ import { useHideBalances, maskBalance } from "../context/HideBalancesContext";
 import { fetchTransactions } from "../lib/transactions";
 import { getCache, setCache, txCacheKey } from "../lib/dataCache";
 import { CompactTxPreview } from "./CompactTxPreview";
+import { truncateBalance } from "./sendTypes";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
 
@@ -72,15 +73,6 @@ export function AccountRowView({
 
   const nativeAsset = row.assets.find((a) => a.isNative);
   const nativeSymbol = nativeBalance?.asset.symbol || nativeAsset?.symbol || "";
-
-  function truncateBalance(val: string): string {
-    if (!val.includes(".")) return val;
-    const [int, frac] = val.split(".");
-    const maxFrac = Math.max(0, 10 - int.length);
-    if (maxFrac === 0) return int;
-    const trimmed = frac.slice(0, maxFrac).replace(/0+$/, "");
-    return trimmed ? `${int}.${trimmed}` : int;
-  }
 
   function handleNativeClick() {
     if (nativeState !== "loaded" || !nativeAsset) return;
