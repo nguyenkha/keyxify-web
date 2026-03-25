@@ -251,9 +251,10 @@ function DashboardLayout() {
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 w-60 bg-surface-secondary border-r border-border-primary flex flex-col shrink-0
+          pb-[env(safe-area-inset-bottom)]
           transform transition-transform duration-200 ease-in-out
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          md:sticky md:top-0 md:h-screen md:translate-x-0
+          md:sticky md:top-0 md:h-dvh md:translate-x-0
         `}
       >
         <div className="px-5 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] border-b border-border-primary flex items-center justify-between">

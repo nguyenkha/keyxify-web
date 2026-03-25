@@ -1,11 +1,11 @@
 @import "tailwindcss";
 
-/* iOS safe area: extend background behind home indicator */
+/* iOS safe area: darker bg behind status bar & home indicator */
 html {
-  background-color: var(--surface-primary);
+  background-color: #000;
 }
 body {
-  background-color: var(--surface-primary);
+  background-color: #000;
 }
 
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
