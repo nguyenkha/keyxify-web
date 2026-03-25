@@ -642,6 +642,8 @@
     "gate": {
       "title": "Yêu cầu Passkey",
       "desc": "Dùng passkey để xác nhận thao tác này.",
+      "inlineTitle": "Thêm vân tay hoặc Face ID",
+      "inlineDesc": "Bước này bắt buộc để bảo vệ ví của bạn. Passkey bảo vệ mọi giao dịch.",
       "authenticate": "Xác thực",
       "authenticating": "Đang xác thực...",
       "cancel": "Hủy"
@@ -1059,5 +1061,14 @@
     "stepEncryption": "Thiết lập mã hóa",
     "stepSecuring": "Bảo mật tài khoản",
     "stepSaving": "Đang lưu"
+  },
+  "idleLock": {
+    "title": "Phiên đã khóa",
+    "description": "Phiên của bạn đã bị khóa do không hoạt động.",
+    "unlock": "Mở khóa bằng passkey",
+    "unlocking": "Đang xác minh...",
+    "failed": "Xác minh thất bại. Vui lòng thử lại.",
+    "signOut": "Đăng xuất",
+    "signOutHint": "Quá nhiều lần thất bại?"
   }
 }

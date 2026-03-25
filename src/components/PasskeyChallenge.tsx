@@ -38,7 +38,7 @@ export function PasskeyChallenge({
   useEffect(() => {
     if (autoStart && !startedRef.current) {
       startedRef.current = true;
-      doAuth();
+      doAuth(); // eslint-disable-line react-hooks/set-state-in-effect -- intentional: auto-start passkey on mount
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

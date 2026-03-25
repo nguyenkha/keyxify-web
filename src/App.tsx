@@ -7,7 +7,7 @@ import { Sign } from "./components/Sign";
 import { Passkeys } from "./components/Passkeys";
 import { Login } from "./components/Login";
 import { VerifyToken } from "./components/VerifyToken";
-import { getMe, getToken, clearToken, type MeUser } from "./lib/auth";
+import { getMe, hasAnyToken, clearToken, type MeUser } from "./lib/auth";
 import { apiUrl } from "./lib/apiBase";
 import { FrozenBanner } from "./components/FrozenBanner";
 import { FrozenProvider } from "./context/FrozenContext";
@@ -38,6 +38,8 @@ import { ActivityLogPage } from "./components/AuditLog";
 import { ConfigPage } from "./components/ConfigPage";
 import { WalletConnect as WalletConnectPage } from "./components/WalletConnect";
 import { WalletConnectProvider } from "./context/WalletConnectContext";
+import { IdleLockProvider } from "./context/IdleLockContext";
+import { LockScreen } from "./components/LockScreen";
 import { useTranslation } from "react-i18next";
 import { usePullToRefresh } from "./lib/use-pull-to-refresh";
 import { useSwipeSidebar } from "./lib/use-swipe-sidebar";
@@ -451,7 +453,7 @@ function DashboardLayout() {
 }
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
-  if (!getToken() && !isRecoveryMode()) {
+  if (!hasAnyToken() && !isRecoveryMode()) {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
@@ -494,7 +496,10 @@ function App() {
               <HideBalancesProvider>
               <ToastProvider>
               <WalletConnectProvider>
+              <IdleLockProvider>
                 <DashboardLayout />
+                <LockScreen />
+              </IdleLockProvider>
               </WalletConnectProvider>
               </ToastProvider>
               </HideBalancesProvider>

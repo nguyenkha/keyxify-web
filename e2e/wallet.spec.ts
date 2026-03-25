@@ -39,7 +39,10 @@ test.describe("Wallet page (authenticated)", () => {
   test("unauthenticated visit after token clear redirects to login", async ({ authedPage }) => {
     await authedPage.goto("/accounts");
     // Clear the token
-    await authedPage.evaluate(() => localStorage.removeItem("secretkey_token"));
+    await authedPage.evaluate(() => {
+      sessionStorage.removeItem("secretkey_token");
+      localStorage.removeItem("secretkey_refresh_token");
+    });
     await authedPage.goto("/accounts");
     await expect(authedPage).toHaveURL(/\/login/);
   });

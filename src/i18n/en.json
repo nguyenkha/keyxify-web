@@ -642,6 +642,8 @@
     "gate": {
       "title": "Passkey Required",
       "desc": "Use your passkey to authorize this action.",
+      "inlineTitle": "Add fingerprint or Face ID",
+      "inlineDesc": "This step is required to secure your wallet. Your passkey protects all transactions.",
       "authenticate": "Authenticate",
       "authenticating": "Authenticating...",
       "cancel": "Cancel"
@@ -1059,5 +1061,14 @@
     "stepEncryption": "Setting up encryption",
     "stepSecuring": "Securing your account",
     "stepSaving": "Saving"
+  },
+  "idleLock": {
+    "title": "Session Locked",
+    "description": "Your session was locked due to inactivity.",
+    "unlock": "Unlock with passkey",
+    "unlocking": "Verifying...",
+    "failed": "Verification failed. Please try again.",
+    "signOut": "Sign out",
+    "signOutHint": "Too many failed attempts?"
   }
 }

@@ -25,7 +25,7 @@ export function isWithinPasskeyGrace(): boolean {
   return Date.now() - parseInt(ts, 10) < PASSKEY_GRACE_PERIOD_MS;
 }
 
-function markPasskeyVerified() {
+export function markPasskeyVerified() {
   sessionStorage.setItem(PASSKEY_VERIFIED_AT_KEY, String(Date.now()));
 }
 
@@ -81,6 +81,8 @@ export async function registerPasskey(name?: string): Promise<PasskeyInfo> {
   });
   const data = await regRes.json();
   if (data.error) throw new Error(data.error);
+  // Cache that user now has passkeys (for idle lock on next session)
+  localStorage.setItem("idleLock.hasPasskeys", "true");
   return data as PasskeyInfo;
 }
 
@@ -230,6 +232,53 @@ export async function localPrfAuthenticate(credentialId: string): Promise<Crypto
     false,
     ["encrypt", "decrypt"],
   );
+}
+
+/** Pre-fetched unlock challenge (fetched on lock screen mount, used on button click) */
+export interface UnlockChallenge {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  options: any;
+  challengeId: string;
+}
+
+/** Pre-fetch passkey challenge options so the WebAuthn prompt fires immediately on click.
+ * iOS dismisses the prompt if there's too much async delay after the user gesture. */
+export async function fetchUnlockChallenge(ownerId: string): Promise<UnlockChallenge> {
+  const optRes = await fetch(apiUrl("/api/auth/passkey-unlock-options"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ownerId }),
+  });
+  if (!optRes.ok) {
+    const err = await optRes.json();
+    throw new Error(err.error || "Failed to get unlock options");
+  }
+  return optRes.json();
+}
+
+/** Complete passkey unlock using a pre-fetched challenge.
+ * Call this directly in the click handler so WebAuthn prompt fires immediately. */
+export async function completePasskeyUnlock(challenge: UnlockChallenge): Promise<{ token: string; refreshToken: string; passkeyToken: string; ttl: number }> {
+  // 1. Trigger browser WebAuthn prompt (must happen close to user gesture)
+  const credential = await startAuthentication({ optionsJSON: challenge.options });
+
+  // 2. Verify with server
+  const verifyRes = await fetch(apiUrl("/api/auth/passkey-unlock-verify"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ challengeId: challenge.challengeId, credential }),
+  });
+  if (!verifyRes.ok) {
+    const err = await verifyRes.json();
+    throw new Error(err.error || "Unlock verification failed");
+  }
+  const data = await verifyRes.json();
+
+  // 3. Store passkey token and mark verification
+  setPasskeyToken(data.passkeyToken);
+  markPasskeyVerified();
+
+  return { token: data.token, refreshToken: data.refreshToken, passkeyToken: data.passkeyToken, ttl: data.ttl };
 }
 
 export async function renamePasskey(id: string, name: string): Promise<void> {

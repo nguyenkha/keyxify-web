@@ -52,7 +52,11 @@ export const test = base.extend<AuthFixtures>({
     });
 
     await page.goto("/login");
-    await page.evaluate((t) => localStorage.setItem("secretkey_token", t), token);
+    // Session JWT in sessionStorage, refresh token in localStorage
+    await page.evaluate((t) => {
+      sessionStorage.setItem("secretkey_token", t);
+      localStorage.setItem("secretkey_refresh_token", t); // Use same token as refresh for E2E
+    }, token);
     await use(page); // eslint-disable-line react-hooks/rules-of-hooks -- Playwright fixture `use`, not React hook
   },
 });

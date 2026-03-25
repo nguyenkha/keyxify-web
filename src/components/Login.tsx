@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { requestMagicLink, verifyCode, setToken } from "../lib/auth";
+import { requestMagicLink, verifyCode } from "../lib/auth";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { ErrorBox } from "./ui";
 import { LangSwitcher } from "./LangSwitcher";
@@ -88,8 +88,7 @@ export function Login() {
     setVerifying(true);
     setError("");
     try {
-      const jwt = await verifyCode(email, code);
-      setToken(jwt);
+      await verifyCode(email, code);
       navigate("/", { replace: true });
     } catch (err) {
       setError(String(err));

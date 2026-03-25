@@ -5,7 +5,7 @@
 import { hkdf } from "@noble/hashes/hkdf";
 import { sha256 } from "@noble/hashes/sha256";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { setToken } from "./auth";
+import { setTokens } from "./auth";
 import { apiUrl } from "./apiBase";
 import { toHex } from "./mpc";
 
@@ -63,12 +63,12 @@ export async function performShareAuth(
     const data = await verifyRes.json().catch(() => null);
     throw new Error((data?.error as string) || "Signature verification failed");
   }
-  const { token } = await verifyRes.json();
+  const data = await verifyRes.json();
 
-  // Store JWT
-  setToken(token);
+  // Store session JWT + refresh token
+  setTokens(data.token, data.refreshToken);
 
   // Extract keyShareId from JWT payload
-  const payload = JSON.parse(atob(token.split(".")[1]));
-  return { token, keyShareId: payload.sub };
+  const payload = JSON.parse(atob(data.token.split(".")[1]));
+  return { token: data.token, keyShareId: payload.sub };
 }

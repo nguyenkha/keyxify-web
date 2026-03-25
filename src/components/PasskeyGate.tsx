@@ -62,10 +62,10 @@ export function PasskeyGate({
         </svg>
       </div>
       <p className="text-sm font-medium text-text-primary mb-2">
-        {inline ? "Add fingerprint or Face ID" : t("passkey.gate.title")}
+        {inline ? t("passkey.gate.inlineTitle") : t("passkey.gate.title")}
       </p>
       <p className="text-xs text-text-muted leading-relaxed mb-2 max-w-[300px] mx-auto">
-        {t("passkey.gate.desc")}
+        {inline ? t("passkey.gate.inlineDesc") : t("passkey.gate.desc")}
       </p>
 
       {error && <ErrorBox className="mb-4">{error}</ErrorBox>}

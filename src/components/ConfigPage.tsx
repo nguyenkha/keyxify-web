@@ -105,7 +105,6 @@ export function ConfigPage() {
   const [jsonError, setJsonError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const healthCheckTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
-
   useEffect(() => {
     Promise.all([fetchChains(), fetchAssets(), fetchSettings(), getMe()]).then(([c, a, s, me]) => {
       setChains(c);

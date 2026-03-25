@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
-import { verifyToken, setToken } from "../lib/auth";
+import { verifyToken } from "../lib/auth";
 
 export function VerifyToken() {
   const { t } = useTranslation();
@@ -17,8 +17,7 @@ export function VerifyToken() {
     }
 
     verifyToken(token)
-      .then((jwt) => {
-        setToken(jwt);
+      .then(() => {
         navigate("/", { replace: true });
       })
       .catch((err) => setError(String(err)));
