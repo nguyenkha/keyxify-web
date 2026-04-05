@@ -5,7 +5,7 @@ import { useTranslation } from "react-i18next";
 import type { KeyShare } from "../shared/types";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type Settings } from "../lib/api";
 import staticConfig from "../config.json";
-import { getMe } from "../lib/auth";
+import { getMe, getIdentityId } from "../lib/auth";
 import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/userOverrides";
 import { setCacheTtl, clearAllTokenBalanceCaches } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
@@ -96,11 +96,12 @@ export function Wallet() {
         setUserId(me?.id);
 
         // Apply user config overrides (RPC, explorer, preferences)
-        const overrides = getUserOverrides(me?.id);
-        const showTestnet = getPreference("show_testnet", me?.id);
+        const uid = me?.id ?? getIdentityId() ?? undefined;
+        const overrides = getUserOverrides(uid);
+        const showTestnet = getPreference("show_testnet", uid);
         const mergedChains = applyChainOverrides(
           c.filter((ch: Chain) => showTestnet || !/testnet|sepolia|devnet|preprod/i.test(ch.name)),
-          me?.id,
+          uid,
         );
         setChainsData(mergedChains);
         setAssetsData(a);
