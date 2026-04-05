@@ -10,6 +10,7 @@ import { broadcastTronTransaction } from "../lib/chains/tronTx";
 import { fetchChains } from "../lib/api";
 import type { Chain } from "../lib/api";
 import { explorerLink } from "../shared/utils";
+import { Radio } from "lucide-react";
 
 type BroadcastResult = { txHash: string; explorerUrl: string } | null;
 
@@ -79,7 +80,7 @@ export function Broadcast() {
   return (
     <div className="max-w-lg mx-auto space-y-5">
       <div>
-        <h2 className="text-lg font-semibold text-text-primary">📡 {t("broadcast.title")}</h2>
+        <h2 className="text-lg font-semibold text-text-primary flex items-center gap-2"><Radio className="w-5 h-5" />{t("broadcast.title")}</h2>
         <p className="text-xs text-text-muted mt-1">{t("broadcast.desc")}</p>
       </div>
 
@@ -118,7 +119,7 @@ export function Broadcast() {
         disabled={!rawTx.trim() || !selectedChain || broadcasting}
         className="w-full py-2.5 rounded-lg text-sm font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
       >
-        {broadcasting ? t("broadcast.broadcasting") : `📡 ${t("broadcast.broadcastButton")}`}
+        {broadcasting ? t("broadcast.broadcasting") : <><Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("broadcast.broadcastButton")}</>}
       </button>
 
       {/* Error */}

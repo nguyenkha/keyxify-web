@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, Button } from "./ui";
+import { Eye, Lock } from "lucide-react";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
@@ -234,7 +235,7 @@ export function XlmTrustlineDialog({
             <h3 className="text-sm font-semibold text-text-primary">
               {step === "select" ? t("xlm.enableToken")
                 : step === "input" ? t("xlm.enableSymbol", { symbol: selectedAsset?.symbol })
-                : step === "preview" ? `👀 ${t("xlm.reviewTitle")}`
+                : step === "preview" ? t("xlm.reviewTitle")
                 : step === "result" ? t("xlm.done")
                 : t("xlm.enableSymbol", { symbol: selectedAsset?.symbol })}
             </h3>
@@ -425,7 +426,7 @@ export function XlmTrustlineDialog({
             {/* Footer */}
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <Button variant="primary" fullWidth disabled={!keyFile} onClick={() => setStep("preview")}>
-                👀 {t("xlm.reviewButton")}
+                <Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("xlm.reviewButton")}
               </Button>
             </div>
           </>
@@ -515,7 +516,7 @@ export function XlmTrustlineDialog({
 
             <div className="px-5 py-4 border-t border-border-secondary shrink-0">
               <Button variant="primary" fullWidth onClick={() => guardedSign(executeTrustlineFlow)}>
-                🔐 {t("xlm.confirmEnable")}
+                <Lock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("xlm.confirmEnable")}
               </Button>
             </div>
           </>

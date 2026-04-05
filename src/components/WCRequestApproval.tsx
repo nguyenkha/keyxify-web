@@ -32,6 +32,7 @@ import { useExpertMode } from "../context/ExpertModeContext";
 import { PolicyWarning, ExpertWarnings, SimulationPreview, SigningError, SigningStepper } from "./tx";
 import Prism from "prismjs";
 import "prismjs/components/prism-json";
+import { Clock, CircleCheck, Radio, CircleX, LockOpen, PenLine, Eye, AlertTriangle } from "lucide-react";
 
 function friendlyError(err: unknown, t: (k: string) => string): string {
   const msg = (err as { message?: string })?.message || String(err);
@@ -876,17 +877,17 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
               {phase === "signing"
-                ? `⏳ ${t("wc.signing")}`
+                ? <><Clock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signing")}</>
                 : phase === "done"
-                  ? (txResult?.status === "success" ? `✅ ${t("wc.success")}` : txResult?.status === "pending" ? `📡 ${t("wc.broadcast")}` : `❌ ${t("wc.failed")}`)
+                  ? (txResult?.status === "success" ? <><CircleCheck className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.success")}</> : txResult?.status === "pending" ? <><Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.broadcast")}</> : <><CircleX className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.failed")}</>)
                   : isTx
-                    ? (isApprove ? `🔓 ${t("wc.tokenApproval")}` : `✍️ ${t("wc.signTx")}`)
-                    : `✍️ ${t("wc.signMessage")}`}
+                    ? (isApprove ? <><LockOpen className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.tokenApproval")}</> : <><PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signTx")}</>)
+                    : <><PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.signMessage")}</>}
             </h3>
           )}
           {phase === "preview" && (
             <h3 className="text-sm font-semibold text-text-primary absolute left-1/2 -translate-x-1/2">
-              👀 {t("wc.review")}
+              <Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.review")}
             </h3>
           )}
           {canClose && (
@@ -1240,7 +1241,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
                       </div>
                       {approveData.amount === MAX_UINT256 && (
                         <p className="text-[10px] text-yellow-400 mt-1 px-1">
-                          ⚠ dApp requested unlimited approval. Consider setting a specific amount.
+                          <AlertTriangle className="w-3.5 h-3.5 inline-block align-[-2px] mr-1" />dApp requested unlimited approval. Consider setting a specific amount.
                         </p>
                       )}
                     </div>
@@ -2134,7 +2135,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
               disabled={!account || !keyFile || policyChecking}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
             >
-              {policyChecking ? t("wc.checking") : `👀 ${t("wc.reviewTx")}`}
+              {policyChecking ? t("wc.checking") : <><Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("wc.reviewTx")}</>}
             </button>
           </div>
         )}

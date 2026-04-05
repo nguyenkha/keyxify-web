@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import type { Chain, Asset } from "../lib/api";
 import { QRCodeSVG } from "qrcode.react";
+import { Smartphone } from "lucide-react";
 
 export function QrModal({ address, asset, chain, onClose }: { address: string; asset: Asset; chain: Chain; onClose: () => void }) {
   const { t } = useTranslation();
@@ -26,7 +27,7 @@ export function QrModal({ address, asset, chain, onClose }: { address: string; a
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-xs shadow-xl">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
-          <h3 className="text-sm font-semibold text-text-primary">📱 {t("common.qrReceive")}</h3>
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><Smartphone className="w-4 h-4" />{t("common.qrReceive")}</h3>
           <button
             onClick={onClose}
             className="p-1 rounded-md text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"

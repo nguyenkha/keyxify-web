@@ -6,6 +6,7 @@ import { getStoredTheme, setTheme } from "../lib/theme";
 import { ErrorBox } from "./ui";
 import { LangSwitcher } from "./LangSwitcher";
 import { cleanupStaleShares } from "../lib/keystore";
+import { Mail } from "lucide-react";
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
@@ -180,7 +181,7 @@ export function Login() {
               disabled={loading || (!!TURNSTILE_SITE_KEY && !captchaToken)}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
             >
-              {loading ? t("login.sending") : `✉️ ${t("login.sendMagicLink")}`}
+              {loading ? t("login.sending") : <><Mail className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("login.sendMagicLink")}</>}
             </button>
 
             {error && <ErrorBox>{error}</ErrorBox>}

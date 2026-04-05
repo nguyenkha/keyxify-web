@@ -10,6 +10,7 @@ import { friendlyError } from "./signing-flows";
 import type { ResultStepProps } from "./types";
 import type { Chain } from "../../lib/api";
 import type { TxResult, SigningPhase } from "../sendTypes";
+import { Radio } from "lucide-react";
 
 async function broadcastAndConfirm(
   rawTx: string,
@@ -184,7 +185,7 @@ export function ResultStep({
                   })}
                   className="px-4 py-1.5 rounded-lg text-xs font-medium text-white bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 transition-colors"
                 >
-                  📡 {t("send.broadcast")}
+                  <Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.broadcast")}
                 </button>
               )}
             </div>

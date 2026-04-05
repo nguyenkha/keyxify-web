@@ -6,6 +6,7 @@ import { PasskeyChallenge } from "./PasskeyChallenge";
 import { sensitiveHeaders } from "../lib/passkey";
 import { apiUrl } from "../lib/apiBase";
 import { ErrorBox, Button } from "./ui";
+import { Snowflake, LockOpen } from "lucide-react";
 
 type Action = "idle" | "freeze-confirm" | "unfreeze-challenge" | "cancel-challenge";
 
@@ -141,7 +142,7 @@ export function FrozenBanner({
               {error && <ErrorBox className="mb-4">{error}</ErrorBox>}
 
               <Button variant="danger" fullWidth onClick={confirmFreeze} disabled={loading}>
-                {loading ? t("freeze.freezing") : `🥶 ${t("freeze.freezeMyAccount")}`}
+                {loading ? t("freeze.freezing") : <><Snowflake className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("freeze.freezeMyAccount")}</>}
               </Button>
               <div className="mt-3">
                 <Button variant="secondary" fullWidth onClick={dismiss} disabled={loading}>
@@ -157,7 +158,7 @@ export function FrozenBanner({
           className="w-full text-left px-3 py-2 rounded-md text-xs text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary transition-colors"
           title={t("freeze.freezeTooltip")}
         >
-          🥶 {t("freeze.freezeAccount")}
+          <Snowflake className="w-3.5 h-3.5 inline-block align-[-2px] mr-1" />{t("freeze.freezeAccount")}
         </button>
       </>
     );
@@ -172,7 +173,7 @@ export function FrozenBanner({
           <div className="absolute inset-0 bg-black/50" onClick={dismiss} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🔓 {t("freeze.unfreezeAccount")}</h3>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><LockOpen className="w-4 h-4" />{t("freeze.unfreezeAccount")}</h3>
               <button
                 onClick={dismiss}
                 className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"
@@ -201,7 +202,7 @@ export function FrozenBanner({
           <div className="absolute inset-0 bg-black/50" onClick={dismiss} />
           <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
             <div className="px-5 py-4 border-b border-border-primary flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-text-primary">🥶 {t("freeze.cancelUnfreeze")}</h3>
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><Snowflake className="w-4 h-4" />{t("freeze.cancelUnfreeze")}</h3>
               <button
                 onClick={dismiss}
                 className="p-1.5 rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-tertiary transition-colors"

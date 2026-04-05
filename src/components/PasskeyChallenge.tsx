@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { authenticatePasskey, type PasskeyAuthResult } from "../lib/passkey";
+import { KeyRound } from "lucide-react";
 
 /**
  * Modal that prompts passkey authentication before a sensitive action proceeds.
@@ -56,7 +57,7 @@ export function PasskeyChallenge({
       <div className="relative bg-surface-secondary border border-border-primary rounded-2xl w-full max-w-md shadow-xl">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
-          <h3 className="text-sm font-semibold text-text-primary">🔑 {t("passkey.challenge.title")}</h3>
+          <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><KeyRound className="w-4 h-4" />{t("passkey.challenge.title")}</h3>
           {!authenticating && (
             <button
               onClick={onCancel}

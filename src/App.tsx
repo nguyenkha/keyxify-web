@@ -55,6 +55,8 @@ import { Broadcast as BroadcastPage } from "./components/Broadcast";
 import { RecoveryProvider } from "./context/RecoveryContext";
 import { isRecoveryMode, getRecoveryKeys, exitRecoveryMode } from "./lib/recovery";
 import { isStandaloneJwt, getIdentityId } from "./lib/auth";
+import { Briefcase, Archive, ClipboardList, Settings, KeyRound, PenLine, Radio } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 
 const WalletConnectIcon = () => (
   <svg className="w-4 h-4 inline-block align-[-2px] mr-1" viewBox="0 0 24 24" fill="currentColor">
@@ -62,18 +64,26 @@ const WalletConnectIcon = () => (
   </svg>
 );
 
-const mainNavItems = [
-  { path: "/accounts", labelKey: "nav.accounts", emoji: "💼" },
-  { path: "/walletconnect", labelKey: "nav.walletconnect", icon: WalletConnectIcon },
+type NavItem = {
+  path: string;
+  labelKey: string;
+  icon?: LucideIcon | (() => React.ReactNode);
+  customIcon?: () => React.ReactNode;
+  expertOnly?: boolean;
+};
+
+const mainNavItems: NavItem[] = [
+  { path: "/accounts", labelKey: "nav.accounts", icon: Briefcase },
+  { path: "/walletconnect", labelKey: "nav.walletconnect", customIcon: WalletConnectIcon },
 ];
 
-const advancedNavItems: { path: string; labelKey: string; emoji?: string; expertOnly?: boolean }[] = [
-  { path: "/backup-recovery", labelKey: "nav.backupRecovery", emoji: "🗄️" },
-  { path: "/activity", labelKey: "nav.activityLog", emoji: "📋" },
-  { path: "/config", labelKey: "nav.config", emoji: "⚙️" },
-  { path: "/passkeys", labelKey: "nav.passkeys", emoji: "🔑" },
-  { path: "/sign", labelKey: "nav.rawSigning", emoji: "✍️", expertOnly: true },
-  { path: "/broadcast", labelKey: "nav.broadcastTx", emoji: "📡", expertOnly: true },
+const advancedNavItems: NavItem[] = [
+  { path: "/backup-recovery", labelKey: "nav.backupRecovery", icon: Archive },
+  { path: "/activity", labelKey: "nav.activityLog", icon: ClipboardList },
+  { path: "/config", labelKey: "nav.config", icon: Settings },
+  { path: "/passkeys", labelKey: "nav.passkeys", icon: KeyRound },
+  { path: "/sign", labelKey: "nav.rawSigning", icon: PenLine, expertOnly: true },
+  { path: "/broadcast", labelKey: "nav.broadcastTx", icon: Radio, expertOnly: true },
 ];
 
 
@@ -291,7 +301,7 @@ function DashboardLayout() {
                       : "text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary"
                   }`}
                 >
-                  {item.icon ? <><item.icon />{t(item.labelKey)}</> : `${item.emoji ?? ""} ${t(item.labelKey)}`}
+                  {item.customIcon ? <><item.customIcon />{t(item.labelKey)}</> : <>{item.icon && <item.icon className="w-4 h-4 inline-block align-[-2px] mr-1.5" />}{t(item.labelKey)}</>}
                 </button>
               );
             })}
@@ -325,7 +335,7 @@ function DashboardLayout() {
                           : "text-text-tertiary hover:text-text-primary hover:bg-surface-tertiary"
                       }`}
                     >
-                      {item.emoji ?? ""} {t(item.labelKey)}
+                      {item.icon && <item.icon className="w-3.5 h-3.5 inline-block align-[-2px] mr-1.5" />}{t(item.labelKey)}
                     </button>
                   );
                 })}

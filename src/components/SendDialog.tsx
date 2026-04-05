@@ -7,6 +7,7 @@ import { useExpertMode } from "../context/ExpertModeContext";
 import { SigningError, SigningStepper } from "./tx";
 import { fetchPrices, getUsdValue } from "../lib/prices";
 import { clearClientKey } from "../lib/mpc";
+import { Clock, CircleCheck, Radio, CircleX, Zap, Send, Eye } from "lucide-react";
 import { authHeaders, isStandaloneJwt } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
@@ -625,20 +626,20 @@ export function SendDialog({
               {t("send.edit")}
             </button>
           ) : step === "signing" ? (
-            <h3 className="text-sm font-semibold text-text-primary">⏳ {t("send.signing")}</h3>
+            <h3 className="text-sm font-semibold text-text-primary flex items-center gap-1.5"><Clock className="w-4 h-4" />{t("send.signing")}</h3>
           ) : step === "result" ? (
             <h3 className="text-sm font-semibold text-text-primary">
-              {txResult?.status === "success" ? `✅ ${t("send.success")}` : txResult?.status === "pending" ? `📡 ${t("send.broadcast")}` : `❌ ${t("send.failed")}`}
+              {txResult?.status === "success" ? <><CircleCheck className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.success")}</> : txResult?.status === "pending" ? <><Radio className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.broadcast")}</> : <><CircleX className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.failed")}</>}
             </h3>
           ) : (
             <h3 className="text-sm font-semibold text-text-primary">
-              {speedUpData ? `⚡ ${t("send.speedUp", { symbol: asset.symbol })}` : `📤 ${t("send.title", { symbol: asset.symbol })}`}
+              {speedUpData ? <><Zap className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.speedUp", { symbol: asset.symbol })}</> : <><Send className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.title", { symbol: asset.symbol })}</>}
 
             </h3>
           )}
           {step === "preview" && (
             <h3 className="text-sm font-semibold text-text-primary absolute left-1/2 -translate-x-1/2">
-              👀 {t("send.review")}
+              <Eye className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.review")}
             </h3>
           )}
           {canClose && (

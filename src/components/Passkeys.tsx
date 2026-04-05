@@ -8,6 +8,7 @@ import {
   type PasskeyInfo,
 } from "../lib/passkey";
 import { ErrorBox } from "./ui";
+import { KeyRound } from "lucide-react";
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString(undefined, {
@@ -182,7 +183,7 @@ export function Passkeys() {
           disabled={adding}
           className="bg-blue-600 hover:bg-blue-700 text-white text-sm px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-60"
         >
-          {adding ? t("passkey.registering") : `🔑 ${t("passkey.addFirstButton")}`}
+          {adding ? t("passkey.registering") : <><KeyRound className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("passkey.addFirstButton")}</>}
         </button>
         {error && <ErrorBox className="mt-4">{error}</ErrorBox>}
       </div>

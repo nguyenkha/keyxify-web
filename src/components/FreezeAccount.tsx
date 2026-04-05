@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { apiUrl } from "../lib/apiBase";
 import { Spinner, Button } from "./ui";
+import { Snowflake } from "lucide-react";
 
 export function FreezeAccount() {
   const { t } = useTranslation();
@@ -48,7 +49,7 @@ export function FreezeAccount() {
               {t("freeze.description")}
             </p>
             <Button variant="danger" fullWidth onClick={handleFreeze}>
-              🥶 {t("freeze.freezeMyAccount")}
+              <Snowflake className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("freeze.freezeMyAccount")}
             </Button>
             <div className="mt-3">
               <Button variant="secondary" fullWidth onClick={() => navigate("/login")}>

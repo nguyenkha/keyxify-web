@@ -13,6 +13,7 @@ import { listKeyShares, getKeyShareWithPrf, getKeyShareWithPassphrase, type KeyS
 import { useFrozen } from "../context/FrozenContext";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
+import { PenLine, CircleX, CircleCheck, Clock } from "lucide-react";
 import { Spinner } from "./ui";
 
 interface KeyFile {
@@ -389,7 +390,7 @@ export function Sign() {
           disabled={!canSign || frozen}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-6 py-2.5 rounded-lg font-medium text-sm transition-colors text-white"
         >
-          ✍️ {t("sign.signButton")}
+          <PenLine className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("sign.signButton")}
         </button>
       </div>
 
@@ -423,7 +424,7 @@ export function Sign() {
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-border-secondary">
               <h3 className="text-sm font-semibold text-text-primary">
-                {signingError ? `❌ ${t("sign.signingFailed")}` : signature ? `✅ ${t("sign.signatureResult")}` : `⏳ ${t("sign.signing")}`}
+                {signingError ? <><CircleX className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("sign.signingFailed")}</> : signature ? <><CircleCheck className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("sign.signatureResult")}</> : <><Clock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("sign.signing")}</>}
               </h3>
               {(signature || signingError) && (
                 <button
