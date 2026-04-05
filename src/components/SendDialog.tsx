@@ -46,6 +46,7 @@ import { useHideBalances } from "../context/HideBalancesContext";
 import { authenticatePasskey } from "../lib/passkey";
 import { isRecoveryMode, getRecoveryKeyFile } from "../lib/recovery";
 import { getPreference } from "../lib/userOverrides";
+import { getIdentityId } from "../lib/auth";
 import { addRecentRecipient } from "../lib/addressBook";
 import { resolveName, isResolvableName } from "../lib/nameResolution";
 import { checkXlmAccountExists } from "../lib/chains/xlmTx";
@@ -113,7 +114,7 @@ export function SendDialog({
   const [btcFeeRateOverride, setBtcFeeRateOverride] = useState("");
   const [rbfEnabled, setRbfEnabled] = useState(true);
   // getPreference returns default (false) when expert_mode is off
-  const confirmBeforeBroadcast = expert && !!getPreference("confirm_before_broadcast");
+  const confirmBeforeBroadcast = expert && !!getPreference("confirm_before_broadcast", getIdentityId() ?? undefined);
 
   // UTXO manual selection (expert mode)
   const [showUtxoPicker, setShowUtxoPicker] = useState(false);
