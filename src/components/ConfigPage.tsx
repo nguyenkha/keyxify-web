@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset } from "../lib/api";
 import type { Settings } from "../shared/types";
 import { getMe, isStandaloneJwt, getIdentityId } from "../lib/auth";
@@ -19,6 +19,7 @@ import { AddressBookPanel } from "./AddressBookPanel";
 import { useSetExpertMode } from "../context/ExpertModeContext";
 import { useTranslation } from "react-i18next";
 import { setLanguage, getStoredLanguage } from "../i18n/i18n";
+import { isNotifyEnabled, setNotifyEnabled } from "../lib/notify";
 
 type RpcStatus = "checking" | "ok" | "error";
 
@@ -76,6 +77,56 @@ async function checkRpcHealth(rpcUrl: string, chainType: string): Promise<boolea
   } finally {
     clearTimeout(timer);
   }
+}
+
+/** Notification toggle — on/off via localStorage, requests browser permission when enabling */
+function NotificationToggle() {
+  const { t } = useTranslation();
+  const supported = "Notification" in window;
+  const [enabled, setEnabled] = useState(() => isNotifyEnabled());
+  const denied = supported && Notification.permission === "denied";
+
+  const handleToggle = useCallback(async () => {
+    if (!supported) return;
+    if (enabled) {
+      setNotifyEnabled(false);
+      setEnabled(false);
+      return;
+    }
+    // Request permission if not yet granted
+    if (Notification.permission !== "granted") {
+      const result = await Notification.requestPermission();
+      if (result !== "granted") return;
+    }
+    setNotifyEnabled(true);
+    setEnabled(true);
+  }, [supported, enabled]);
+
+  if (!supported) return null;
+
+  return (
+    <div className="px-3 md:px-5 py-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-text-primary">{t("config.notifications")}</p>
+          <p className="text-xs text-text-muted mt-0.5">
+            {denied ? t("config.notificationsDenied") : t("config.notificationsDesc")}
+          </p>
+        </div>
+        <button
+          onClick={handleToggle}
+          disabled={denied}
+          className={`relative w-8 h-[18px] rounded-full transition-colors shrink-0 ${
+            enabled ? "bg-blue-500" : "bg-surface-tertiary"
+          } ${denied ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
+          <span className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${
+            enabled ? "left-[16px]" : "left-[2px]"
+          }`} />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 const REFRESH_OPTIONS = [
@@ -409,6 +460,9 @@ export function ConfigPage() {
         <div className="bg-surface-secondary rounded-lg border border-border-primary overflow-hidden divide-y divide-border-secondary">
           {/* Language selector */}
           <LanguageSelector />
+
+          {/* Notifications toggle */}
+          <NotificationToggle />
 
           {/* Expert mode — first row, always visible */}
           <div className="px-3 md:px-5 py-4">

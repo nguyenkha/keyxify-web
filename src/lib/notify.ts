@@ -1,7 +1,10 @@
 /**
  * Client-side browser Notification API wrapper.
  * Shows native notifications when the app tab is not focused (PWA foreground).
+ * User can toggle notifications on/off via localStorage flag.
  */
+
+const NOTIFY_ENABLED_KEY = "kxi:notifications_enabled";
 
 /** Request notification permission. Call once on app init. */
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -12,9 +15,16 @@ export async function requestNotificationPermission(): Promise<boolean> {
   return result === "granted";
 }
 
-/** Check if notifications are allowed */
-export function canNotify(): boolean {
-  return "Notification" in window && Notification.permission === "granted";
+/** Check if notifications are enabled (browser permission + user toggle) */
+export function isNotifyEnabled(): boolean {
+  if (!("Notification" in window)) return false;
+  if (Notification.permission !== "granted") return false;
+  return localStorage.getItem(NOTIFY_ENABLED_KEY) !== "false";
+}
+
+/** Set user preference for notifications */
+export function setNotifyEnabled(enabled: boolean): void {
+  localStorage.setItem(NOTIFY_ENABLED_KEY, String(enabled));
 }
 
 interface NotifyOptions {
@@ -30,7 +40,7 @@ interface NotifyOptions {
  * When the tab is visible, the user already sees in-app UI — no need to spam.
  */
 export function notify({ title, body, icon, focusOnClick = true }: NotifyOptions): void {
-  if (!canNotify()) return;
+  if (!isNotifyEnabled()) return;
   // Skip if user is already looking at the app
   if (document.visibilityState === "visible") return;
 

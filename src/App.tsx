@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import * as Sentry from "@sentry/react";
-import { requestNotificationPermission } from "./lib/notify";
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { Wallet } from "./components/Wallet";
 import { AccountDetail } from "./components/AccountDetail";
@@ -212,7 +211,6 @@ function DashboardLayout() {
 
   useEffect(() => {
     refreshUser();
-    requestNotificationPermission();
     if (!recovery) {
       fetch(apiUrl("/api/health")).then((r) => r.json()).then((d) => setServerVersion(d.version ?? null)).catch(() => {});
     }
