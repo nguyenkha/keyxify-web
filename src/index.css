@@ -1,5 +1,15 @@
 @import "tailwindcss";
 
+/* Hide scrollbars in standalone PWA mode */
+@media (display-mode: standalone) {
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 /* iOS safe area: darker bg behind status bar & home indicator */
 html {
   background-color: #000;
