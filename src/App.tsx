@@ -221,6 +221,13 @@ function DashboardLayout() {
     document.title = recovery ? "[Recovery Mode] kexify" : "kexify";
   }, [recovery]);
 
+  // Listen for notification click navigation
+  useEffect(() => {
+    const handler = (e: Event) => navigate((e as CustomEvent).detail);
+    window.addEventListener("notify-navigate", handler);
+    return () => window.removeEventListener("notify-navigate", handler);
+  }, [navigate]);
+
   const email = recovery ? "" : standalone ? "" : (user?.email || "");
 
   const expert = useExpertMode();

@@ -46,9 +46,7 @@ export function notify({ title, body, icon, path }: NotifyOptions): void {
   n.onclick = () => {
     window.focus();
     if (path) {
-      // Use pushState + popstate to trigger React Router navigation without full reload
-      window.history.pushState({}, "", path);
-      window.dispatchEvent(new PopStateEvent("popstate"));
+      window.dispatchEvent(new CustomEvent("notify-navigate", { detail: path }));
     }
     n.close();
   };
