@@ -250,7 +250,7 @@ function DashboardLayout() {
   return (
     <RecoveryProvider value={{ isRecovery: recovery, recoveryKeys: recovery ? getRecoveryKeys() : [] }}>
     <FrozenProvider value={!standalone && !!user?.frozenAt}>
-    <div className="min-h-dvh bg-surface-primary text-text-primary flex">
+    <div className="h-dvh bg-surface-primary text-text-primary flex overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
