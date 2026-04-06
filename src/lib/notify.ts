@@ -37,6 +37,7 @@ interface NotifyOptions {
 /** Show a browser notification when enabled. Clicking navigates to `path` if provided. */
 export function notify({ title, body, icon, path }: NotifyOptions): void {
   if (!isNotifyEnabled()) return;
+  if (path) document.title = `[DBG] ${path}`;
 
   const n = new Notification(title, {
     body,
