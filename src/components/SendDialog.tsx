@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { notify } from "../lib/notify";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink, bytesToHex } from "../shared/utils";
 import { simulateEvmTransaction } from "../lib/txSimulation";
@@ -262,10 +263,19 @@ export function SendDialog({
   // The actual address to send to (resolved name address or raw input)
   const effectiveTo = resolvedName?.input === to ? resolvedName.address : to;
 
-  // Track successful sends as recent recipients
+  // Track successful sends as recent recipients + notify
   useEffect(() => {
     if (txResult && (txResult.status === "success" || txResult.status === "pending") && to) {
       addRecentRecipient(to, chain.type, asset.symbol);
+    }
+    if (txResult?.status === "success") {
+      const nativeAsset = asset.isNative ? asset : undefined;
+      const nativeSymbol = nativeAsset?.symbol || chain.displayName;
+      notify({
+        title: t("notify.txConfirmed"),
+        body: `${amount} ${asset.symbol}`,
+        path: `/accounts/${keyId}/${chain.name.toLowerCase()}/${nativeSymbol}`,
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txResult?.status]);

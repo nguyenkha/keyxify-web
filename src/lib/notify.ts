@@ -1,6 +1,5 @@
 /**
  * Client-side browser Notification API wrapper.
- * Shows native notifications when the app tab is not focused (PWA foreground).
  * User can toggle notifications on/off via localStorage flag.
  */
 
@@ -31,12 +30,12 @@ interface NotifyOptions {
   title: string;
   body?: string;
   icon?: string;
-  /** Focus app window when notification is clicked (default: true) */
-  focusOnClick?: boolean;
+  /** In-app path to navigate to when notification is clicked (e.g. "/accounts/key1/ethereum/ETH") */
+  path?: string;
 }
 
-/** Show a browser notification when enabled. */
-export function notify({ title, body, icon, focusOnClick = true }: NotifyOptions): void {
+/** Show a browser notification when enabled. Clicking navigates to `path` if provided. */
+export function notify({ title, body, icon, path }: NotifyOptions): void {
   if (!isNotifyEnabled()) return;
 
   const n = new Notification(title, {
@@ -44,10 +43,13 @@ export function notify({ title, body, icon, focusOnClick = true }: NotifyOptions
     icon: icon || "/icon-192.png",
   });
 
-  if (focusOnClick) {
-    n.onclick = () => {
-      window.focus();
-      n.close();
-    };
-  }
+  n.onclick = () => {
+    window.focus();
+    if (path) {
+      // Use pushState + popstate to trigger React Router navigation without full reload
+      window.history.pushState({}, "", path);
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    }
+    n.close();
+  };
 }

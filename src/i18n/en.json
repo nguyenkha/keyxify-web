@@ -1079,6 +1079,7 @@
     "wcProposal": "Connection Request",
     "wcRequest": "Signing Request",
     "balanceUp": "Incoming Funds",
-    "balanceDown": "Outgoing Transaction"
+    "balanceDown": "Outgoing Transaction",
+    "txConfirmed": "Transaction Confirmed"
   }
 }

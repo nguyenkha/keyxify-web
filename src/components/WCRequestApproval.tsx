@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useToast } from "../context/ToastContext";
+import { notify } from "../lib/notify";
+import { wcService } from "../lib/walletconnect";
 import { useNavigate } from "react-router-dom";
 import type { PendingRequest } from "../context/WalletConnectContext";
 import type { KeyShare, Chain, Asset } from "../shared/types";
@@ -137,6 +139,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
   const [error, setError] = useState("");
   const [txResult, setTxResult] = useState<{ txHash: string; status: "success" | "pending" | "failed"; blockNumber?: string } | null>(null);
+
   const [account, setAccount] = useState<ResolvedAccount | null>(null);
   const [chains, setChains] = useState<Chain[]>([]);
   const [keyFile, setKeyFile] = useState<KeyFileData | null>(null);
@@ -233,6 +236,19 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
       if (token) setSolTokenInfo({ symbol: token.symbol, decimals: token.decimals });
     });
   }, [decodedSolTx?.mint, chain?.id]);
+
+  // Notify on tx confirmation
+  useEffect(() => {
+    if (txResult?.status === "success") {
+      const dappName = wcService.getSessions().find((s) => s.topic === request.topic)?.peer.metadata.name || "dApp";
+      notify({
+        title: t("notify.txConfirmed"),
+        body: dappName,
+        path: "/accounts",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [txResult?.status]);
 
   // Fetch TRON account resources (bandwidth/energy) for fee display
   // eslint-disable-next-line react-hooks/exhaustive-deps

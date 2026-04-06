@@ -72,9 +72,11 @@ export function usePolledBalance(
               setTimeout(() => setNativeChanged(null), 1200);
               const nativeAsset = row.assets.find((a) => a.isNative);
               const symbol = nativeAsset?.symbol || row.chain.displayName;
+              const suffix = row.btcAddrType ? `/${row.btcAddrType}` : "";
               notify({
                 title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
                 body: `${symbol}: ${result.formatted}`,
+                path: `/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${symbol}${suffix}`,
               });
             }
             prevNativeRef.current = result.formatted;
@@ -125,13 +127,15 @@ export function usePolledBalance(
           if (changes.size > 0) {
             setTokenChanges(changes);
             setTimeout(() => setTokenChanges(new Map()), 1200);
-            // Notify for each changed token
+            // Notify for each changed token — click opens token detail
+            const suffix = row.btcAddrType ? `/${row.btcAddrType}` : "";
             for (const [assetId, dir] of changes) {
               const b = results.find((r) => r.asset.id === assetId);
               if (b) {
                 notify({
                   title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
                   body: `${b.asset.symbol}: ${b.formatted}`,
+                  path: `/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${b.asset.symbol}${suffix}`,
                 });
               }
             }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { notify } from "../lib/notify";
 import { Spinner, Button } from "./ui";
 import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
@@ -188,7 +189,10 @@ export function AlgoOptInDialog({
       setSigningPhase("polling");
       const result = await waitForAlgoConfirmation(chain.rpcUrl, txId, () => {}, 30, 3000);
       setTxResult({ status: result.confirmed ? "success" : "pending", txHash: txId, blockNumber: result.round });
-      if (result.confirmed) addToast(t("algo.tokenEnabledToast"), "success");
+      if (result.confirmed) {
+        addToast(t("algo.tokenEnabledToast"), "success");
+        notify({ title: t("notify.txConfirmed"), body: "Algo Opt-In" });
+      }
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
     } catch (err: unknown) {

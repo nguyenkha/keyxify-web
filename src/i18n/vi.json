@@ -1079,6 +1079,7 @@
     "wcProposal": "Yêu cầu kết nối",
     "wcRequest": "Yêu cầu ký",
     "balanceUp": "Nhận tiền",
-    "balanceDown": "Giao dịch gửi"
+    "balanceDown": "Giao dịch gửi",
+    "txConfirmed": "Giao dịch đã xác nhận"
   }
 }

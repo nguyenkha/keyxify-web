@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { notify } from "../lib/notify";
 import { Spinner, Button } from "./ui";
 import { Eye, Lock } from "lucide-react";
 import type { Chain, Asset } from "../lib/api";
@@ -203,7 +204,10 @@ export function XlmTrustlineDialog({
       setSigningPhase("polling");
       const result = await waitForXlmConfirmation(chain.rpcUrl, txHash, () => {}, 30, 3000);
       setTxResult({ status: result.confirmed ? "success" : "pending", txHash, blockNumber: result.ledger });
-      if (result.confirmed) addToast(t("xlm.tokenEnabledToast"), "success");
+      if (result.confirmed) {
+        addToast(t("xlm.tokenEnabledToast"), "success");
+        notify({ title: t("notify.txConfirmed"), body: "XLM Trustline" });
+      }
       setKeyFile(null); setPendingEncrypted(null);
       setStep("result");
     } catch (err: unknown) {
