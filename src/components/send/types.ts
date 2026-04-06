@@ -202,6 +202,7 @@ export interface PreviewStepProps {
     executeAda: () => void;
   };
   setSigningError: (e: string | null) => void;
+  confirmBeforeBroadcast: boolean;
 
   t: (key: string, opts?: Record<string, unknown>) => string;
 }

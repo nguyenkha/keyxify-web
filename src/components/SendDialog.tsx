@@ -847,6 +847,7 @@ export function SendDialog({
               executeAda: () => executeAdaSigningFlow(buildSigningCtx()),
             }}
             setSigningError={setSigningError}
+            confirmBeforeBroadcast={confirmBeforeBroadcast}
             t={t}
           />
         )}

@@ -7,6 +7,7 @@ import { SOLANA_BASE_FEE } from "../../lib/chains/solanaTx";
 import { XRP_BASE_FEE } from "../../lib/chains/xrpTx";
 import { EVM_FEE_MULTIPLIER } from "../sendTypes";
 import type { PreviewStepProps } from "./types";
+import { Lock } from "lucide-react";
 
 export function PreviewStep({
   chain,
@@ -43,6 +44,7 @@ export function PreviewStep({
   guardedSign,
   signingFlows,
   setSigningError,
+  confirmBeforeBroadcast,
   t,
 }: PreviewStepProps) {
   return (
@@ -248,7 +250,7 @@ export function PreviewStep({
           }}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted text-white text-sm font-medium py-2.5 rounded-lg transition-colors"
         >
-          {policyCheck?.allowed === false ? `\u26D4 ${t("send.blockedByPolicy")}` : `\uD83D\uDD10 ${t("send.confirmSend")}`}
+          {policyCheck?.allowed === false ? <><Lock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t("send.blockedByPolicy")}</> : <><Lock className="w-4 h-4 inline-block align-[-2px] mr-1" />{t(confirmBeforeBroadcast ? "send.confirmSign" : "send.confirmSend")}</>}
         </button>
       </div>
     </>
