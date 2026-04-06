@@ -235,6 +235,7 @@
     "cancelBookmark": "Hủy",
     "previewButton": "Xem trước",
     "confirmSend": "Xác nhận & Gửi",
+    "confirmSign": "Xác nhận & Ký",
     "backupRequired": "Cần sao lưu để gửi trên $100",
     "backupRequiredDesc": "Hoàn tất sao lưu key trước trong Sao lưu & Khôi phục.",
     "policyBlocked": "Giao dịch bị chặn bởi chính sách",

@@ -235,6 +235,7 @@
     "cancelBookmark": "Cancel",
     "previewButton": "Preview",
     "confirmSend": "Confirm & Send",
+    "confirmSign": "Confirm & Sign",
     "backupRequired": "Backup required to send over $100",
     "backupRequiredDesc": "Complete your key backup first in Backup & Recovery.",
     "policyBlocked": "Transaction blocked by policy",
