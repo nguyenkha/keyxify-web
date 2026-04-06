@@ -387,9 +387,9 @@ function DashboardLayout() {
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-auto">
         {/* Top bar */}
-        <header className="border-b border-border-primary flex items-center px-4 md:px-8 shrink-0 gap-3 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]">
+        <header className="sticky top-0 z-10 bg-surface-primary border-b border-border-primary flex items-center px-4 md:px-8 shrink-0 gap-3 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)]">
           {/* Hamburger on mobile */}
           <button
             onClick={() => setSidebarOpen(true)}
@@ -427,7 +427,7 @@ function DashboardLayout() {
         </header>
 
         {/* Content area — tighter padding on mobile */}
-        <main ref={mainRef} className="flex-1 p-4 md:p-8 overflow-auto">
+        <main ref={mainRef} className="flex-1 p-4 md:p-8">
           {/* Pull-to-refresh indicator */}
           {(pulling || refreshing) && (
             <div
