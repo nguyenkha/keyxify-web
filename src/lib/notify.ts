@@ -37,7 +37,6 @@ interface NotifyOptions {
 /** Show a browser notification when enabled. Clicking navigates to `path` if provided. */
 export function notify({ title, body, icon, path }: NotifyOptions): void {
   if (!isNotifyEnabled()) return;
-  if (path) window.dispatchEvent(new CustomEvent("notify-debug", { detail: path }));
 
   const n = new Notification(title, {
     body,

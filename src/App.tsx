@@ -44,7 +44,7 @@ import { useTranslation } from "react-i18next";
 import { usePullToRefresh } from "./lib/use-pull-to-refresh";
 import { useSwipeSidebar } from "./lib/use-swipe-sidebar";
 import { notifyBalanceRefresh, clearAllTokenBalanceCaches, clearAllTxCaches } from "./lib/dataCache";
-import { ToastProvider, useToast } from "./context/ToastContext";
+import { ToastProvider } from "./context/ToastContext";
 import { WCRequestQueue } from "./components/WCRequestQueue";
 import { FreezeAccount } from "./components/FreezeAccount";
 import { RecoveryImport } from "./components/RecoveryImport";
@@ -222,18 +222,11 @@ function DashboardLayout() {
   }, [recovery]);
 
   // Listen for notification click navigation
-  const { addToast } = useToast();
   useEffect(() => {
     const handler = (e: Event) => navigate((e as CustomEvent).detail);
     window.addEventListener("notify-navigate", handler);
-    // DEBUG: show notification path as toast
-    const dbgHandler = (e: Event) => addToast((e as CustomEvent).detail, "info");
-    window.addEventListener("notify-debug", dbgHandler);
-    return () => {
-      window.removeEventListener("notify-navigate", handler);
-      window.removeEventListener("notify-debug", dbgHandler);
-    };
-  }, [navigate, addToast]);
+    return () => window.removeEventListener("notify-navigate", handler);
+  }, [navigate]);
 
   const email = recovery ? "" : standalone ? "" : (user?.email || "");
 

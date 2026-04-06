@@ -269,12 +269,10 @@ export function SendDialog({
       addRecentRecipient(to, chain.type, asset.symbol);
     }
     if (txResult?.status === "success") {
-      const nativeAsset = asset.isNative ? asset : undefined;
-      const nativeSymbol = nativeAsset?.symbol || chain.displayName;
       notify({
         title: t("notify.txConfirmed"),
         body: `${amount} ${asset.symbol}`,
-        path: `/accounts/${keyId}/${chain.name.toLowerCase()}/${nativeSymbol}`,
+        path: `/accounts/${keyId}/${chain.name.toLowerCase()}/${asset.symbol}`,
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
