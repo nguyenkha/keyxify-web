@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { AccountRow } from "./accountRows";
 import type { BalanceResult } from "../shared/types";
 import {
@@ -8,6 +9,7 @@ import {
   getCachedTokenBalances,
 } from "./balance";
 import { clearCache, balanceCacheKey, tokenBalancesCacheKey } from "./dataCache";
+import { notify } from "./notify";
 
 const DEFAULT_POLL_INTERVAL = 60_000;
 
@@ -17,6 +19,7 @@ export function usePolledBalance(
   row: AccountRow,
   pollInterval = DEFAULT_POLL_INTERVAL
 ) {
+  const { t } = useTranslation();
   const [nativeBalance, setNativeBalance] = useState<BalanceResult | null>(null);
   const [nativeState, setNativeState] = useState<LoadState>("loading");
   const [tokenBalances, setTokenBalances] = useState<BalanceResult[]>([]);
@@ -67,6 +70,12 @@ export function usePolledBalance(
             if (dir) {
               setNativeChanged(dir);
               setTimeout(() => setNativeChanged(null), 1200);
+              const nativeAsset = row.assets.find((a) => a.isNative);
+              const symbol = nativeAsset?.symbol || row.chain.displayName;
+              notify({
+                title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
+                body: `${symbol}: ${result.formatted}`,
+              });
             }
             prevNativeRef.current = result.formatted;
           }
@@ -116,6 +125,16 @@ export function usePolledBalance(
           if (changes.size > 0) {
             setTokenChanges(changes);
             setTimeout(() => setTokenChanges(new Map()), 1200);
+            // Notify for each changed token
+            for (const [assetId, dir] of changes) {
+              const b = results.find((r) => r.asset.id === assetId);
+              if (b) {
+                notify({
+                  title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
+                  body: `${b.asset.symbol}: ${b.formatted}`,
+                });
+              }
+            }
           }
           setTokenBalances(results);
           setTokenState("loaded");

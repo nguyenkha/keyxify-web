@@ -1071,5 +1071,11 @@
     "failed": "Verification failed. Please try again.",
     "signOut": "Sign out",
     "signOutHint": "Too many failed attempts?"
+  },
+  "notify": {
+    "wcProposal": "Connection Request",
+    "wcRequest": "Signing Request",
+    "balanceUp": "Incoming Funds",
+    "balanceDown": "Outgoing Transaction"
   }
 }

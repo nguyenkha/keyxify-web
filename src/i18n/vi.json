@@ -1071,5 +1071,11 @@
     "failed": "Xác minh thất bại. Vui lòng thử lại.",
     "signOut": "Đăng xuất",
     "signOutHint": "Quá nhiều lần thất bại?"
+  },
+  "notify": {
+    "wcProposal": "Yêu cầu kết nối",
+    "wcRequest": "Yêu cầu ký",
+    "balanceUp": "Nhận tiền",
+    "balanceDown": "Giao dịch gửi"
   }
 }

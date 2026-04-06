@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { wcService } from "../lib/walletconnect";
+import { notify } from "../lib/notify";
 import type { SessionTypes, ProposalTypes } from "@walletconnect/types";
 import type { Web3WalletTypes } from "@walletconnect/web3wallet";
 
@@ -35,6 +37,7 @@ export function useWalletConnect() {
 }
 
 export function WalletConnectProvider({ children }: { children: ReactNode }) {
+  const { t } = useTranslation();
   const [initialized, setInitialized] = useState(false);
   const [sessions, setSessions] = useState<SessionTypes.Struct[]>([]);
   const [pendingProposal, setPendingProposal] = useState<Web3WalletTypes.SessionProposal | null>(null);
@@ -57,10 +60,15 @@ export function WalletConnectProvider({ children }: { children: ReactNode }) {
 
     const onProposal = (proposal: Web3WalletTypes.SessionProposal) => {
       setPendingProposal(proposal);
+      const dappName = proposal.params.proposer.metadata.name || "dApp";
+      notify({ title: t("notify.wcProposal"), body: dappName });
     };
 
     const onRequest = (request: Web3WalletTypes.SessionRequest) => {
       const { topic, id, params } = request;
+      const session = wcService.getSessions().find((s) => s.topic === topic);
+      const dappName = session?.peer.metadata.name || "dApp";
+      notify({ title: t("notify.wcRequest"), body: `${dappName}: ${params.request.method}` });
       // For Solana/TRON methods, inject the account address from the session
       // since their params don't always include the signer address
       let reqParams = params.request.params;
