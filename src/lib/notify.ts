@@ -35,14 +35,9 @@ interface NotifyOptions {
   focusOnClick?: boolean;
 }
 
-/**
- * Show a browser notification only when the tab is not focused.
- * When the tab is visible, the user already sees in-app UI — no need to spam.
- */
+/** Show a browser notification when enabled. */
 export function notify({ title, body, icon, focusOnClick = true }: NotifyOptions): void {
   if (!isNotifyEnabled()) return;
-  // Skip if user is already looking at the app
-  if (document.visibilityState === "visible") return;
 
   const n = new Notification(title, {
     body,
