@@ -118,10 +118,8 @@ export function CreateAccountDialog({
     });
     setExpertContext(isExpert);
 
-    // Auto-name first account — skip name step
-    if (isFirstAccount) {
-      setName("My Wallet");
-    }
+    // Auto-set default account name
+    setName(isFirstAccount ? "My Wallet" : `Account ${keyCount + 1}`);
 
     // Check if user has passkeys — if not, show inline passkey setup as next step
     try {
