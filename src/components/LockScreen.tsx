@@ -16,6 +16,7 @@ export function LockScreen() {
   const [email, setEmail] = useState("");
   const buttonRef = useRef<HTMLButtonElement>(null);
   const challengeRef = useRef<UnlockChallenge | null>(null);
+  const challengeFetchedAt = useRef<number>(0);
 
   // Pre-fetch challenge on lock screen mount so WebAuthn fires instantly on click
   useEffect(() => {
@@ -24,13 +25,22 @@ export function LockScreen() {
       setFailures(0);
       setLoading(false);
       challengeRef.current = null;
-      // Pre-fetch challenge options
       fetchUnlockChallenge(ownerId)
-        .then((c) => { challengeRef.current = c; })
-        .catch(() => {}); // Will retry on click if pre-fetch fails
-      // Try to get email (may fail with expired JWT)
+        .then((c) => { challengeRef.current = c; challengeFetchedAt.current = Date.now(); })
+        .catch(() => {});
       getMe().then((me) => setEmail(me?.email ?? "")).catch(() => {});
     }
+  }, [locked, ownerId]);
+
+  // Re-fetch challenge every 4 minutes to prevent expiry (server TTL = 5min)
+  useEffect(() => {
+    if (!locked || !ownerId) return;
+    const iv = setInterval(() => {
+      fetchUnlockChallenge(ownerId)
+        .then((c) => { challengeRef.current = c; challengeFetchedAt.current = Date.now(); })
+        .catch(() => {});
+    }, 4 * 60 * 1000);
+    return () => clearInterval(iv);
   }, [locked, ownerId]);
 
   // Focus trap
@@ -45,10 +55,12 @@ export function LockScreen() {
     setLoading(true);
     setError("");
     try {
-      // Use pre-fetched challenge, or fetch now if it wasn't ready
+      // Use pre-fetched challenge if fresh (<4min), otherwise fetch new one
+      const challengeAge = Date.now() - challengeFetchedAt.current;
       let challenge = challengeRef.current;
-      if (!challenge) {
+      if (!challenge || challengeAge > 4 * 60 * 1000) {
         challenge = await fetchUnlockChallenge(ownerId);
+        challengeFetchedAt.current = Date.now();
       }
       challengeRef.current = null; // Consume the challenge (single-use)
 
