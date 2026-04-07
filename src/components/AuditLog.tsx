@@ -118,16 +118,7 @@ function describeEntry(entry: AuditEntry, t: TFn): EntryDesc {
         iconBg: "bg-yellow-500/10",
         iconColor: "text-yellow-400",
       };
-    case "server-share.hkdf-download":
-      return {
-        title: t("activity.serverShareDownloaded"),
-        subtitle: "",
-        detail: t("activity.serverShareDownloadedDetail"),
-        icon: DownloadIcon,
-        iconBg: "bg-yellow-500/10",
-        iconColor: "text-yellow-400",
-      };
-    case "server-share.export":
+    case "backup.server_share_export":
       return {
         title: t("activity.selfCustodyExport"),
         subtitle: "",
@@ -226,6 +217,15 @@ function describeEntry(entry: AuditEntry, t: TFn): EntryDesc {
         icon: CheckIcon,
         iconBg: "bg-green-500/10",
         iconColor: "text-green-500",
+      };
+    case "backup.server_share_hkdf":
+      return {
+        title: t("activity.serverBackupSaved"),
+        subtitle: "",
+        detail: t("activity.serverBackupSavedDetail"),
+        icon: UploadIcon,
+        iconBg: "bg-blue-500/10",
+        iconColor: "text-blue-400",
       };
     default:
       return {

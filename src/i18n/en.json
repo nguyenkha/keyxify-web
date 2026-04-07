@@ -863,6 +863,8 @@
     "accountCreatedDetail": "A new account was set up successfully.",
     "backupSaved": "Backup saved",
     "backupSavedDetail": "Your encrypted key backup was uploaded.",
+    "serverBackupSaved": "Server backup saved",
+    "serverBackupSavedDetail": "Your encrypted key share was backed up to the server.",
     "backupDownloaded": "Backup downloaded",
     "backupDownloadedDetail": "Your encrypted key backup was downloaded.",
     "serverShareDownloaded": "Server share downloaded",

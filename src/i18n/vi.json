@@ -863,6 +863,8 @@
     "accountCreatedDetail": "Tài khoản mới đã được thiết lập thành công.",
     "backupSaved": "Đã lưu bản sao lưu",
     "backupSavedDetail": "Bản sao lưu key mã hóa đã được tải lên.",
+    "serverBackupSaved": "Đã lưu backup lên server",
+    "serverBackupSavedDetail": "Key share mã hóa đã được sao lưu lên server.",
     "backupDownloaded": "Đã tải bản sao lưu",
     "backupDownloadedDetail": "Bản sao lưu key mã hóa đã được tải xuống.",
     "serverShareDownloaded": "Đã tải key server",
