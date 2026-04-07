@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useIdleLock } from "../context/IdleLockContext";
 import { fetchUnlockChallenge, completePasskeyUnlock, clearPasskeyToken, type UnlockChallenge } from "../lib/passkey";
 import { setToken, clearToken } from "../lib/auth";
@@ -18,49 +18,43 @@ export function LockScreen() {
   const challengeRef = useRef<UnlockChallenge | null>(null);
   const challengeFetchedAt = useRef<number>(0);
 
-  // Reset state and fetch email on lock
+  const prefetchChallenge = useCallback(() => {
+    if (!ownerId) return;
+    fetchUnlockChallenge(ownerId)
+      .then((c) => { challengeRef.current = c; challengeFetchedAt.current = Date.now(); })
+      .catch(() => {});
+  }, [ownerId]);
+
+  // Reset state, fetch email, and pre-fetch challenge on lock
   useEffect(() => {
     if (locked && ownerId) {
       setError("");
       setFailures(0);
       setLoading(false);
+      prefetchChallenge();
       getMe().then((me) => setEmail(me?.email ?? "")).catch(() => {});
     }
-  }, [locked, ownerId]);
+  }, [locked, ownerId, prefetchChallenge]);
 
   // Re-fetch challenge every 4 minutes to prevent expiry (server TTL = 5min)
   useEffect(() => {
     if (!locked || !ownerId) return;
-    const iv = setInterval(() => prefetchChallenge(), 4 * 60 * 1000);
+    const iv = setInterval(prefetchChallenge, 4 * 60 * 1000);
     return () => clearInterval(iv);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locked, ownerId]);
+  }, [locked, ownerId, prefetchChallenge]);
 
   // Focus trap
   useEffect(() => {
     if (locked) buttonRef.current?.focus();
   }, [locked, loading]);
 
+  // All hooks above — safe to return early now
   if (!locked) return null;
-
-  // Track challenge readiness
-  function prefetchChallenge() {
-    if (!ownerId) return;
-    fetchUnlockChallenge(ownerId)
-      .then((c) => { challengeRef.current = c; challengeFetchedAt.current = Date.now(); })
-      .catch(() => {});
-  }
-
-  // Pre-fetch on mount
-  useEffect(() => {
-    if (locked && ownerId) prefetchChallenge();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [locked, ownerId]);
 
   async function handleUnlock() {
     if (!ownerId) return;
 
-    // If no challenge ready, fetch now — user must click again after
+    // If no challenge ready, fetch now — user clicks again when ready
     const challengeAge = Date.now() - challengeFetchedAt.current;
     if (!challengeRef.current || challengeAge > 4 * 60 * 1000) {
       prefetchChallenge();
@@ -81,7 +75,6 @@ export function LockScreen() {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       setFailures((f) => f + 1);
-      // Pre-fetch a fresh challenge for the next attempt
       prefetchChallenge();
     } finally {
       setLoading(false);
