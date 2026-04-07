@@ -462,19 +462,21 @@ export function ActivityLogPage() {
 
   const fetchLogs = useCallback(async (p: number) => {
     setLoading(true);
-    const res = await fetch(apiUrl(`/api/account/audit?page=${p}&limit=20`), {
-      headers: authHeaders(),
-    });
-    if (res.ok) {
-      const data = await res.json();
-      setLogs((prev) => {
-        const updated = p === 1 ? mergeLogs(prev, data.logs) : mergeLogs(prev, data.logs);
-        setCache(auditCacheKey(), updated);
-        return updated;
+    try {
+      const res = await fetch(apiUrl(`/api/account/audit?page=${p}&limit=20`), {
+        headers: authHeaders(),
       });
-      setHasMore(data.hasMore);
-      setPage(p);
-    }
+      if (res.ok) {
+        const data = await res.json();
+        setLogs((prev) => {
+          const updated = p === 1 ? mergeLogs(prev, data.logs) : mergeLogs(prev, data.logs);
+          setCache(auditCacheKey(), updated);
+          return updated;
+        });
+        setHasMore(data.hasMore);
+        setPage(p);
+      }
+    } catch { /* network error — silently use cached data */ }
     setLoading(false);
   }, []);
 

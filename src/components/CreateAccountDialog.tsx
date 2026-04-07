@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Spinner, ErrorBox } from "./ui";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
@@ -79,6 +80,7 @@ export function CreateAccountDialog({
   onCreated: () => void;
 }) {
   const expert = useExpertMode();
+  const { t } = useTranslation();
   const setExpertContext = useSetExpertMode();
   const isFirstAccount = keyCount === 0;
   const [step, setStep] = useState<CreateStep>(isFirstAccount ? "welcome" : "name");
@@ -198,6 +200,7 @@ export function CreateAccountDialog({
         initExtra: { name: keyName, ...(policyRules ? { policyRules } : {}) },
         headers,
       });
+      ecdsaFailed.catch(() => {}); // Prevent unhandled rejection if MPC succeeds first
 
       const ecdsaKey = await Promise.race([
         mpc.ecdsa2pDkg(ecdsaTransport, 0, PARTY_NAMES, NID_secp256k1),
@@ -218,6 +221,7 @@ export function CreateAccountDialog({
         initExtra: { keyId },
         headers,
       });
+      eddsaFailed.catch(() => {});
 
       const eddsaKey = await Promise.race([
         mpc.ecKey2pDkg(eddsaTransport, 0, PARTY_NAMES, NID_ED25519),
@@ -308,10 +312,13 @@ export function CreateAccountDialog({
       console.error("[generate] Error:", err);
       const msg = err instanceof Error ? err.message : String(err);
       if (msg === "passkey_auth_required") {
-        setError("Passkey authentication required. Please try again.");
+        setError(t("create.passkeyRequired"));
+      } else if (msg.includes("in progress")) {
+        setError(t("create.operationInProgress"));
       } else {
         setError(msg);
       }
+      setCreateStarted(false);
     }
   }
 

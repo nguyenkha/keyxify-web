@@ -1062,6 +1062,8 @@
     "authenticating": "Authenticating...",
     "passkeyTitle": "Passkey protects your wallet",
     "passkeyDesc": "You'll be prompted twice: first to create the passkey, then to verify it. This passkey is required for signing transactions — without it, no one can move your funds.",
+    "passkeyRequired": "Passkey authentication required. Please try again.",
+    "operationInProgress": "Another operation is already in progress. Please wait and try again.",
     "creationFailed": "Creation Failed",
     "creatingTime": "This usually takes 10–20 seconds",
     "stepEncryption": "Setting up encryption",

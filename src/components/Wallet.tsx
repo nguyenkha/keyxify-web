@@ -85,7 +85,7 @@ export function Wallet() {
     }
 
     Promise.all([
-      fetch(apiUrl("/api/keys"), { headers: authHeaders() }).then((r) => r.json()).then((d) => d.keys || []),
+      fetch(apiUrl("/api/keys"), { headers: authHeaders() }).then((r) => r.json()).then((d) => d.keys || []).catch(() => []),
       fetchChains(),
       fetchAssets(),
       fetchSettings(),

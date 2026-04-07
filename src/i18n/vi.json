@@ -1062,6 +1062,8 @@
     "authenticating": "Đang xác thực...",
     "passkeyTitle": "Passkey bảo vệ ví của bạn",
     "passkeyDesc": "Bạn sẽ được yêu cầu 2 lần: lần đầu để tạo passkey, lần sau để xác minh. Passkey này cần thiết để ký giao dịch — không có nó, không ai có thể di chuyển tiền của bạn.",
+    "passkeyRequired": "Cần xác thực passkey. Vui lòng thử lại.",
+    "operationInProgress": "Đang có thao tác khác. Vui lòng đợi và thử lại.",
     "creationFailed": "Tạo thất bại",
     "creatingTime": "Thường mất 10–20 giây",
     "stepEncryption": "Thiết lập mã hóa",
