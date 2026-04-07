@@ -146,7 +146,11 @@ export function CreateAccountDialog({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [canClose, onClose]);
 
+  const [createStarted, setCreateStarted] = useState(false);
+
   function guardedCreate() {
+    if (createStarted) return;
+    setCreateStarted(true);
     if (isRecoveryMode()) { create(); return; }
     if (isWithinPasskeyGrace()) { create(); return; }
     setShowPasskeyChallenge(true);

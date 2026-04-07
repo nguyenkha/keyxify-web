@@ -7,7 +7,7 @@ import { fetchChains, fetchAssets, fetchSettings, type Chain, type Asset, type S
 import staticConfig from "../config.json";
 import { getMe, getIdentityId } from "../lib/auth";
 import { getUserOverrides, applyChainOverrides, getPreference } from "../lib/userOverrides";
-import { setCacheTtl, clearAllTokenBalanceCaches } from "../lib/dataCache";
+import { setCacheTtl, clearAllTokenBalanceCaches, notifyBalanceRefresh } from "../lib/dataCache";
 import { authHeaders } from "../lib/auth";
 import { apiUrl } from "../lib/apiBase";
 import { fetchPasskeys, isWithinPasskeyGrace } from "../lib/passkey";
@@ -706,7 +706,11 @@ export function Wallet() {
               {formatLastUpdated(lastUpdated)}
             </span>
             <button
-              onClick={loadData}
+              onClick={() => {
+                clearAllTokenBalanceCaches();
+                notifyBalanceRefresh();
+                loadData();
+              }}
               className="text-text-muted hover:text-text-secondary transition-colors p-0.5 rounded hover:bg-surface-tertiary"
               title={t("common.refresh")}
             >

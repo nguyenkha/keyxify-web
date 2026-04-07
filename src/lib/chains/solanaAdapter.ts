@@ -195,11 +195,17 @@ export const solanaAdapter: ChainAdapter = {
           if (diff > 0n) {
             direction = "in";
             value = diff.toString();
-            from = "...";
+            // Find sender: token balance decreased for another owner
+            const sender = preTok.find((t: TokenBal) => t.mint === asset.contractAddress && t.owner !== address &&
+              BigInt(t.uiTokenAmount?.amount ?? "0") > BigInt(postTok.find((p: TokenBal) => p.mint === asset.contractAddress && p.owner === t.owner)?.uiTokenAmount?.amount ?? "0"));
+            from = sender?.owner || "...";
           } else if (diff < 0n) {
             direction = "out";
             value = (-diff).toString();
-            to = "...";
+            // Find receiver: token balance increased for another owner
+            const receiver = postTok.find((t: TokenBal) => t.mint === asset.contractAddress && t.owner !== address &&
+              BigInt(t.uiTokenAmount?.amount ?? "0") > BigInt(preTok.find((p: TokenBal) => p.mint === asset.contractAddress && p.owner === t.owner)?.uiTokenAmount?.amount ?? "0"));
+            to = receiver?.owner || "...";
           } else {
             return null;
           }
@@ -227,19 +233,33 @@ export const solanaAdapter: ChainAdapter = {
             return null;
           }
 
-          const pre = BigInt(tx.meta.preBalances?.[addrIndex] ?? 0);
-          const post = BigInt(tx.meta.postBalances?.[addrIndex] ?? 0);
-          const diff = post - pre;
+          const preBalances: bigint[] = (tx.meta.preBalances || []).map((b: number) => BigInt(b));
+          const postBalances: bigint[] = (tx.meta.postBalances || []).map((b: number) => BigInt(b));
+          const diff = (postBalances[addrIndex] ?? 0n) - (preBalances[addrIndex] ?? 0n);
           if (diff > 0n) {
             direction = "in";
             value = diff.toString();
-            from = "...";
+            // Find sender: account whose balance decreased the most
+            let senderIdx = -1, maxDrop = 0n;
+            for (let i = 0; i < preBalances.length; i++) {
+              if (i === addrIndex) continue;
+              const drop = preBalances[i] - postBalances[i];
+              if (drop > maxDrop) { maxDrop = drop; senderIdx = i; }
+            }
+            from = senderIdx >= 0 ? accountKeys[senderIdx] : "...";
           } else if (diff < 0n) {
             direction = "out";
             const fee = BigInt(tx.meta.fee ?? 0);
             const sent = -diff - fee;
             value = (sent > 0n ? sent : -diff).toString();
-            to = "...";
+            // Find receiver: account whose balance increased the most
+            let receiverIdx = -1, maxGain = 0n;
+            for (let i = 0; i < postBalances.length; i++) {
+              if (i === addrIndex) continue;
+              const gain = postBalances[i] - preBalances[i];
+              if (gain > maxGain) { maxGain = gain; receiverIdx = i; }
+            }
+            to = receiverIdx >= 0 ? accountKeys[receiverIdx] : "...";
           }
 
           // Mark non-basic program interactions as contract calls
