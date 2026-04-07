@@ -130,8 +130,8 @@ export function CreateAccountDialog({
       }
     } catch { /* proceed anyway */ }
 
-    // First account: skip name step, go straight to creating
-    if (isFirstAccount) {
+    // Non-expert: skip name step, go straight to creating with auto-name
+    if (!expert) {
       guardedCreate();
       return;
     }
