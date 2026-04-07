@@ -18,16 +18,12 @@ export function LockScreen() {
   const challengeRef = useRef<UnlockChallenge | null>(null);
   const challengeFetchedAt = useRef<number>(0);
 
-  // Pre-fetch challenge on lock screen mount so WebAuthn fires instantly on click
+  // Reset state and fetch email on lock
   useEffect(() => {
     if (locked && ownerId) {
       setError("");
       setFailures(0);
       setLoading(false);
-      challengeRef.current = null;
-      fetchUnlockChallenge(ownerId)
-        .then((c) => { challengeRef.current = c; challengeFetchedAt.current = Date.now(); })
-        .catch(() => {});
       getMe().then((me) => setEmail(me?.email ?? "")).catch(() => {});
     }
   }, [locked, ownerId]);
@@ -35,12 +31,9 @@ export function LockScreen() {
   // Re-fetch challenge every 4 minutes to prevent expiry (server TTL = 5min)
   useEffect(() => {
     if (!locked || !ownerId) return;
-    const iv = setInterval(() => {
-      fetchUnlockChallenge(ownerId)
-        .then((c) => { challengeRef.current = c; challengeFetchedAt.current = Date.now(); })
-        .catch(() => {});
-    }, 4 * 60 * 1000);
+    const iv = setInterval(() => prefetchChallenge(), 4 * 60 * 1000);
     return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [locked, ownerId]);
 
   // Focus trap
@@ -50,33 +43,46 @@ export function LockScreen() {
 
   if (!locked) return null;
 
+  // Track challenge readiness
+  function prefetchChallenge() {
+    if (!ownerId) return;
+    fetchUnlockChallenge(ownerId)
+      .then((c) => { challengeRef.current = c; challengeFetchedAt.current = Date.now(); })
+      .catch(() => {});
+  }
+
+  // Pre-fetch on mount
+  useEffect(() => {
+    if (locked && ownerId) prefetchChallenge();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [locked, ownerId]);
+
   async function handleUnlock() {
     if (!ownerId) return;
+
+    // If no challenge ready, fetch now — user must click again after
+    const challengeAge = Date.now() - challengeFetchedAt.current;
+    if (!challengeRef.current || challengeAge > 4 * 60 * 1000) {
+      prefetchChallenge();
+      return;
+    }
+
     setLoading(true);
     setError("");
     try {
-      // Use pre-fetched challenge if fresh (<4min), otherwise fetch new one
-      const challengeAge = Date.now() - challengeFetchedAt.current;
-      let challenge = challengeRef.current;
-      if (!challenge || challengeAge > 4 * 60 * 1000) {
-        challenge = await fetchUnlockChallenge(ownerId);
-        challengeFetchedAt.current = Date.now();
-      }
-      challengeRef.current = null; // Consume the challenge (single-use)
+      const challenge = challengeRef.current!;
+      challengeRef.current = null;
 
       const result = await completePasskeyUnlock(challenge);
       setToken(result.token);
+      localStorage.setItem("idleLock.hasPasskeys", "true");
       window.location.href = window.location.pathname;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
       setFailures((f) => f + 1);
       // Pre-fetch a fresh challenge for the next attempt
-      if (ownerId) {
-        fetchUnlockChallenge(ownerId)
-          .then((c) => { challengeRef.current = c; })
-          .catch(() => {});
-      }
+      prefetchChallenge();
     } finally {
       setLoading(false);
     }

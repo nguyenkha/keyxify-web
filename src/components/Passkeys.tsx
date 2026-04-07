@@ -108,6 +108,7 @@ export function Passkeys() {
     try {
       const info = await registerPasskey();
       setPasskeys((prev) => [...prev, info]);
+      localStorage.setItem("idleLock.hasPasskeys", "true");
     } catch (err) {
       setError(String(err));
     } finally {

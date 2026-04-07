@@ -440,6 +440,7 @@ export function CreateAccountDialog({
               <PasskeyGate
                 inline
                 onRegistered={() => {
+                  localStorage.setItem("idleLock.hasPasskeys", "true");
                   if (isFirstAccount) {
                     guardedCreate();
                   } else {
