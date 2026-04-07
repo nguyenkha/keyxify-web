@@ -295,12 +295,8 @@ export function CreateAccountDialog({
         setCreatingDone(true);
         await new Promise((r) => setTimeout(r, 1100));
 
-        // First account: skip passphrase/backup — go directly to done
-        if (isFirstAccount) {
-          setStep("done");
-          return;
-        }
-        setStep("passphrase");
+        // All non-expert accounts: auto PRF + escrow, skip passphrase
+        setStep("done");
       } else {
         setCreatingDone(true);
         await new Promise((r) => setTimeout(r, 1100));
