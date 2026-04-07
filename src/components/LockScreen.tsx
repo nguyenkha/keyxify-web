@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useIdleLock } from "../context/IdleLockContext";
 import { fetchUnlockChallenge, completePasskeyUnlock, clearPasskeyToken, type UnlockChallenge } from "../lib/passkey";
-import { setTokens, clearToken } from "../lib/auth";
+import { setToken, clearToken } from "../lib/auth";
 import { useTranslation } from "react-i18next";
 import { getMe } from "../lib/auth";
 
@@ -53,7 +53,7 @@ export function LockScreen() {
       challengeRef.current = null; // Consume the challenge (single-use)
 
       const result = await completePasskeyUnlock(challenge);
-      setTokens(result.token, result.refreshToken);
+      setToken(result.token);
       window.location.href = window.location.pathname;
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

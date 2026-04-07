@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from "react";
 import { useTokenRefresh } from "../lib/use-token-refresh";
 import { fetchPasskeys } from "../lib/passkey";
-import { clearToken, getToken, getRefreshToken, getTokenTtl, getIdentityId } from "../lib/auth";
+import { clearToken, getToken, wasAuthenticated, getTokenTtl, getIdentityId } from "../lib/auth";
 import { isRecoveryMode } from "../lib/recovery";
 
 const LS_HAS_PASSKEYS = "idleLock.hasPasskeys";
@@ -36,8 +36,7 @@ export function IdleLockProvider({ children }: { children: ReactNode }) {
     if (isRecoveryMode()) return false;
     const hasSession = getToken() && getTokenTtl() > 0;
     if (hasSession) return false;
-    const hasRefresh = !!getRefreshToken();
-    if (hasRefresh && getCachedHasPasskeys()) return true;
+    if (wasAuthenticated() && getCachedHasPasskeys()) return true;
     return false;
   });
 

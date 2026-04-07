@@ -2,8 +2,6 @@ import { apiUrl } from "./apiBase";
 
 // Session JWT — short-lived, dies with browser tab/close
 const TOKEN_KEY = "secretkey_token";
-// Refresh token — long-lived (7d), persists across sessions
-const REFRESH_TOKEN_KEY = "secretkey_refresh_token";
 
 // ── Session token (sessionStorage) ──
 
@@ -13,38 +11,18 @@ export function getToken(): string | null {
 
 export function setToken(token: string) {
   sessionStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem("kxi:authenticated", "1");
 }
 
-function clearSessionToken() {
-  sessionStorage.removeItem(TOKEN_KEY);
-}
-
-// ── Refresh token (localStorage) ──
-
-export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_TOKEN_KEY);
-}
-
-export function setRefreshToken(token: string) {
-  localStorage.setItem(REFRESH_TOKEN_KEY, token);
-}
-
-function clearRefreshTokenStore() {
-  localStorage.removeItem(REFRESH_TOKEN_KEY);
-}
-
-// ── Combined operations ──
-
-/** Clear all auth tokens and sign out */
+/** Clear session token and auth flag (refresh token is httpOnly cookie, managed by server) */
 export function clearToken() {
-  clearSessionToken();
-  clearRefreshTokenStore();
+  sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem("kxi:authenticated");
 }
 
-/** Store both tokens from a login/unlock response */
-export function setTokens(token: string, refreshToken: string) {
-  setToken(token);
-  setRefreshToken(refreshToken);
+/** Whether user has previously authenticated (persists across tabs/sessions) */
+export function wasAuthenticated(): boolean {
+  return localStorage.getItem("kxi:authenticated") === "1";
 }
 
 export function authHeaders(): Record<string, string> {
@@ -81,7 +59,7 @@ export async function requestMagicLink(email: string, captchaToken?: string): Pr
 export async function verifyToken(token: string): Promise<string> {
   let res: Response;
   try {
-    res = await fetch(apiUrl(`/api/auth/verify?token=${token}`));
+    res = await fetch(apiUrl(`/api/auth/verify?token=${token}`), { credentials: "include" });
   } catch {
     throw new Error("Server unreachable. Check your connection.");
   }
@@ -91,9 +69,7 @@ export async function verifyToken(token: string): Promise<string> {
   }
   const data = await safeJson(res);
   if (!data?.token) throw new Error("Invalid server response");
-  // Store both session + refresh tokens
   setToken(data.token as string);
-  if (data.refreshToken) setRefreshToken(data.refreshToken as string);
   return data.token as string;
 }
 
@@ -104,6 +80,7 @@ export async function verifyCode(email: string, code: string): Promise<string> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, code }),
+      credentials: "include",
     });
   } catch {
     throw new Error("Server unreachable. Check your connection.");
@@ -114,9 +91,7 @@ export async function verifyCode(email: string, code: string): Promise<string> {
   }
   const data = await safeJson(res);
   if (!data?.token) throw new Error("Invalid server response");
-  // Store both session + refresh tokens
   setToken(data.token as string);
-  if (data.refreshToken) setRefreshToken(data.refreshToken as string);
   return data.token as string;
 }
 
@@ -132,9 +107,6 @@ function decodeJwtPayload(token: string): { sub: string; type?: string; email?: 
 export function getJwtPayload(): { sub: string; type?: string; email?: string; exp?: number } | null {
   const token = getToken();
   if (token) return decodeJwtPayload(token);
-  // Fallback: decode refresh token for identity info
-  const rt = getRefreshToken();
-  if (rt) return decodeJwtPayload(rt);
   return null;
 }
 
@@ -148,7 +120,7 @@ export function getTokenTtl(): number {
 }
 
 /** Refresh the session JWT using the current valid session JWT.
- * Returns { token, ttl } on success, null on auth failure. */
+ * Returns { token, ttl } on success, null on auth failure (shows lock screen). */
 export async function refreshToken(): Promise<{ token: string; ttl: number } | null> {
   const token = getToken();
   if (!token) return null;
@@ -158,7 +130,7 @@ export async function refreshToken(): Promise<{ token: string; ttl: number } | n
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.status === 401) return null; // Session JWT expired
+    if (res.status === 401) return null; // Session expired — lock screen will handle
     if (!res.ok) return null;
     const data = await safeJson(res);
     if (!data?.token) return null;
@@ -178,9 +150,9 @@ export function getIdentityId(): string | null {
   return getJwtPayload()?.sub ?? null;
 }
 
-/** Check if user has any auth token (session or refresh) */
+/** Check if user has a session token */
 export function hasAnyToken(): boolean {
-  return !!(getToken() || getRefreshToken());
+  return !!getToken();
 }
 
 export interface MeUser {

@@ -258,15 +258,16 @@ export async function fetchUnlockChallenge(ownerId: string): Promise<UnlockChall
 
 /** Complete passkey unlock using a pre-fetched challenge.
  * Call this directly in the click handler so WebAuthn prompt fires immediately. */
-export async function completePasskeyUnlock(challenge: UnlockChallenge): Promise<{ token: string; refreshToken: string; passkeyToken: string; ttl: number }> {
+export async function completePasskeyUnlock(challenge: UnlockChallenge): Promise<{ token: string; passkeyToken: string; ttl: number }> {
   // 1. Trigger browser WebAuthn prompt (must happen close to user gesture)
   const credential = await startAuthentication({ optionsJSON: challenge.options });
 
-  // 2. Verify with server
+  // 2. Verify with server (credentials: include for httpOnly refresh token cookie)
   const verifyRes = await fetch(apiUrl("/api/auth/passkey-unlock-verify"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ challengeId: challenge.challengeId, credential }),
+    credentials: "include",
   });
   if (!verifyRes.ok) {
     const err = await verifyRes.json();
@@ -278,7 +279,7 @@ export async function completePasskeyUnlock(challenge: UnlockChallenge): Promise
   setPasskeyToken(data.passkeyToken);
   markPasskeyVerified();
 
-  return { token: data.token, refreshToken: data.refreshToken, passkeyToken: data.passkeyToken, ttl: data.ttl };
+  return { token: data.token, passkeyToken: data.passkeyToken, ttl: data.ttl };
 }
 
 export async function renamePasskey(id: string, name: string): Promise<void> {

@@ -9,7 +9,7 @@ import type { ClientKeyHandles } from "../lib/mpc";
 import { encryptKeyFile, decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
 import { saveKeyShareWithPassphrase, saveKeyShareWithPrf } from "../lib/keystore";
 import { fetchPasskeys, authenticatePasskey } from "../lib/passkey";
-import { setTokens } from "../lib/auth";
+import { setToken } from "../lib/auth";
 import { authPublicKeyHex, performShareAuth } from "../lib/share-auth";
 import { apiUrl } from "../lib/apiBase";
 import { Spinner, ErrorBox } from "./ui";
@@ -167,7 +167,7 @@ export function StandaloneKeygen() {
         throw new Error((data?.error as string) || "Failed to register auth key");
       }
       const registerData = await registerRes.json();
-      setTokens(registerData.token, registerData.refreshToken);
+      setToken(registerData.token);
 
       const jwtHeaders = { Authorization: `Bearer ${registerData.token}` };
 

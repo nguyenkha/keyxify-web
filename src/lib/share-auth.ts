@@ -5,7 +5,7 @@
 import { hkdf } from "@noble/hashes/hkdf";
 import { sha256 } from "@noble/hashes/sha256";
 import { ed25519 } from "@noble/curves/ed25519.js";
-import { setTokens } from "./auth";
+import { setToken } from "./auth";
 import { apiUrl } from "./apiBase";
 import { toHex } from "./mpc";
 
@@ -58,6 +58,7 @@ export async function performShareAuth(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ challengeId, signature }),
+    credentials: "include",
   });
   if (!verifyRes.ok) {
     const data = await verifyRes.json().catch(() => null);
@@ -65,8 +66,8 @@ export async function performShareAuth(
   }
   const data = await verifyRes.json();
 
-  // Store session JWT + refresh token
-  setTokens(data.token, data.refreshToken);
+  // Store session JWT (refresh token is httpOnly cookie set by server)
+  setToken(data.token);
 
   // Extract keyShareId from JWT payload
   const payload = JSON.parse(atob(data.token.split(".")[1]));
