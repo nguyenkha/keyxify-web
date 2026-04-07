@@ -12,12 +12,16 @@ export function getToken(): string | null {
 export function setToken(token: string) {
   sessionStorage.setItem(TOKEN_KEY, token);
   localStorage.setItem("kxi:authenticated", "1");
+  // Cache identity for lock screen (survives tab close)
+  const payload = decodeJwtPayload(token);
+  if (payload?.sub) localStorage.setItem("kxi:identity", JSON.stringify(payload));
 }
 
-/** Clear session token and auth flag (refresh token is httpOnly cookie, managed by server) */
+/** Clear session token and auth state (refresh token is httpOnly cookie, managed by server) */
 export function clearToken() {
   sessionStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem("kxi:authenticated");
+  localStorage.removeItem("kxi:identity");
 }
 
 /** Whether user has previously authenticated (persists across tabs/sessions) */
@@ -107,6 +111,11 @@ function decodeJwtPayload(token: string): { sub: string; type?: string; email?: 
 export function getJwtPayload(): { sub: string; type?: string; email?: string; exp?: number } | null {
   const token = getToken();
   if (token) return decodeJwtPayload(token);
+  // Fallback: cached identity from localStorage (for lock screen after tab close)
+  try {
+    const cached = localStorage.getItem("kxi:identity");
+    if (cached) return JSON.parse(cached);
+  } catch { /* ignore */ }
   return null;
 }
 
@@ -150,9 +159,9 @@ export function getIdentityId(): string | null {
   return getJwtPayload()?.sub ?? null;
 }
 
-/** Check if user has a session token */
+/** Check if user has a session or was previously authenticated */
 export function hasAnyToken(): boolean {
-  return !!getToken();
+  return !!getToken() || wasAuthenticated();
 }
 
 export interface MeUser {
