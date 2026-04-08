@@ -27,7 +27,6 @@ import { ManageDisplayPanel } from "./ManageDisplayPanel";
 import { AccountRowView } from "./AccountRowView";
 import { CreateAccountDialog } from "./CreateAccountDialog";
 import { BackupReminder } from "./backup-reminder";
-import { WalletTutorial } from "./WalletTutorial";
 import { usePrices } from "../lib/use-prices";
 import { WalletActivity } from "./WalletActivity";
 import { PortfolioHeader } from "./PortfolioHeader";
@@ -168,18 +167,6 @@ export function Wallet() {
   const [manageDisplayKeyId, setManageDisplayKeyId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
-
-  // Allow restarting tutorial via console: window.dispatchEvent(new Event("start-tutorial"))
-  useEffect(() => {
-    function onStart() {
-      localStorage.removeItem("kxi:tutorial-done");
-      setShowTutorial(true);
-    }
-    window.addEventListener("start-tutorial", onStart);
-    return () => window.removeEventListener("start-tutorial", onStart);
-  }, []);
-
   // Auto-open create dialog for first-time users once loading completes
   useEffect(() => {
     if (!loading && keys.length === 0 && !isRecovery) {
@@ -390,7 +377,7 @@ export function Wallet() {
             onCreated={() => {
               loadData();
               if (!localStorage.getItem("kxi:tutorial-done")) {
-                setShowTutorial(true);
+                window.dispatchEvent(new Event("start-tutorial"));
               }
             }}
           />
@@ -686,13 +673,11 @@ export function Wallet() {
             const isFirst = keys.length === 0;
             loadData();
             if (isFirst && !localStorage.getItem("kxi:tutorial-done")) {
-              setShowTutorial(true);
+              window.dispatchEvent(new Event("start-tutorial"));
             }
           }}
         />
       )}
-
-      {showTutorial && <WalletTutorial onComplete={() => setShowTutorial(false)} />}
 
       {/* Passkey guard dialogs */}
       {passkeyGuard === "gate" && (

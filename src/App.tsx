@@ -18,6 +18,7 @@ import { KeyShareManager } from "./components/KeyShareManager";
 import { RecoveryChecklist } from "./components/RecoveryChecklist";
 import { RecoveryGuide } from "./components/RecoveryGuide";
 import { useExpertMode } from "./context/ExpertModeContext";
+import { WalletTutorial } from "./components/WalletTutorial";
 
 function BackupRecoveryPage() {
   const expert = useExpertMode();
@@ -231,6 +232,17 @@ function DashboardLayout() {
   const email = recovery ? "" : standalone ? "" : (user?.email || "");
 
   const expert = useExpertMode();
+
+  // Tutorial state — persists across child route changes
+  const [showTutorial, setShowTutorial] = useState(false);
+  useEffect(() => {
+    function onStart() {
+      localStorage.removeItem("kxi:tutorial-done");
+      setShowTutorial(true);
+    }
+    window.addEventListener("start-tutorial", onStart);
+    return () => window.removeEventListener("start-tutorial", onStart);
+  }, []);
 
   // In recovery mode, hide server-dependent nav items; hide expert-only items when not expert
   const filteredAdvanced = advancedNavItems
@@ -461,6 +473,9 @@ function DashboardLayout() {
           <span className="text-[10px] text-text-muted tabular-nums ml-auto">&copy; {new Date().getFullYear()} Kha Do</span>
         </div>
       </div>
+
+      {/* Tutorial overlay — persists across route changes */}
+      {showTutorial && <WalletTutorial onComplete={() => setShowTutorial(false)} />}
 
       {/* WalletConnect request overlay — always mounted */}
       <WCRequestQueue />
