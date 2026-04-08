@@ -302,6 +302,7 @@ function DashboardLayout() {
                 <button
                   key={item.path}
                   onClick={() => selectNav(item.path)}
+                  {...(item.path === "/walletconnect" ? { "data-tour": "wc-nav" } : {})}
                   className={`w-full text-left px-3 py-2.5 rounded-md text-sm transition-colors ${
                     isActive
                       ? "bg-blue-600/10 text-blue-500 font-medium"

@@ -329,8 +329,9 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
         )}
 
         {/* Action buttons */}
-        <div className="flex items-center justify-center gap-6 mt-5">
+        <div data-tour="address-section" className="flex items-center justify-center gap-6 mt-5">
           <button
+            data-tour="send-button"
             onClick={() => setShowSend(true)}
             disabled={frozen}
             className="flex flex-col items-center gap-1.5 group disabled:opacity-40 disabled:cursor-not-allowed"

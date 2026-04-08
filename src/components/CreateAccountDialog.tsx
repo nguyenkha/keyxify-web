@@ -301,8 +301,12 @@ export function CreateAccountDialog({
         setCreatingDone(true);
         await new Promise((r) => setTimeout(r, 1100));
 
-        // All non-expert accounts: auto PRF + escrow, skip passphrase
-        setStep("done");
+        // PRF unavailable — fallback to passphrase to ensure key share is persisted
+        if (!prfSaved) {
+          setStep("passphrase");
+        } else {
+          setStep("done");
+        }
       } else {
         setCreatingDone(true);
         await new Promise((r) => setTimeout(r, 1100));
@@ -635,8 +639,8 @@ export function CreateAccountDialog({
                       );
                     })}
                   </div>
-                  {/* Rolling tips */}
-                  <RollingTips expert={expert} />
+                  {/* Rolling tips — expert only */}
+                  {expert && <RollingTips expert={expert} />}
                 </>
               )}
             </div>
@@ -653,7 +657,34 @@ export function CreateAccountDialog({
                   const encryptedJson = JSON.stringify(encrypted, null, 2);
                   const blob = new Blob([encryptedJson], { type: "application/json" });
                   const safeName = (name.trim() || `Account ${keyCount + 1}`).toLowerCase().replace(/[^a-z0-9]+/g, "-");
-                  setKeyFile({ blob, fileName: `kexify-${safeName}-${rawKeyData.id.slice(0, 8)}.json` });
+                  const fileName = `kexify-${safeName}-${rawKeyData.id.slice(0, 8)}.json`;
+                  setKeyFile({ blob, fileName });
+
+                  // Non-expert PRF fallback: save to browser with passphrase + attempt server escrow
+                  if (!expert) {
+                    try {
+                      await saveKeyShareWithPassphrase(rawKeyData.id, rawKeyData, passphrase);
+                      setStoragePreference("browser");
+                      setBrowserSaveState("saved");
+                    } catch { /* passphrase save failed — file download is backup */ }
+
+                    if (!isStandaloneJwt()) {
+                      try {
+                        await fetch(apiUrl(`/api/keys/${rawKeyData.id}/backup`), {
+                          method: "POST",
+                          headers: { ...sensitiveHeaders(), "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            encryptedData: encryptedJson,
+                            publicKey: rawKeyData.publicKey,
+                            eddsaPublicKey: rawKeyData.eddsaPublicKey,
+                          }),
+                        });
+                      } catch { /* escrow failed silently */ }
+                    }
+                    setStep("done");
+                    return;
+                  }
+
                   setStep("backup");
                 }}
               />

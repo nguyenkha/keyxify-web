@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useExpertMode } from "../context/ExpertModeContext";
 import { getMpcInstance, createHttpTransport, clientKeys, toBase64, toHex, NID_secp256k1, NID_ED25519 } from "../lib/mpc";
 import type { ClientKeyHandles } from "../lib/mpc";
 import { encryptKeyFile, decryptKeyFile, isEncryptedKeyFile, type KeyFileData } from "../lib/crypto";
@@ -22,7 +23,7 @@ import { LangSwitcher } from "./LangSwitcher";
 import { getStoredTheme, setTheme } from "../lib/theme";
 import { Link } from "react-router-dom";
 
-type Step = "hub" | "import" | "turnstile" | "name" | "creating" | "passphrase" | "passkey" | "backup" | "done";
+type Step = "hub" | "import" | "name" | "creating" | "passphrase" | "passkey" | "backup" | "done";
 
 const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY as string | undefined;
 
@@ -31,15 +32,10 @@ function CreatingProgressBar({ currentStep, done }: { currentStep: number; done:
   return <ProgressBar {...progress} />;
 }
 
-const TIPS = [
-  "Your wallet key is being split into two halves — one stays on your device, the other on our server.",
-  "Neither half works alone, so your funds stay safe even if one side is compromised.",
-  "No email required — your key share is your identity.",
-  "After setup, you'll get a backup file. Keep it safe — it's your only recovery option.",
-  "Transactions require both halves to agree, so no one can move your funds without you.",
-];
+const TIP_KEYS = ["standalone.tip1", "standalone.tip2", "standalone.tip3", "standalone.tip4", "standalone.tip5"];
 
 function RollingTips() {
+  const { t } = useTranslation();
   const [index, setIndex] = useState(0);
   const [fade, setFade] = useState(true);
 
@@ -47,7 +43,7 @@ function RollingTips() {
     const interval = setInterval(() => {
       setFade(false);
       setTimeout(() => {
-        setIndex((i) => (i + 1) % TIPS.length);
+        setIndex((i) => (i + 1) % TIP_KEYS.length);
         setFade(true);
       }, 300);
     }, 4000);
@@ -56,7 +52,7 @@ function RollingTips() {
 
   return (
     <p className={`text-[11px] text-text-muted text-center leading-relaxed transition-opacity duration-300 min-h-[2rem] flex items-center justify-center ${fade ? "opacity-100" : "opacity-0"}`}>
-      {TIPS[index]}
+      {t(TIP_KEYS[index])}
     </p>
   );
 }
@@ -64,6 +60,7 @@ function RollingTips() {
 export function StandaloneKeygen() {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const expert = useExpertMode();
   const [standaloneShares, setStandaloneShares] = useState(() => getStandaloneShares());
   const [unlockKeyId, setUnlockKeyId] = useState<string | null>(null);
   const [deleteKeyId, setDeleteKeyId] = useState<string | null>(null);
@@ -110,7 +107,7 @@ export function StandaloneKeygen() {
   }, []);
 
   useEffect(() => {
-    if (!TURNSTILE_SITE_KEY || step !== "turnstile") return;
+    if (!TURNSTILE_SITE_KEY || step !== "name") return;
     if (document.querySelector('script[src*="turnstile"]')) {
       renderTurnstile();
       return;
@@ -398,7 +395,7 @@ export function StandaloneKeygen() {
             )}
 
             <button
-              onClick={() => setStep(TURNSTILE_SITE_KEY ? "turnstile" : "name")}
+              onClick={() => setStep("name")}
               className="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
             >
               {t("standalone.createWallet")}
@@ -500,22 +497,7 @@ export function StandaloneKeygen() {
           </div>
         )}
 
-        {/* Step: Turnstile */}
-        {step === "turnstile" && (
-          <div className="space-y-4">
-            <p className="text-xs text-text-muted text-center">{t("standalone.verifyCaptcha")}</p>
-            <div ref={turnstileRef} className="flex justify-center" />
-            <button
-              onClick={() => setStep("name")}
-              disabled={!captchaToken}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
-            >
-              {t("common.continue")}
-            </button>
-          </div>
-        )}
-
-        {/* Step: Name */}
+        {/* Step: Name (with optional inline turnstile) */}
         {step === "name" && (
           <div className="space-y-4">
             <div>
@@ -529,9 +511,13 @@ export function StandaloneKeygen() {
                 className="w-full bg-surface-secondary border border-border-primary rounded-lg px-3 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-blue-500 transition-colors"
               />
             </div>
+            {TURNSTILE_SITE_KEY && (
+              <div ref={turnstileRef} className="flex justify-center" />
+            )}
             <button
               onClick={startKeygen}
-              className="w-full bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
+              disabled={TURNSTILE_SITE_KEY ? !captchaToken : false}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-surface-tertiary disabled:text-text-muted disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-medium transition-colors text-white"
             >
               {t("standalone.createWallet")}
             </button>
@@ -615,7 +601,7 @@ export function StandaloneKeygen() {
                     );
                   })}
                 </div>
-                <RollingTips />
+                {expert && <RollingTips />}
               </>
             )}
           </div>
@@ -630,6 +616,9 @@ export function StandaloneKeygen() {
               onSubmit={handlePassphrase}
               submitLabel={t("common.continue")}
             />
+            <p className="text-[10px] text-text-muted text-center">
+              {t("standalone.passphraseHelp")}
+            </p>
             {error && <ErrorBox>{error}</ErrorBox>}
           </div>
         )}

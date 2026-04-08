@@ -854,7 +854,7 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
 
   // Signing progress steps
-  const signLabel = isRecoveryMode() ? t("wc.localSigning") : t("wc.mpcSigning");
+  const signLabel = isRecoveryMode() ? t("wc.localSigning") : expert ? t("wc.mpcSigning") : t("send.validatingAndSigning");
   const signLabelActive = progress.phase === "main"
     ? `${signLabel} ${progress.pct}%`
     : signLabel;
@@ -1985,11 +1985,11 @@ export function WCRequestApproval({ request, onApprove, onReject, onDismiss }: P
 
               {/* Progress bar */}
               <div className="mb-5">
-                <ProgressBar {...progress} />
+                <ProgressBar {...progress} minimal={!expert} />
               </div>
 
-              {/* Progress steps */}
-              <SigningStepper steps={displaySteps} currentIndex={signingStepIdx} className="mt-4" />
+              {/* Progress steps — expert only */}
+              {expert && <SigningStepper steps={displaySteps} currentIndex={signingStepIdx} className="mt-4" />}
 
               {/* Tx hash card (visible during Confirming step) */}
               {txResult?.txHash && chain && signingStepIdx >= 3 && (

@@ -27,6 +27,7 @@ import { ManageDisplayPanel } from "./ManageDisplayPanel";
 import { AccountRowView } from "./AccountRowView";
 import { CreateAccountDialog } from "./CreateAccountDialog";
 import { BackupReminder } from "./backup-reminder";
+import { WalletTutorial } from "./WalletTutorial";
 import { usePrices } from "../lib/use-prices";
 import { WalletActivity } from "./WalletActivity";
 import { PortfolioHeader } from "./PortfolioHeader";
@@ -167,6 +168,7 @@ export function Wallet() {
   const [manageDisplayKeyId, setManageDisplayKeyId] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
   // Auto-open create dialog for first-time users once loading completes
   useEffect(() => {
     if (!loading && keys.length === 0 && !isRecovery) {
@@ -374,7 +376,12 @@ export function Wallet() {
           <CreateAccountDialog
             keyCount={0}
             onClose={() => setShowCreateDialog(false)}
-            onCreated={loadData}
+            onCreated={() => {
+              loadData();
+              if (!localStorage.getItem("kxi:tutorial-done")) {
+                setShowTutorial(true);
+              }
+            }}
           />
         )}
 
@@ -664,9 +671,17 @@ export function Wallet() {
         <CreateAccountDialog
           keyCount={keys.length}
           onClose={() => setShowCreateDialog(false)}
-          onCreated={loadData}
+          onCreated={() => {
+            const isFirst = keys.length === 0;
+            loadData();
+            if (isFirst && !localStorage.getItem("kxi:tutorial-done")) {
+              setShowTutorial(true);
+            }
+          }}
         />
       )}
+
+      {showTutorial && <WalletTutorial onComplete={() => setShowTutorial(false)} />}
 
       {/* Passkey guard dialogs */}
       {passkeyGuard === "gate" && (

@@ -6,6 +6,7 @@ import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import { SigningError, SigningStepper } from "./tx";
+import { useExpertMode } from "../context/ExpertModeContext";
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
@@ -60,7 +61,8 @@ export function AlgoOptInDialog({
   const [algoFee] = useState(1000); // 0.001 ALGO flat fee
   const [enabledAssets, setEnabledAssets] = useState<Set<number>>(new Set());
   const recovery = isRecoveryMode();
-  const signLabel = recovery ? t("algo.localSigning") : t("algo.mpcSigning");
+  const expert = useExpertMode();
+  const signLabel = recovery ? t("algo.localSigning") : expert ? t("algo.mpcSigning") : t("send.validatingAndSigning");
 
   const phaseIndex: Record<SigningPhase, number> = {
     "loading-keyshare": 0, "building-tx": 0,
@@ -510,17 +512,19 @@ export function AlgoOptInDialog({
               />
             ) : (
               <div className="py-6">
-                <ProgressBar {...progress} />
+                <ProgressBar {...progress} minimal={!expert} />
                 <p className="text-sm font-medium text-text-primary text-center mb-2">
                   {signingPhase === "mpc-signing" ? signLabelActive : signingPhase === "broadcasting" ? t("algo.broadcasting") : signingPhase === "polling" ? t("algo.confirming") : t("algo.buildTx")}
                 </p>
                 <p className="text-[11px] text-text-muted text-center mb-6">
                   {t("algo.optInProgress", { symbol: selectedAsset?.symbol })}
                 </p>
-                <SigningStepper
-                  steps={[{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]}
-                  currentIndex={phaseIndex[signingPhase]}
-                />
+                {expert && (
+                  <SigningStepper
+                    steps={[{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]}
+                    currentIndex={phaseIndex[signingPhase]}
+                  />
+                )}
                 {pendingTxHash && signingPhase === "polling" && (
                   <a
                     href={explorerLink(chain.explorerUrl, `/tx/${pendingTxHash}`)}

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useExpertMode } from "../context/ExpertModeContext";
 import { authHeaders, isStandaloneJwt, getIdentityId } from "../lib/auth";
 import { sensitiveHeaders, authenticatePasskey } from "../lib/passkey";
 import { Spinner } from "./ui";
@@ -29,6 +30,7 @@ interface AccountStatus {
 
 export function RecoveryChecklist() {
   const { t } = useTranslation();
+  const expert = useExpertMode();
   const [accounts, setAccounts] = useState<AccountStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [hkdfDownloadingId, setHkdfDownloadingId] = useState<string | null>(null);
@@ -411,7 +413,9 @@ export function RecoveryChecklist() {
   const allBrowserShares = accounts.every((a) => a.hasBrowserShare);
   const allBackedUp = standalone || accounts.every((a) => a.hasClientBackup);
   const allServerExported = accounts.every((a) => a.hkdfDownloadedAt || a.selfCustodyAt);
-  const overallReady = allBrowserShares && allBackedUp && allServerExported;
+  const overallReady = expert
+    ? allBrowserShares && allBackedUp && allServerExported
+    : allBrowserShares && allBackedUp;
 
   return (
     <div className="space-y-5">
@@ -464,7 +468,9 @@ export function RecoveryChecklist() {
           }] : []),
           {
             key: "server",
-            label: t("recovery.serverKeyDownloaded"),
+            label: expert
+              ? t("recovery.serverKeyDownloaded")
+              : `${t("recovery.serverKeyDownloaded")} (${t("common.optional")})`,
             detail: serverKeyDone
               ? account.selfCustodyAt
                 ? t("recovery.serverDetailSelfCustody")

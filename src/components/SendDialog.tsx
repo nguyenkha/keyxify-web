@@ -587,7 +587,7 @@ export function SendDialog({
   );
 
   const recovery = isRecoveryMode();
-  const signLabel = recovery ? t("send.localSigning") : t("send.mpcSigning");
+  const signLabel = recovery ? t("send.localSigning") : expert ? t("send.mpcSigning") : t("send.validatingAndSigning");
   // Show smooth percentage only during the main MPC signing step
   const signLabelActive = progress.phase === "main"
     ? `${signLabel} ${progress.pct}%`
@@ -877,15 +877,17 @@ export function SendDialog({
                   {amount} {asset.symbol} to {shortAddrPreview(to)}
                 </p>
                 <div className="mb-5">
-                  <ProgressBar {...progress} />
+                  <ProgressBar {...progress} minimal={!expert} />
                 </div>
-                <SigningStepper
-                  steps={confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
-                    ? [{ label: t("send.buildTx") }, { label: signLabelActive }]
-                    : [{ label: t("send.buildTx") }, { label: signLabelActive }, { label: t("send.broadcasting") }, { label: t("send.confirming") }]
-                  }
-                  currentIndex={phaseIndex[signingPhase]}
-                />
+                {expert && (
+                  <SigningStepper
+                    steps={confirmBeforeBroadcast && signingPhase !== "broadcasting" && signingPhase !== "polling"
+                      ? [{ label: t("send.buildTx") }, { label: signLabelActive }]
+                      : [{ label: t("send.buildTx") }, { label: signLabelActive }, { label: t("send.broadcasting") }, { label: t("send.confirming") }]
+                    }
+                    currentIndex={phaseIndex[signingPhase]}
+                  />
+                )}
                 {pendingTxHash && signingPhase === "polling" && (
                   <a
                     href={explorerLink(chain.explorerUrl, `/tx/${pendingTxHash}`)}

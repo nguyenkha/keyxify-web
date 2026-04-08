@@ -130,8 +130,8 @@ export const CREATING_DURATION_MS = 10000;
 
 // ── Component ──────────────────────────────────────────────────────
 
-/** Shared progress bar visual component */
-export function ProgressBar({ pct, phase, remainingMs }: ProgressState) {
+/** Shared progress bar visual component. `minimal` hides text below bar (time estimate, etc.) */
+export function ProgressBar({ pct, phase, remainingMs, minimal }: ProgressState & { minimal?: boolean }) {
   const { t } = useTranslation();
   const remainingSec = Math.ceil(remainingMs / 1000);
 
@@ -157,17 +157,19 @@ export function ProgressBar({ pct, phase, remainingMs }: ProgressState) {
           />
         )}
       </div>
-      <p className="text-[10px] text-text-muted text-center mt-1.5">
-        {phase === "indeterminate"
-          ? t("progress.preparing")
-          : phase === "main"
-            ? `${pct}%${remainingSec > 10 ? ` · ~${remainingSec}s` : ""}`
-            : phase === "post"
-              ? t("progress.almostDone")
-              : phase === "done"
-                ? t("progress.complete")
-                : `${pct}%`}
-      </p>
+      {!minimal && (
+        <p className="text-[10px] text-text-muted text-center mt-1.5">
+          {phase === "indeterminate"
+            ? t("progress.preparing")
+            : phase === "main"
+              ? `${pct}%${remainingSec > 10 ? ` · ~${remainingSec}s` : ""}`
+              : phase === "post"
+                ? t("progress.almostDone")
+                : phase === "done"
+                  ? t("progress.complete")
+                  : `${pct}%`}
+        </p>
+      )}
 
       {/* Keyframes for shimmer animation */}
       <style>{`

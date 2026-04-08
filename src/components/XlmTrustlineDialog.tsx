@@ -7,7 +7,7 @@ import type { Chain, Asset } from "../lib/api";
 import { explorerLink } from "../shared/utils";
 import { useSteppedProgress, signingDurationMs, ProgressBar } from "./ProgressBar";
 import { SigningError, SigningStepper } from "./tx";
-// Expert mode available via useExpertMode() for future raw data display
+import { useExpertMode } from "../context/ExpertModeContext";
 import { formatUsd, getUsdValue } from "../lib/prices";
 import { toBase64, performMpcSign, clientKeys, restoreKeyHandles, clearClientKey } from "../lib/mpc";
 import { authHeaders } from "../lib/auth";
@@ -63,7 +63,8 @@ export function XlmTrustlineDialog({
   const [xlmFeeRate, setXlmFeeRate] = useState(100);
   const [enabledAssets, setEnabledAssets] = useState<Set<string>>(new Set());
   const recovery = isRecoveryMode();
-  const signLabel = recovery ? t("xlm.localSigning") : t("xlm.mpcSigning");
+  const expert = useExpertMode();
+  const signLabel = recovery ? t("xlm.localSigning") : expert ? t("xlm.mpcSigning") : t("send.validatingAndSigning");
 
   const phaseIndex: Record<SigningPhase, number> = {
     "loading-keyshare": 0, "building-tx": 0,
@@ -537,7 +538,7 @@ export function XlmTrustlineDialog({
             ) : (
               <div className="py-6">
                 {/* Progress bar */}
-                <ProgressBar {...progress} />
+                <ProgressBar {...progress} minimal={!expert} />
 
                 {/* Phase label */}
                 <p className="text-sm font-medium text-text-primary text-center mb-2">
@@ -547,11 +548,13 @@ export function XlmTrustlineDialog({
                   {t("xlm.enableTrustline", { symbol: selectedAsset?.symbol })}
                 </p>
 
-                {/* Progress steps */}
-                <SigningStepper
-                  steps={[{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]}
-                  currentIndex={phaseIndex[signingPhase]}
-                />
+                {/* Progress steps — expert only */}
+                {expert && (
+                  <SigningStepper
+                    steps={[{ label: "Build transaction" }, { label: signLabelActive }, { label: "Broadcast" }, { label: "Confirming" }]}
+                    currentIndex={phaseIndex[signingPhase]}
+                  />
+                )}
 
                 {/* Tx hash card (visible during Confirming step) */}
                 {pendingTxHash && signingPhase === "polling" && (

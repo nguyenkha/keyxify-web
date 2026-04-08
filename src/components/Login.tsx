@@ -192,7 +192,7 @@ export function Login() {
         {!sent && (
           <div className="mt-6 pt-5 border-t border-border-primary flex items-center justify-center gap-3 text-[11px]">
             <Link to="/standalone" className="text-text-muted hover:text-text-secondary transition-colors">
-              {t("login.continueWithoutEmail")}
+              {t("login.useWithoutEmail")}
             </Link>
             <span className="text-border-primary">·</span>
             <Link to="/recovery" className="text-text-muted hover:text-orange-400 transition-colors">

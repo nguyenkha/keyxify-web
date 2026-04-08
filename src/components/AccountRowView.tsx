@@ -117,6 +117,7 @@ export function AccountRowView({
     <div>
       {/* Main row */}
       <div
+        data-tour="chain-row"
         className="flex items-center h-[68px] px-3 md:px-5 hover:bg-surface-tertiary/40 transition-colors group cursor-pointer"
         onClick={handleNativeClick}
       >
