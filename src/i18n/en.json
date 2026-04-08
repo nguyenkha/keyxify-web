@@ -849,7 +849,10 @@
   "backup": {
     "backUpYourWallet": "Back up your wallet",
     "backUpDesc": "Save your key share to recover your wallet if you lose access to this browser.",
-    "backUpNow": "Back Up Now"
+    "backUpNow": "Back Up Now",
+    "nudgeTitle": "Back up your key share",
+    "nudgeDesc": "Download a backup file to protect against device loss",
+    "nudgeAction": "Back up now"
   },
   "activity": {
     "title": "Activity Log",
@@ -1079,11 +1082,6 @@
     "tip3": "Your key share file is your identity — no email needed.",
     "tip4": "Save your backup file after setup — it's your only recovery option.",
     "tip5": "Even if our server is compromised, your funds stay safe."
-  },
-  "backup": {
-    "nudgeTitle": "Back up your key share",
-    "nudgeDesc": "Download a backup file to protect against device loss",
-    "nudgeAction": "Back up now"
   },
   "tutorial": {
     "findAddress": "Find your address",

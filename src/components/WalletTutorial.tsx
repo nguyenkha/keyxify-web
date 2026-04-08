@@ -90,7 +90,7 @@ export function WalletTutorial({ onComplete }: { onComplete: () => void }) {
     : { position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: 264 };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999]" aria-modal="true">
+    <div className="fixed inset-0 z-[9999] pointer-events-none" aria-modal="true">
       {/* Dark overlay with cutout */}
       {highlight ? (
         <>
@@ -106,7 +106,7 @@ export function WalletTutorial({ onComplete }: { onComplete: () => void }) {
       )}
 
       {/* Tooltip card */}
-      <div style={tooltipStyle} className="bg-surface-secondary border border-border-primary rounded-xl shadow-2xl p-4">
+      <div style={tooltipStyle} className="bg-surface-secondary border border-border-primary rounded-xl shadow-2xl p-4 pointer-events-auto">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[10px] text-text-muted">{t("tutorial.stepOf", { current: step + 1, total: STEPS.length })}</span>
           <button onClick={skip} className="text-[10px] text-text-muted hover:text-text-secondary transition-colors">

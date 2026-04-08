@@ -849,7 +849,10 @@
   "backup": {
     "backUpYourWallet": "Sao lưu ví của bạn",
     "backUpDesc": "Lưu key share để khôi phục ví nếu bạn mất quyền truy cập vào trình duyệt này.",
-    "backUpNow": "Sao lưu ngay"
+    "backUpNow": "Sao lưu ngay",
+    "nudgeTitle": "Sao lưu key share",
+    "nudgeDesc": "Tải file sao lưu để bảo vệ khi mất thiết bị",
+    "nudgeAction": "Sao lưu ngay"
   },
   "activity": {
     "title": "Nhật ký hoạt động",
@@ -1079,11 +1082,6 @@
     "tip3": "File key share là danh tính của bạn — không cần email.",
     "tip4": "Lưu file sao lưu sau khi thiết lập — đây là cách khôi phục duy nhất.",
     "tip5": "Ngay cả khi server bị xâm phạm, tiền của bạn vẫn an toàn."
-  },
-  "backup": {
-    "nudgeTitle": "Sao lưu key share",
-    "nudgeDesc": "Tải file sao lưu để bảo vệ khi mất thiết bị",
-    "nudgeAction": "Sao lưu ngay"
   },
   "tutorial": {
     "findAddress": "Tìm địa chỉ",
