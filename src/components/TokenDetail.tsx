@@ -188,7 +188,8 @@ export function TokenDetail({ keyId, address, chain, asset, onBack, pollInterval
             const prevHashes = new Set(prev.map((t) => t.hash));
             // Detect new incoming transactions
             for (const tx of txs) {
-              if (!prevHashes.has(tx.hash) && tx.direction === "in" && tx.confirmed) {
+              const oneHourAgo = Date.now() / 1000 - 3600;
+              if (!prevHashes.has(tx.hash) && tx.direction === "in" && tx.confirmed && tx.timestamp > oneHourAgo) {
                 addToast(`Received ${tx.formatted} ${tx.symbol}`, "success");
               }
             }
