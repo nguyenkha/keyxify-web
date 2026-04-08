@@ -259,7 +259,8 @@ export function Wallet() {
         existing.rows.push(row);
       } else {
         const key = keys.find((k) => k.id === row.keyId);
-        groups.push({ keyId: row.keyId, keyName: key?.name ?? null, selfCustody: !!key?.selfCustodyAt, backedUp: !!key?.hasClientBackup, rows: [row] });
+        const serverKeyExported = !!key?.selfCustodyAt || !!key?.hkdfDownloadedAt;
+        groups.push({ keyId: row.keyId, keyName: key?.name ?? null, selfCustody: serverKeyExported, backedUp: !!key?.hasClientBackup, rows: [row] });
       }
     }
     return groups;

@@ -115,6 +115,7 @@ export function getRecoveryKeys(): KeyShare[] {
       enableAt: null,
       createdAt: new Date().toISOString(),
       selfCustodyAt: null,
+      hkdfDownloadedAt: null,
       hasClientBackup: false,
     },
   ];

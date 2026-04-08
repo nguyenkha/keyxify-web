@@ -117,6 +117,7 @@ export interface KeyShare {
   enableAt: string | null;
   createdAt: string;
   selfCustodyAt: string | null;
+  hkdfDownloadedAt: string | null;
   hasClientBackup: boolean;
 }
 
