@@ -132,6 +132,8 @@ export function createHttpTransport(opts: {
   const transportFailed = new Promise<never>((_resolve, reject) => {
     rejectTransport = reject;
   });
+  // Prevent unhandled rejection when transportFailed rejects outside of Promise.race
+  transportFailed.catch(() => {});
 
   const transport: DataTransport = {
     send: async (_receiver, message) => {

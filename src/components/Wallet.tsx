@@ -169,6 +169,17 @@ export function Wallet() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+
+  // Allow restarting tutorial via console: window.dispatchEvent(new Event("start-tutorial"))
+  useEffect(() => {
+    function onStart() {
+      localStorage.removeItem("kxi:tutorial-done");
+      setShowTutorial(true);
+    }
+    window.addEventListener("start-tutorial", onStart);
+    return () => window.removeEventListener("start-tutorial", onStart);
+  }, []);
+
   // Auto-open create dialog for first-time users once loading completes
   useEffect(() => {
     if (!loading && keys.length === 0 && !isRecovery) {
