@@ -77,6 +77,7 @@ export function usePolledBalance(
                 title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
                 body: `${symbol}: ${result.formatted}`,
                 path: `/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${symbol}${suffix}`,
+                tag: `bal-${row.address}-${symbol}-${result.formatted}`,
               });
             }
             prevNativeRef.current = result.formatted;
@@ -136,6 +137,7 @@ export function usePolledBalance(
                   title: t(dir === "up" ? "notify.balanceUp" : "notify.balanceDown"),
                   body: `${b.asset.symbol}: ${b.formatted}`,
                   path: `/accounts/${row.keyId}/${row.chain.name.toLowerCase()}/${b.asset.symbol}${suffix}`,
+                  tag: `bal-${row.address}-${b.asset.symbol}-${b.formatted}`,
                 });
               }
             }

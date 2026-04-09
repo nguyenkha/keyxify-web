@@ -32,15 +32,19 @@ interface NotifyOptions {
   icon?: string;
   /** In-app path to navigate to when notification is clicked (e.g. "/accounts/key1/ethereum/ETH") */
   path?: string;
+  /** Dedupe tag — same tag replaces previous notification instead of creating a new one */
+  tag?: string;
 }
 
-/** Show a browser notification when enabled. Clicking navigates to `path` if provided. */
-export function notify({ title, body, icon, path }: NotifyOptions): void {
+/** Show a browser notification when enabled. Clicking navigates to `path` if provided.
+ *  Uses `tag` to deduplicate — same tag replaces previous notification instead of stacking. */
+export function notify({ title, body, icon, path, tag }: NotifyOptions): void {
   if (!isNotifyEnabled()) return;
 
   const n = new Notification(title, {
     body,
     icon: icon || "/icon-192.png",
+    tag,
   });
 
   n.onclick = () => {
